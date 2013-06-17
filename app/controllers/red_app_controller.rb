@@ -3,7 +3,29 @@ require 'red/stdlib/web/machine_model'
 class RedAppController < ActionController::Base
   protect_from_forgery
 
-  helper :all
+  module RedAppHelper
+    def autosave_fld(record, fld_name, hash={})
+      hash = hash.clone
+      tag = hash.delete(:tag) || "span"
+      escape_body = true
+      escape_body = !!hash[:escape_body] if hash.has_key?(:escape_body)
+      multiline = !!hash[:multiline]
+
+      blder = SDGUtils::HTML::TagBuilder.new(tag)
+      blder
+        .body(record.read_field(fld_name))
+        .attr("data-record-cls", record.class.name)
+        .attr("data-record-id", record.id)
+        .attr("data-field-name", fld_name)
+        .attr("contenteditable", true)
+        .attr("class", "red-autosave")
+        .when(!multiline, :attr, "class", "singlelineedit")
+        .attrs(hash)
+        .build(escape_body).html_safe()
+    end    
+  end
+
+  helper RedAppHelper
 
   before_filter :notify_red_boss
 
@@ -14,6 +36,10 @@ class RedAppController < ActionController::Base
   #   - figures out client and server machines
   #   - initializes server machine
   # ---------------------------------------------------------------------
+
+  def autosave_fld(*)
+    "hi"
+  end
 
   class << self
     def try_read_machine_from_conf(prop)

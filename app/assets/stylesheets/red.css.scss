@@ -1,0 +1,27 @@
+@import "bootstrap";
+
+reds, rede {
+  display: none;
+}
+
+.red-autosave {
+  cursor: pointer;  
+}
+
+.red-editing {
+  @include box-shadow(inset 0 0 10px);
+}
+
+.red-updating {
+  opacity: 0.5;
+}
+
+.red-update-ok {
+  background-color: $successBackground !important;
+  border: 1px solid $successBorder;
+}
+
+.red-update-fail {
+  background-color: $errorBackground !important;
+  border: 1px solid $errorBorder;
+}

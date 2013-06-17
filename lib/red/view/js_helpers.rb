@@ -1,4 +1,5 @@
 require 'red/red_conf'
+require 'sdg_utils/html/tag_builder'
 
 module Red
   module View

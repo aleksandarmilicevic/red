@@ -1,4 +1,20 @@
 $(function() {
+    jQuery.fn.selectText = function(){
+       var doc = document;
+       var element = this[0];
+       if (doc.body.createTextRange) {
+           var range = document.body.createTextRange();
+           range.moveToElementText(element);
+           range.select();
+       } else if (window.getSelection) {
+           var selection = window.getSelection();        
+           var range = document.createRange();
+           range.selectNodeContents(element);
+           selection.removeAllRanges();
+           selection.addRange(range);
+       }
+    };
+
     $(document).on("click", "[data-type='submit-event']", function(e) {
         var formId = $(this).attr("data-event-form");
         var eventName = $(this).attr("data-event-type");
@@ -19,6 +35,16 @@ $(function() {
         ev.fire();
     });
     
+    /* ===========================================================
+     * Handle the 'click' event for all elements that have
+     * the 'data-trigger-event' attribute set.
+     * 
+     *  - reads event params from 'data-param-*' attributes
+     *  - prompts for missing parameters
+     *  - fires the event asynchronously (via $.post)
+     *  - triggers either ${eventName}Done or ${eventName}Failed 
+     *    handler (if bound) after the event has been executed 
+     * =========================================================== */
     $(document).on("click", "[data-trigger-event]", function(e) {
         var $elem = $(this);
         var eventName = $elem.attr("data-trigger-event");
@@ -26,14 +52,21 @@ $(function() {
         for (var i = 0; i < ev.paramNames.length; i++) {
             var paramName = ev.paramNames[i];
             var paramValue = $elem.attr("data-param-" + paramName);
+            var len = paramValue.length;
             if (paramValue === undefined) {
                 paramValue = window.prompt(paramName, "")
+            } else if (paramValue.substring(0, 2) === "${" &&
+                       paramValue.substring(len-1, len) === "}") {
+                paramValue = eval(paramValue.substring(2, len-1));
+                if (paramValue instanceof jQuery) {
+                    paramValue = jQuery.makeArray(paramValue);                    
+                }
             }
             ev.params[paramName] = paramValue;
         }
         ev.fire()
-        .done(function(response){$elem.trigger("eventFinished", [response]);})
-        .fail(function(response){$elem.trigger("eventFailed", [response]);});
+        .done(function(response){$elem.trigger(eventName + "Done", [response]);})
+        .fail(function(response){$elem.trigger(eventName + "Failed", [response]);});
     });
     
     /* autosave elements */
@@ -51,6 +84,10 @@ $(function() {
        if (isInput(elem)) { return elem.val(val); } 
        else               { return elem.html(val); }  
    };
+   
+   $(document).on("focus", ".singlelineedit", function(e) {
+       $(this).keypress(function(e) { if(e.which == 13) { $(this).blur(); } });
+   });
    
    $(document).on("focus", ".red-autosave", function(e) {
        $(this).addClass("red-editing");

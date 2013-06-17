@@ -50,11 +50,25 @@ module Crud
         }}
 
       requires {
-        !target.is_nil?
+        !target.nil?
       }
 
       ensures {
         target.destroy
+      }
+    end
+
+    event DeleteRecords do
+      params {{
+          targets: (set Red::Model::Record)
+        }}
+
+      requires {
+        !targets.nil?        
+      }
+
+      ensures {
+        targets.each{|r| r.destroy}
       }
     end
   end

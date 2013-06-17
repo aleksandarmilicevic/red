@@ -32,7 +32,7 @@ class EventController < RedAppController
 
   def call(event, params) 
     record = params[:object]
-    Red.conf.logger.debug "Detected an update on record #{record} during the execution of event #{@curr_event}"
+    log_debug "Detected an update on record #{record} during execution of #{@curr_event}"
     @updated_records << record
   end
   
@@ -50,19 +50,20 @@ class EventController < RedAppController
     event_params = if params[:params].blank?
                      {}
                    else
-                     unmarshall(params[:params])
+                     params[:params]
                    end
 
+    fld = nil
+    val = nil
     event_params.each do |name, value| 
       begin 
         fld = event_cls.meta.field(name)
-        intVal = Integer(value) rescue nil
-        if intVal && fld.scalar? && !fld.primitive?
-          value = fld.type.range.klass.find(intVal)
-        end
-        event.set_param(name, value) 
-      rescue
-        nil
+        val = unmarshal(value, fld.type)
+        event.set_param(name, val) 
+      rescue Red::Model::Marshalling::MarshallingError => e
+        log_warn "Could not unmarshal `#{value.inspect}' for field #{fld}", e
+      rescue e
+        log_warn "Could not set field #{fld} to value #{val.inspect}", e
       end
     end
 
@@ -78,7 +79,7 @@ class EventController < RedAppController
       return error(e.message, 400)
     rescue Red::Model::EventPreconditionNotSatisfied => e
       msg = "Precondition for #{event_name} not satisfied"
-      return error(e.message, msg, 410)
+      return error(e.message, msg, 412)
     rescue => e
       trace = "#{e.message}\n#{e.backtrace.join("\n")}"
       msg = "Error during execution of #{event_name} event.\n#{trace}"
@@ -87,16 +88,27 @@ class EventController < RedAppController
       Red.boss.unregister_listener Red::E_FIELD_WRITTEN, self
       @updated_records.each do |r|
         if r.changed?
-          Red.conf.logger.debug "Auto-saving record #{r}"
+          log_debug "Auto-saving record #{r}"
           r.save!
         else
-          Red.conf.logger.debug "Updated record #{r} needs no saving"
+          log_debug "Updated record #{r} needs no saving"
         end
       end 
       Red.boss.push_changes
-    end    
-    
+    end   
   end
 
+  private 
+
+  def log_debug(str, e=nil) log :debug, str, e end
+  def log_warn(str, e=nil)  log :warn, str, e end
+
+  def log(level, str, e=nil)
+    Red.conf.logger.send level, "[EventController] #{str}"
+    if e 
+      Red.conf.logger.send level, e.message
+      Red.conf.logger.send level, e.backtrace.join("  \n") 
+    end
+  end
   
 end

@@ -1,16 +1,14 @@
 <% Red.meta.records.each do |r| %>
   var <%= r.relative_name %> = function(id) {
       var recordType = "<%= r.name %>";
-      var recordId = (id instanceof jQuery) ? id.attr("data-id") : id;
-      jQuery.extend(this, new Red.Record({type: recordType, id: recordId}));
+      var recordId = (id instanceof jQuery) ? id.attr("data-record-id") : id;
+      jQuery.extend(this, new Red.Record({__type__: recordType, id: recordId}));
   };
 <% end %>  
-
-
 
 <% Red.meta.events.each do |e| %>
   var <%= e.relative_name %> = function(props) {
     jQuery.extend(this, Red.event("<%= e.name %>", props));
     this.paramNames = [<%= e.meta.params.map{|f| "'#{f.name}'"}.join(", ") %>];
-  };
+  }; 
 <% end %>    

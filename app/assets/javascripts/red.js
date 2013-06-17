@@ -106,7 +106,7 @@ var Red = (function() {
         },
 
         createRecord : function(recordClass, recordId) {
-            return Red.record({"type": recordClass, "id": recordId});    
+            return Red.record({"__type__": recordClass, "id": recordId});    
         }, 
         
         fireEvent : function(eventName, params, cb) {
