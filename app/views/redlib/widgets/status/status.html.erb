@@ -1,0 +1,18 @@
+<%#=
+  It subscribes to status messages sent from the server. 
+%>  
+
+% script "redlib/widgets/status/status-script"
+% style "redlib/widgets/status/status-style"
+ 
+<script id="red_status_msg_tpl" type="text/x-handlebars-template">
+  <div class="red_status_msg_div" style="display:none">
+      <span class="red_status_msg_span {{kind}}">{{msg}}</span>
+  </div>
+</script>
+ 
+<div id="red_status_outer">
+  <div id="red_status_message" class="red_msg_container"></div>
+  <div id="red_error_message" class="red_msg_container"></div>
+  <div id="red_warning_message" class="red_msg_container"></div>
+</div>

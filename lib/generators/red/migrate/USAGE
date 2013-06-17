@@ -1,0 +1,8 @@
+Description:
+    Use after changing the model to create a DB migration
+
+Example:
+    rails generate red:migrate
+
+    This will create:
+        db/migration/..

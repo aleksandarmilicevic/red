@@ -1,0 +1,27 @@
+<% require 'red/view/js_helpers' %> 
+<% self.class.send :include, Red::View::JsHelpers %>
+   
+<!DOCTYPE html>
+<html>
+<head>
+  <title><%= Rails.root.to_s.split('/').last %></title>
+  <%= stylesheet_link_tag    "application", :media => "all" %>
+  <%= stylesheet_link_tag    "redapp", :media => "all" %>
+  <%= javascript_include_tag Red.conf.pusher.push_client_js %>
+  <%= javascript_include_tag "redapp" %>
+  <%= red_tags %>
+  
+  <%= javascript_include_tag "application" %>
+  
+  
+  <%= csrf_meta_tags %>
+    
+</head>
+<body>
+
+  <%= yield %>
+  
+  <%= red_assets %>
+  
+</body>
+</html>

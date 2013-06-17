@@ -1,0 +1,76 @@
+require 'alloy/alloy_conf'
+require 'sdg_utils/config'
+require 'sdg_utils/io'
+require 'socket'
+require 'nilio'
+require 'logger'
+
+module Red
+
+  def self.default_access_listener_conf
+    SDGUtils::Config.new do |c|
+      c.event_server   = lambda{Red.boss}
+      c.log            = Logger.new(NilIO.instance)
+    end
+  end
+      
+  def self.default_pusher_conf
+    SDGUtils::Config.new do |c|
+      c.event_server   = lambda{Red.boss}
+      c.views          = [] 
+      c.deps           = nil
+      c.manager        = nil #must be set by the caller
+      c.client         = nil
+      c.push_server    = "http://localhost:9292/faye"
+      c.push_client_js = "http://localhost:9292/faye.js"
+      c.listen         = true
+      c.check_views    = true
+      c.update_views   = true
+      c.push_changes   = true
+      c.auto_push      = false
+      c.events         = [Red::E_RECORD_SAVED, Red::E_RECORD_DESTROYED, 
+                          Red::E_RECORD_QUERIED]
+      c.log            = lambda{Red.conf.logger}
+    end
+  end
+  
+  def self.default_alloy_conf
+    SDGUtils::PushConfig.new(Alloy.conf) do |c|
+      c.inv_field_namer = lambda { |fld| "_" + fld.name }
+      #c.logger = SDGUtils::IO::LoggerIO.new(Rails.logger)
+      # :inv_field_namer => lambda { |fld| 
+      #     begin 
+      #       owner_fld = "owner_#{fld.parent.red_ref_name}"
+      #       default_name = "#{fld.name}_of_#{fld.parent.red_table_name}"
+      #       if fld.belongs_to_parent? && !fld.type.range.klass.meta.field(owner_fld)
+      #         owner_fld
+      #       else
+      #         default_name
+      #       end
+      #     rescue
+      #       default_name
+      #     end
+      #  },
+    end
+  end
+
+  def self.default_conf
+    SDGUtils::Config.new do |c|
+      c.impl_field_namer = lambda { |fld| "#{fld.name}_REL" }
+      c.impl_class_namer = lambda { |fld| "#{fld.parent.name}#{fld.name.classify}Tuple" }
+      c.omit_field_name_in_join_table_names = false
+      c.app_name = lambda {Rails.root.to_s.split('/').last.underscore}
+      c.js_record_ns = "jRed"
+      c.js_event_ns = "jRed"
+      c.root = '.'
+      c.view_paths = ["app/views"]
+      c.alloy = default_alloy_conf
+      c.pusher = default_pusher_conf
+      c.access_listener = default_access_listener_conf
+      c.logger = lambda{c.alloy.logger}
+      c.log = lambda{c.alloy.logger}
+      c.log_java_script = true
+      c.autoviews = true
+    end
+  end
+end

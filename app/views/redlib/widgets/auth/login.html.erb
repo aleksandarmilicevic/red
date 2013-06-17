@@ -1,0 +1,24 @@
+<%= style "redlib/widgets/auth/login-style" %>
+<%= script "redlib/widgets/auth/login-script" %>
+
+<div id="auth_login_div" class="login">    
+    <form id="login-form">
+        <div class="edit">
+            <div class="label">Name:</div>     <input class="value" type="text"   name="name" value=""/>
+        </div>
+        <div class="edit">
+            <div class="label">Email:</div>    <input class="value" type="text"   name="email" value=""/>
+        </div>
+        <div class="edit">
+            <div class="label">Password:</div> <input class="value" type="password" name="password" value=""/>
+        </div>
+    </form>
+    
+    <div id="auth_login_buttons_div">
+        <button class="fire" type="button" data-type="submit-event" data-event-type="SignIn" 
+            data-event-form="login-form">Sign In</buton>
+            
+        <button class="fire" type="button" data-type="submit-event" data-event-type="Register" 
+            data-event-form="login-form">Register</buton>
+    </div>
+</div>

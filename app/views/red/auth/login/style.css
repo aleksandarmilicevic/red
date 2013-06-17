@@ -1,0 +1,45 @@
+#title {
+  margin: 5px;
+  font-weight: bold;
+}
+
+#login_form #name_div {
+  display: none;
+}
+
+#register_grp, #reg {
+  display: none;
+}
+
+#signin_grp, #signin {
+  display: inline-block;
+}
+
+#auth_login_div {
+  border: 1px solid black;
+  border-radius: 10px;
+  background-color: #D7D7AF;
+  border-color: #7F7F39;
+  padding: 5px;
+  margin: 5px;
+  display: inline-block;
+}
+
+#auth_login_div .label {
+  display: inline-block;
+  text-align: right;
+  width: 70px;
+}
+
+#auth_login_div .value {
+  border: 1px solid gray;
+  padding: 2px;
+  display: inline-block;
+}
+
+#auth_login_buttons_div {
+  margin: auto;
+  text-align: right;
+  /*border-top: 1px solid black;*/
+  margin-top: 5px;
+}

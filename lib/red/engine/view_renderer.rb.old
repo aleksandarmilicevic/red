@@ -1,0 +1,830 @@
+require 'red/view/view_helpers'
+require 'sdg_utils/config'
+require 'sass'
+
+module Red
+  module Engine
+
+    class ViewError < StandardError
+    end
+
+    # ================================================================
+    #  Class +ViewBinding+
+    # ---------------------------------------------------------------
+    #
+    # Used for bindings when evaluating expressions inside templates
+    # (which is actually delegated to an off-the-shelf template
+    # engine).
+    # ================================================================
+    class ViewBinding
+      include Red::View::ViewHelpers
+
+      @@widget_id = 0
+
+      def initialize(renderer, parent=nil) 
+        @renderer = renderer
+        @parent = parent
+      end
+      def render(*args)        @renderer.render(*args) end
+
+      def mk_out()             
+        ''         
+      end
+
+      def widget(name, locals={})    
+        @@widget_id = @@widget_id + 1
+        render :partial => "widget", 
+               :locals => { :widget_name => name, 
+                            :widget_id => @@widget_id,
+                            :locals => locals }
+      end
+
+      def style(name)          @renderer.tree.styles << name; "" end
+      def script(name)         @renderer.tree.scripts << name; "" end
+      def styles()             @styles  ||= Set.new end
+      def scripts()            @scripts ||= Set.new end
+      def get_binding()        binding() end
+      def _add_getters(hash)
+        singl_cls = (class << self; self end)
+        cls = self.class
+        hash.each do |k, v| 
+          if k.to_s =~ /^[A-Z]/
+            # constant
+            cls.send :remove_const, k if cls.const_defined?(k, false)
+            cls.const_set(k, v)
+          else
+            # method or variable
+            body = (Proc === v) ? v : lambda{v}
+            name = (k[0] == '@') ? k[1..-1] : k
+            define_singleton_method(name.to_sym, body)
+            instance_variable_set(k, v) if k[0] == '@'
+          end
+        end
+      end
+      def method_missing(sym, *args)
+        case @parent
+        when NilClass
+          super
+        when Binding
+          @parent.eval "#{sym.to_s}(#{args.map{|a|a.to_s}.join(',')})"
+        else
+          @parent.send sym, *args
+        end
+      end
+    end
+
+    class ERBBuffer
+      def initialize(a_binding, var)
+        @a_binding = a_binding
+        @var = var
+      end
+      # strings are mutable in Ruby, so important to clone here
+      def to_s()      "" + @a_binding.eval(@var) end 
+      def concat(str) @a_binding.eval("#{@var} << '#{str}'") end
+      def clear()     @a_binding.eval("#{@var}.clear") end
+    end
+
+    # ================================================================
+    #  Class +Query+
+    # ================================================================
+    class Query
+      attr_accessor :target, :method, :args, :result
+      def initialize(target, method, args, result)
+        @target = target
+        @method = method
+        @args = args
+        @result = result
+      end
+      def to_s
+        "#{target}.#{method}(#{args.reduce(""){|acc, e| acc + e.to_s}})"
+      end
+    end
+    
+    # ================================================================
+    #  Class +ViewDependencies+
+    # ================================================================
+    class ViewDependencies      
+      # Maps record objects to field accesses (represented by an array
+      # of (field, value) pairs.
+      #
+      # @return {RedRecord => Array(FieldMeta, Object)}
+      def objs()    @objs ||= {} end
+
+      # Returns the field-access list for a given object
+      #
+      # @param obj [RedRecord]
+      # @return Array(FieldMeta, Object)
+      def obj(obj)  objs[obj] ||= [] end
+
+      # Returns a list of queried +RedRecord+ classes.
+      #
+      # @return Array(RedRecord.class)
+      def classes() 
+        result = Set.new
+        queries.each {|q| result.add(q.target)}
+        result.to_a
+      end
+
+      # Returns a list of find queries
+      #
+      # @return Array(RedRecord.class, Array(Object), ActiveRecord::Relation)
+      def queries() @queries ||= [] end
+
+      def empty?
+        objs.empty? && queries.empty?
+      end
+
+      def merge!(that)
+        that.objs.each do |record, fv|
+          fv.each do |field, value|
+            field_accessed(record, field, value)
+          end
+        end
+        queries.concat(that.queries)
+      end
+      
+      def field_accessed(object, field, value)
+        value = value.clone rescue value
+        flds = obj(object)
+        flds << [field, value] unless flds.find {|f, v| f == field && v == value}
+      end
+
+      def handle_query_executed(target, method, args, result)
+        q = Query.new(target, method, args, result)
+        queries << q
+        q
+      end
+      
+      # def record_queried(record) 
+      #   classes << record.class unless classes.member?(record.class)
+      # end
+
+      def to_s
+        fa = objs.map{ |k, v| 
+          "  #{k.class.name}(#{k.id})::(#{v.map{|f,fv| f.name}.join(', ')})" 
+        }.join("\n")
+        cq = queries.map{|q| "  " + q.to_s}.join("\n")
+        "Field accesses:\n#{fa}\nClasses queried:\n  #{cq}"
+      end      
+    end
+
+    # ================================================================
+    #  Class +ViewInfoTree+
+    # ================================================================
+    class ViewInfoTree
+      attr_reader :root
+      attr_accessor :client
+      
+      def styles()  @styles  ||= Set.new end
+      def scripts() @scripts ||= Set.new end
+
+      def set_root(node)
+        @root = node
+        node.parent_tree = self
+      end
+
+      def print_full_info(depth=1)  @root ? @root.print_full_info(depth) : "" end
+      def print_short_info(depth=1) @root ? @root.print_short_info(depth) : "" end
+
+      def to_s
+        "#{self.class.name}(@root = #{@root})"
+      end
+    end
+
+    # ================================================================
+    #  Class +ViewInfoNode+
+    # ================================================================
+    class ViewInfoNode
+      attr_reader :children, :extras, :deps
+      attr_accessor :id, :src, :render_options, :binding
+      attr_accessor :parent_tree, :parent, :index_in_parent
+
+      @@id = 0
+
+      def initialize()
+        @children = []
+        @extras = {}
+        @src = ""
+        @deps = ViewDependencies.new
+        @render_options = {}
+        @parent = nil
+        @index_in_parent = -1
+        @id = (@@id += 1)
+      end
+
+      # Recursively finds all children
+      def all_children()
+        ans = []
+        children.each do |ch|
+          ans << ch
+          ans << ch.all_children
+        end
+        ans
+      end
+      
+      def reset_children
+        @children = []
+      end
+
+      def add_child(node)
+        node.parent = self
+        node.index_in_parent = @children.size
+        @children << node
+      end
+
+      def set_child(at, node)
+        if Array === node
+          set_children(at, node)
+        else
+          set_children(at, [node])
+        end
+      end
+
+      def set_children(at, nodes)
+        return if nodes.nil? || nodes.empty?
+        if at == 0
+          @children = nodes + @children[1..-1]
+        else
+          @children = @children[0..(at-1)] + nodes + @children[at+1..-1]
+        end
+        for i in at..(@children.size - 1) do
+          node = @children[i]
+          node.parent = self
+          node.index_in_parent = i
+        end
+      end
+
+      def result=(str) 
+        fail "tried to set result to non-leaf node" unless children.empty?
+        @result = str
+      end
+
+      def result
+        if children.empty?
+          @result || ""
+        else
+          @children.reduce(""){|acc, c| acc + c.result}
+        end
+      end
+
+      def replace_with(node)
+        if parent
+          parent.set_child(index_in_parent, node)
+        else
+          parent_tree.set_root(node)
+        end
+      end
+
+      def synth?
+        !!extras[:synth]    
+      end
+      
+      def no_deps?
+        deps.empty?
+      end
+
+      def clear_deps
+        deps = ViewDependencies.new
+      end
+      
+      def reload_all
+        deps.objs.each do |obj, fld|
+          obj.reload
+        end        
+      end
+
+      def get_buffer()       @buff ||= "" end
+      def set_buffer(buff)   @buff = buff end
+      def out_so_far()       get_buffer().to_s() end
+      def add_to_buffer(str) get_buffer().concat(str) end
+      def clear_buffer()     get_buffer().clear() end
+      def force_encoding(e)  get_buffer().force_encoding(e) end
+
+      TAB1 = "|  "
+      TAB2 = "`--"
+      def _indent(depth, t1, t2)
+        (0..depth-1).reduce("") {|acc,i| acc + (i == depth-1 ? t2 : t1)}
+      end
+
+      def print_short_info(depth=1)
+        ind_str = _indent(depth, TAB1, TAB2)
+        ind_str2 = _indent(depth, TAB1, TAB1)
+        deps_str = @deps.to_s.split("\n").map{|e| ind_str2 + "  " + e}.join("\n")
+        "#{ind_str}Id: #{id}\n" +            
+        "#{ind_str}File: #{extras[:pathname]}\n" +            
+        "#{ind_str}Object: #{render_options[:object]}\n" +    
+        "#{ind_str}Src: #{src[0..60].inspect}\n" +                    
+        "#{ind_str}Deps:\n#{deps_str}\n"
+      end
+
+      def print_full_info(depth=1)
+        children_str = @children.select{|c|
+                         !c.synth?
+                       }.map{|c| 
+                         c.print_full_info(depth+1)
+                       }.join("\n")
+        print_short_info(depth) + "\n" + "#{children_str}"           
+      end
+
+      def to_s
+        "#{self.class.name}(#{id})"
+      end
+
+    end
+
+    # ================================================================
+    #  Class +ViewRenderer+
+    # ================================================================
+    class ViewRenderer
+      
+      def default_opts
+        @@default_opts ||= SDGUtils::Config.new(nil, {
+          :event_server => Red.boss,
+          :view_finder => ViewFinder.new,
+          :current_view => nil,
+        })
+      end
+
+      def initialize(hash={})
+        @stack = []
+        @conf = default_opts.extend(hash)
+      end
+
+      def curr_node
+        (@stack.empty?) ? nil : @stack.last
+      end
+
+      def tree
+        @tree  # _render_view sets this attribute
+      end
+
+      # ------------------------------------------------------------
+      #  Event handling methods
+      # ------------------------------------------------------------
+
+      def call(event, par)
+        case event
+        when Red::E_FIELD_READ
+          curr_node.deps.field_accessed(par[:object], par[:field], par[:return])
+        when Red::E_FIELD_WRITTEN
+          curr_node.deps.field_accessed(par[:object], par[:field], par[:value])
+        when Red::E_QUERY_EXECUTED
+          curr_node.deps.handle_query_executed(par[:target], par[:method],
+                                               par[:args], par[:result])
+        else
+          fail "unexpected event type: #{event}"
+        end        
+      end
+      
+      # ------------------------------------------------------------
+
+      def render_to_node(*args)
+        my_render(*args)
+        return @tree.root
+      end
+      
+      def render(*args)
+        my_render(*args)
+        ""
+      end
+      
+      def my_render(hash)
+        case
+        when false
+        when hash.kind_of?(Array) || hash.kind_of?(ActiveRecord::Relation)
+          #TODO
+          hash.each{|e| my_render(e)}
+          ""
+        else
+          parent_node = curr_node
+          copy_from_buff_to_const(parent_node)
+          node = mk_new_subnode()
+          @stack.push(node)
+          hash = _normalize(hash)
+          node.render_options = {}.merge(hash)
+          begin
+            case
+            when !@rendering
+              _around_root(hash) { _render(hash) }
+            else
+              _render(hash)
+            end
+            if node.children.empty?
+              node.result = node.out_so_far
+            else 
+              copy_from_buff_to_const(node)
+            end
+            parent_node.clear_buffer if parent_node
+            ""
+          ensure
+            pnode = @stack.pop
+            fail "view-node stack become corrupted" unless node === pnode         
+          end
+        end
+      end
+
+      # def my_render(hash)
+      #   case
+      #   when false
+      #   # when hash.kind_of?(Array) || hash.kind_of?(ActiveRecord::Relation)
+      #   #   #TODO
+      #   #   hash.each{|e| my_render(e)}
+      #   #   ""
+      #   else
+      #     # parent_node = curr_node
+      #     # copy_from_buff_to_const(parent_node)
+      #     # node = mk_new_subnode()
+      #     # @stack.push(node)
+      #     # hash = _normalize(hash)
+      #     # node.render_options = {}.merge(hash)
+      #     begin
+      #       case
+      #       when !@rendering
+      #         _around_root(hash) { _render(hash) }
+      #       else
+      #         _render(hash)
+      #       end
+      #       # if node.children.empty?
+      #       #   node.result = node.out_so_far
+      #       # else 
+      #       #   copy_from_buff_to_const(node)
+      #       # end
+      #       # parent_node.clear_buffer if parent_node
+      #       ""
+      #     ensure
+      #       # pnode = @stack.pop
+      #       # fail "view-node stack become corrupted" unless node === pnode         
+      #     end
+      #   end
+      # end
+
+      protected
+
+      def copy_from_buff_to_const(node)
+        if node
+          str = node.out_so_far() || ""
+          unless str.empty? # && node.no_deps?
+            child = mk_const_node(str)
+            node.add_child(child)
+            node.clear_buffer
+            # child.deps.merge!(node.deps)
+            # node.clear_deps
+          end
+        end
+      end
+
+      def depth
+        @stack.size
+      end
+
+      def mk_const_node(str)
+        n = ViewInfoNode.new 
+        n.src = n.result = str
+        n.render_options = {:text => str}
+        n.extras[:synth] = true
+        n
+      end
+
+      def mk_new_subnode
+        new_node = ViewInfoNode.new
+        unless @stack.empty?
+          curr_node().add_child(new_node)
+        end
+        new_node
+      end
+
+      def _around_root(hash)
+        events = [Red::E_FIELD_READ, Red::E_FIELD_WRITTEN, Red::E_QUERY_EXECUTED]
+        @conf.event_server.register_listener events, self
+        @rendering = true
+        @tree = ViewInfoTree.new
+        @tree.set_root(curr_node)
+        begin
+          yield
+        ensure
+          @conf.event_server.unregister_listener events, self
+          @rendering = false
+        end
+      end
+
+      def _render(hash)
+        if hash[:nothing]
+        elsif proc = hash[:recurse]
+          my_render(proc.call())
+        elsif hash[:partial]
+          _process_partial(hash)
+        else
+          _process(hash)
+        end          
+      end
+      
+      def _process_partial(hash)
+        if col=hash.delete(:collection)
+          col.each do |obj|
+            my_render(hash.merge :object => obj) 
+          end
+          ""
+        else
+          to_var = lambda{|str| 
+            return nil unless str
+            str = str.to_sym
+            ok = Object.new.send(:define_singleton_method, str, lambda{}) rescue false
+            ok ? str : nil
+          }
+          var_name = hash[:as] || to_var.call(hash[:template]) || "it"
+          var_val = hash[:object]
+          locals = {var_name => var_val}
+          (hash[:hierarchy] || []).each do |hname|
+            locals.merge! hname => var_val
+          end
+          locals.merge!(hash[:locals])
+          _process(hash.merge :locals => locals)
+        end
+      end
+
+      def _process(hash)
+        case 
+        # === nothing
+        when hash.key?(:nothing)
+          _render_content("", {:formats => [".txt"]}.merge(hash))
+        # === plain text
+        when text = hash.delete(:text) 
+          _render_content(text, {:formats => [".txt"]}.merge(hash))
+        # === inline template (default format .erb)
+        when content = hash.delete(:inline)
+          _render_content(content, {:formats => ['.erb']}.merge(hash))
+        # === Pathname pointing to file template
+        when path = hash.delete(:pathname) 
+          raise ViewError, "Not a file: #{file}" unless path.file?
+          curr_node.extras[:pathname] = path
+          ext = hash[:object] ? " for object = #{hash[:object]}:#{hash[:object].class}" : ""
+          Red.conf.logger.debug "### #{_indent}Rendering file #{path}#{ext}"
+          opts = {:inline => path.read, :formats => path_formats(path)}.merge(hash)
+          _process(opts)
+        # === String pointing to file template 
+        when file = hash.delete(:file)
+          opts = {:pathname => Pathname.new(file)}.merge(hash)
+          _process opts
+        # === template name, uses a convention to look up the actual file
+        when hash.key?(:template)
+          view = hash[:view]
+          template = hash[:template]
+          view_finder = @conf.view_finder
+          parent_dir = curr_node.parent.render_options[:pathname].dirname rescue nil
+          path = nil
+          ([template] + hash[:hierarchy]).each do |tmpl|
+            path = view_finder.find_in_folder(dir, tmpl) rescue nil
+            break if path
+            path = view_finder.find_view(view, tmpl, hash[:partial])
+            break if path
+          end
+          if path.nil?
+            raise_not_found_error(view, template, @conf.view_finder)
+          else
+            _process hash.merge(path)
+          end
+        # === Unknown
+        else 
+          raise ViewError "Nothing specified" # OR render :nothing ?
+        end
+      end
+
+      # Returns the list of file formats of this file in reverse order. 
+      #
+      # Example: 
+      #   path = "dir/file.txt.erb"
+      #   result = [".erb", ".txt"]
+      #
+      # @result [Array(String)]
+      # @param path [Pathname]
+      def path_formats(path)
+        path.basename.to_s.split(".")[1..-1].map{|e| ".#{e}"}.reverse
+      end
+
+      def _render_content(content, hash)
+        top_node = curr_node
+        b = get_binding(hash)
+        curr_content = content
+        ans = nil
+        for idx in 0..(hash[:formats].size-1) 
+          fmt = hash[:formats][idx]
+          begin 
+            top = @stack.pop
+            cn = idx == 0 ? top : mk_new_subnode
+            @stack.push(cn)
+            cn.src = curr_content
+            cn.binding = b
+            formatted = _render_format(curr_content, fmt)
+            curr_content = formatted if formatted
+            if ans.nil? 
+              ans = cn
+            elsif formatted
+              # merge
+              cn.all_children.map{|e| e.deps}.each{|d| ans.deps.merge!(d)}
+              ans.reset_children
+              ans.clear_buffer
+              ans.set_children(0, cn.children)
+              ans.add_to_buffer(cn.out_so_far)
+            end
+          ensure 
+            @stack.pop
+            @stack.push(top_node)
+          end          
+        end
+      end
+
+      # Returns false if no formatting was applied, and final
+      # string output otherwise.
+      #
+      # @param content [String]
+      # @param format [String]
+      def _render_format(content, format)
+        cn = curr_node
+        case format
+        when ".erb"
+          cn.set_buffer(ERBBuffer.new(cn.binding, "out"))
+          erb = ERB.new(content, nil, "%<>", "out")          
+          trailing = erb.result(cn.binding)
+          return (cn.result || "") + trailing
+        when ".scss"
+          engine = Sass::Engine.new(content, :syntax => :scss)
+          css = engine.render
+          cn.add_to_buffer(css)
+          return css
+        when ".sass"
+          engine = Sass::Engine.new(content, :syntax => :sass)
+          css = engine.render
+          cn.add_to_buffer(css)
+          return css
+        else
+          cn.add_to_buffer(content)
+          return false
+        end
+      end
+
+      def get_binding(hash)
+        parent = curr_node.parent.binding rescue nil
+        obj = ViewBinding.new(self, parent)
+        locals = hash[:locals] || {}
+        obj._add_getters(locals)
+        obj.get_binding
+      end
+
+      def combine_bindings(main, fallover)
+        if main.nil?
+          return fallover
+        elsif fallover.nil?
+          return main
+        else
+          return CombinedBindings.new(main, fallover).get_binding()
+        end
+      end
+
+      def current_view()
+        @conf.current_view || (@tree.root.render_options[:view] rescue nil)
+      end
+
+      def current_locals()
+        curr_node.parent.render_options[:locals] || {} rescue {}
+      end
+
+      def raise_not_found_error(view, template, view_finder)
+        err_msg = "Template `#{template}' for view `#{view}' not found.\n"
+        if view_finder.respond_to? :candidates
+          cand = view_finder.candidates.join("\n  ")
+          err_msg += "Candidates checked:\n  #{cand}"
+        end
+        raise ViewError, err_msg
+      end
+      
+      TAB1 = "|  "
+      TAB2 = "`--"
+      def _indent()
+        (0..depth-2).reduce("") {|acc,i| acc + (i == depth-2 ? TAB2 : TAB1)}
+      end
+
+      def _normalize(hash)
+        case hash
+        when :nothing, NilClass
+          _normalize :nothing => true
+        when Symbol, String
+          if @rendering 
+            _normalize :partial => true, :template => "primitive", :object => hash
+          else
+            _normalize :template => hash.to_s
+          end
+        when Proc
+          _normalize :recurse => hash
+        when Hash
+          view = hash[:view] || current_view() || "application"
+          tmpl = hash[:template] || "main"
+          partial = hash[:partial]
+          is_partial = !!partial
+          propagate = hash.key?(:propagate_locals) ? hash[:propagate_locals] : true
+          if is_partial && (partial != is_partial)
+            # meaning that hash[:partial] is not a bool, but presumably string
+            tmpl = partial
+          end
+          locals = propagate ? current_locals().clone() : {}
+          locals.merge!(hash[:locals] || {})
+          hier = if Red::Model::Record === hash[:object]
+                   record_cls = hash[:object].class
+                   types = [record_cls] + record_cls.all_supersigs
+                   types.map{|r| r.relative_name.underscore}
+                 else
+                   []
+                 end
+          hash.merge :view => view, 
+                     :template => tmpl, 
+                     :partial => is_partial,
+                     :locals => locals,
+                     :propagate_locals => propagate,
+                     :layout => false,
+                     :hierarchy => hier
+        when Red::Model::Record
+          _normalize :partial => true, :object => hash
+        else
+          if hash.kind_of?(Array) || hash.kind_of?(ActiveRecord::Relation)
+            _normalize :partial => true, :collection => hash
+          else
+            _normalize :partial => true, :template => "primitive", :object => hash
+          end
+        end
+      end
+    end
+
+    # ----------------------------------------------------------
+    #  Class +ViewFinder+
+    # ----------------------------------------------------------
+    class ViewFinder
+      def candidates() @candidates ||= [] end
+
+      def find_view(view, template, is_partial)
+        @candidates = []
+        views = [view, ""]
+        templates = is_partial ? ["_#{template}", template]
+                               : [template, view]
+        file = find_view_file views, templates
+        if !file.nil?
+          {:pathname => file}
+        else
+          nil
+        end
+      end
+
+      def find_in_folder(dir, template, is_partial)
+        templates = is_partial ? ["_#{template}", template]
+                               : [template]
+        templates.each do |t|
+          file = check_file(dir, t)
+          return file unless file.nil?
+        end
+        nil
+      end
+
+      private
+
+      # @param prefixes [Array(String)]
+      # @param template_names [Array(String)]
+      # @return [Pathname]
+      def find_view_file(prefixes, template_names)
+        root = Red.conf.root
+        root = Pathname.new(root) if String === root
+        @candidates = []
+        view_paths = Red.conf.view_paths
+        view_paths.each do |view|
+          prefixes.each do |prefix|
+            dir = root.join(view, prefix)
+            template_names.each do |template_name|
+              file = check_file(dir, template_name)
+              return file unless file.nil?
+            end
+          end
+        end
+        nil  
+      end
+
+      # @param dir [Pathname]
+      # @param template_name [String]
+      # @return [Pathname, nil]
+      def check_file(dir, template_name)
+        return nil unless dir.directory?
+        
+        no_ext = dir.join(template_name)
+        @candidates << no_ext.to_s
+        no_ext.file? and return no_ext
+        
+        any_ext = dir.join(template_name + ".*")
+        @candidates << any_ext.to_s
+        candidates = Dir[any_ext]    
+        
+        if candidates.empty?
+          return nil
+        else
+          return Pathname.new(candidates.first)
+        end    
+      end
+    end
+
+  end
+end

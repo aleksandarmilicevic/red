@@ -1,0 +1,20 @@
+#red_status_outer {
+    font-size: 14px;
+} 
+
+#red_status_outer .red_status_msg_div {
+    display: inline;    
+}
+
+#red_status_outer .red_msg_container span {    
+    display: inline-block;
+    border-radius: 5px;
+    display: inline-block;
+    margin: 3px;
+    padding: 3px;
+}
+
+#red_status_outer span.error {
+    border: 1px solid red;
+    background-color: #FFADAD;
+}

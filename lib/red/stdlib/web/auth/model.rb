@@ -1,0 +1,139 @@
+require 'red/stdlib/web/machine_model'
+
+module RedLib::Web
+module Auth
+
+  def pswd_hash(str)
+    Digest::SHA256.hexdigest(str)
+  end
+
+  #===========================================================
+  # Data model
+  #===========================================================
+
+  Red::Dsl.data_model do
+    abstract_record AuthUser, {
+      name: String,
+      email: String,
+      password_hash: String,
+      remember_token: String
+    } do
+
+      attr_accessor :password
+
+      before_validation { |user| 
+        user.email = email.downcase 
+        user.password_hash = pswd_hash(user.password) rescue nil
+      }
+
+      before_save :update_remember_token
+
+      validates :name,  presence: true, length: { maximum: 50 }
+      
+      VALID_EMAIL_REGEX = /\A[\w+\-.]+@[a-z\d\-.]+\.[a-z]+\z/i
+      validates :email, presence: true, 
+                        format: { with: VALID_EMAIL_REGEX },
+                        uniqueness: { case_sensitive: false }
+
+      validates :password, presence: true, length: { minimum: 6 }
+
+      validates :password_hash, presence: true
+
+      def authenticate(pswd)
+        password_hash == pswd_hash(pswd)
+      end
+
+      private 
+
+      def update_remember_token
+        self.remember_token = SecureRandom.urlsafe_base64
+      end
+    end
+  end
+  
+  #===========================================================
+  # Machine model
+  #===========================================================
+  
+  Red::Dsl.machine_model do
+    abstract_machine AuthClient < WebClient, {
+      user: AuthUser
+    }
+
+    abstract_machine AuthServer < WebServer
+  end
+
+  #===========================================================
+  # Event model
+  #===========================================================
+
+  Red::Dsl.event_model do
+    event Register do
+      from client: AuthClient
+      
+      params {{
+          name: String,
+          email: String,
+          password: String,
+        }}
+      
+      requires {
+        email = email.downcase
+        AuthUser.where(:email => email).empty?
+      }
+    
+      ensures {
+        client.create_user! :name => name, 
+                            :email => email, 
+                            :password_hash => pswd_hash(password)
+      }
+    end
+    
+    event SignIn do
+      from client: AuthClient
+      
+      params {{
+          email: String,
+          password: String
+        }}
+
+      requires {
+        email = email.downcase
+      }
+    
+      ensures {
+        u = AuthUser.where(:email => email).first
+        incomplete "User #{email} not found" unless u
+        pswd_ok = u.authenticate(password)
+        incomplete "Wrong password for user #{u.name} (#{email})" unless pswd_ok
+        client.user = u
+      }
+    end
+
+    event SignOut do
+      from client: AuthClient
+
+      requires {
+        some client.user
+      }
+
+      ensures {
+        client.user = nil
+      }
+    end
+
+    event Unregister do
+      from client: AuthClient
+
+      requires {
+        some client.user
+      }
+
+      ensures {
+        client.user.destroy
+      }
+    end
+  end
+  
+end
+end
