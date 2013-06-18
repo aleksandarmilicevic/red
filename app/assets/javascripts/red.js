@@ -121,6 +121,8 @@ var Red = (function() {
             console.debug("[RED] update received; type: " + data.type + ", payload: " + JSON.stringify(data.payload));
         }, 
         
+        /**
+         */
         updateReceived : function(data) {
             me.check_defined(data.type, "malformed JSON update: field 'type' not found");
             if (data.type === "record_update") {

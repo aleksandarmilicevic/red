@@ -47,6 +47,8 @@ $(function() {
      * =========================================================== */
     $(document).on("click", "[data-trigger-event]", function(e) {
         var $elem = $(this);
+        if ($elem.attr("disabled") === "disabled") 
+            return;
         var eventName = $elem.attr("data-trigger-event");
         var ev = eval('new ' + eventName + '({})');
         for (var i = 0; i < ev.paramNames.length; i++) {
@@ -69,69 +71,70 @@ $(function() {
         .fail(function(response){$elem.trigger(eventName + "Failed", [response]);});
     });
     
-    /* autosave elements */
+    // ---------------------------------------------------------------- 
+    //   autosave stuff 
+    // ---------------------------------------------------------------- 
+  
+    var isInput = function(elem) {
+        return !(elem.is("pre") || elem.is("div") || elem.is("span") || elem.is("a"))
+    };
    
-   var isInput = function(elem) {
-       return !(elem.is("pre") || elem.is("div") || elem.is("span") || elem.is("a"))
-   };
+    var extractValue = function(elem) {
+        if (isInput(elem)) { return elem.val(); }
+        else               { return elem.html(); }  
+    };
    
-   var extractValue = function(elem) {
-       if (isInput(elem)) { return elem.val(); }
-       else               { return elem.html(); }  
-   };
+    var setValue = function(elem, val) {
+        if (isInput(elem)) { return elem.val(val); } 
+        else               { return elem.html(val); }  
+    };
    
-   var setValue = function(elem, val) {
-       if (isInput(elem)) { return elem.val(val); } 
-       else               { return elem.html(val); }  
-   };
-   
-   $(document).on("focus", ".singlelineedit", function(e) {
-       $(this).keypress(function(e) { if(e.which == 13) { $(this).blur(); } });
-   });
-   
-   $(document).on("focus", ".red-autosave", function(e) {
-       $(this).addClass("red-editing");
-       var currentValue = extractValue($(this));
-       $(this).data("old-value", currentValue);
-   });
-   
-   $(document).on("blur", ".red-autosave", function(e) {
-       var $elem = $(this);
-       $elem.removeClass("red-editing");
-       var currentValue = extractValue($elem);
-       var oldValue = $elem.data("old-value");
-       if (oldValue == currentValue) return;
-       var duration = 200;
-       var timeout = 800;
-       var recordCls = $elem.attr("data-record-cls");
-       var recordId = $elem.attr("data-record-id");
-       var fieldName = $elem.attr("data-field-name");
-       var params = {}
-       params[fieldName] = currentValue;
-       $elem.addClass("red-updating", "fast", function(){
-           new UpdateRecord({
-               "target": Red.createRecord(recordCls, recordId),
-               "params": params
-           }).fire(
-           ).done(function(r) {
-               console.debug("autosaved " + recordCls + "(" + recordId + ")." + fieldName);
-               console.debug(r);
-               $elem.removeClass("red-updating");
-               $elem.addClass("red-update-ok", duration, function() {
-                 setTimeout(function() {$elem.removeClass("red-update-ok")}, timeout); 
-             });
-           }).fail(function() { 
-               console.debug("autosave failed");
-               setValue($elem, oldValue);
-               $elem.removeClass("red-updating");
-               $elem.addClass("red-update-fail", duration, function() {
-                 setTimeout(function() {$elem.removeClass("red-update-fail")}, timeout); 
-             });
-           }).always(function() {
-               $elem.removeClass("red-updating");
-           });
-       });
+    $(document).on("focus", ".singlelineedit", function(e) {
+        $(this).keypress(function(e) { if(e.which == 13) { $(this).blur(); } });
     });
+   
+    $(document).on("focus", ".red-autosave", function(e) {
+        $(this).addClass("red-editing");
+        var currentValue = extractValue($(this));
+        $(this).data("old-value", currentValue);
+    });
+   
+    $(document).on("blur", ".red-autosave", function(e) {
+        var $elem = $(this);
+        $elem.removeClass("red-editing");
+        var currentValue = extractValue($elem);
+        var oldValue = $elem.data("old-value");
+        if (oldValue == currentValue) return;
+        var duration = 200;
+        var timeout = 800;
+        var recordCls = $elem.attr("data-record-cls");
+        var recordId = $elem.attr("data-record-id");
+        var fieldName = $elem.attr("data-field-name");
+        var params = {}
+        params[fieldName] = currentValue;
+        $elem.addClass("red-updating", "fast", function(){
+            new UpdateRecord({
+                "target": Red.createRecord(recordCls, recordId),
+                "params": params
+            }).fire(
+            ).done(function(r) {
+                console.debug("autosaved " + recordCls + "(" + recordId + ")." + fieldName);
+                console.debug(r);
+                $elem.removeClass("red-updating");
+                $elem.addClass("red-update-ok", duration, function() {
+                  setTimeout(function() {$elem.removeClass("red-update-ok")}, timeout); 
+              });
+            }).fail(function() { 
+                console.debug("autosave failed");
+                setValue($elem, oldValue);
+                $elem.removeClass("red-updating");
+                $elem.addClass("red-update-fail", duration, function() {
+                  setTimeout(function() {$elem.removeClass("red-update-fail")}, timeout); 
+              });
+            }).always(function() {
+                $elem.removeClass("red-updating");
+            });
+        });
+     });
      
-    
-});
+});  
