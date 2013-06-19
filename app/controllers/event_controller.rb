@@ -14,9 +14,9 @@ class EventController < RedAppController
     render :json => json, :status => status_code
   end
 
-  def success(event_name, event_params, ans=nil)
+  def success(event_name, ans=nil)
     json = {:kind => "event_completed", 
-            :event => {:name => event_name, :params => event_params}, 
+            :event => {:name => event_name, :params => params[:params]}, 
             :msg => "Event #{event_name} successfully completed", 
             :ans => ans}
     push_status(json)
@@ -32,6 +32,7 @@ class EventController < RedAppController
 
   def call(event, params) 
     record = params[:object]
+    return unless Red::Model::Record === record
     log_debug "Detected an update on record #{record} during execution of #{@curr_event}"
     @updated_records << record
   end
@@ -47,34 +48,19 @@ class EventController < RedAppController
     event.from = client()
     event.to = server()
 
-    event_params = if params[:params].blank?
-                     {}
-                   else
-                     params[:params]
-                   end
-
-    fld = nil
-    val = nil
-    event_params.each do |name, value| 
-      begin 
-        fld = event_cls.meta.field(name)
-        val = unmarshal(value, fld.type)
-        event.set_param(name, val) 
-      rescue Red::Model::Marshalling::MarshallingError => e
-        log_warn "Could not unmarshal `#{value.inspect}' for field #{fld}", e
-      rescue e
-        log_warn "Could not set field #{fld} to value #{val.inspect}", e
-      end
-    end
+    timeIt("Unmarhsalling") {
+      unmarshal_and_set_event_params(event)
+    }
 
     #TODO: enclose in transaction    
     begin
-      @updated_records = []
+      @updated_records = Set.new
       Red.boss.register_listener Red::E_FIELD_WRITTEN, self
-      ok = event.requires
-      raise Red::Model::EventPreconditionNotSatisfied unless ok
-      ans = event.ensures
-      return success(event_name, event_params, ans)
+      timeIt("Event execution") {
+        execute_event(event, lambda { |ans|
+                       success(event_name, ans)
+                     })
+      }
     rescue Red::Model::EventNotCompletedError => e
       return error(e.message, 400)
     rescue Red::Model::EventPreconditionNotSatisfied => e
@@ -86,20 +72,64 @@ class EventController < RedAppController
       return error(e.message, msg, 500)
     ensure
       Red.boss.unregister_listener Red::E_FIELD_WRITTEN, self
-      @updated_records.each do |r|
-        if r.changed?
-          log_debug "Auto-saving record #{r}"
-          r.save!
-        else
-          log_debug "Updated record #{r} needs no saving"
-        end
-      end 
-      Red.boss.push_changes
+
+      timeIt("Auto-save") {
+        @updated_records.each do |r|
+          if r.changed?
+            log_debug "Auto-saving record #{r}"
+            r.save
+          else
+            log_debug "Updated record #{r} needs no saving"
+          end
+        end 
+      }
+      
+      timeIt("Push") { 
+        Red.boss.push_changes
+      }
     end   
   end
 
   private 
 
+  def execute_event(event, cont)
+    ok = event.requires
+    raise Red::Model::EventPreconditionNotSatisfied unless ok
+    ans = event.ensures
+    cont.call(ans)
+  end
+
+  def unmarshal_and_set_event_params(event)
+    event_params = if params[:params].blank?
+                     {}
+                   else
+                     params[:params]
+                   end
+
+    fld = nil
+    val = nil
+    event_params.each do |name, value| 
+      begin 
+        fld = event.meta.field(name)
+        if !fld
+          log_warn "invalid parameter '#{name}' for event #{event.class.name}"
+        else
+          val = unmarshal(value, fld.type)
+          event.set_param(name, val) 
+        end
+      rescue Red::Model::Marshalling::MarshallingError => e
+        log_warn "Could not unmarshal `#{value.inspect}' for field #{fld}", e
+      rescue e
+        log_warn "Could not set field #{fld} to value #{val.inspect}", e
+      end
+    end
+  end
+
+  def timeIt(str) 
+    time = Benchmark.realtime{yield}
+    log_debug(" @@@@@@@ #{str} time: #{time*1000}ms")
+  end
+  
   def log_debug(str, e=nil) log :debug, str, e end
   def log_warn(str, e=nil)  log :warn, str, e end
 

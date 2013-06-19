@@ -1,8 +1,6 @@
 class RestController < RedAppController
   
   before_filter :extract_info
-  before_filter :start_listener
-  after_filter  :stop_listener
   
   # GET /<resource>.json (e.g., GET /posts.json)
   def index    
@@ -81,15 +79,6 @@ class RestController < RedAppController
     end
     json = { root => target.as_red_json({:root => false}) }
     render :text => json.to_json
-  end
-
-  def start_listener
-    @lstner = Red.boss.client_listener(client)
-    @lstner.start_listening if @lstner
-  end
-
-  def stop_listener
-    @lstner.stop_listening if @lstner
   end
 
   def extract_info

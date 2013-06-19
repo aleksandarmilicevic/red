@@ -47,7 +47,8 @@ class TestViewRendererSimple < MigrationTest::TestBase
   
   def teardown
     @objs.each {|r| r.destroy}
-    @pusher.finalize if @pusher
+    # @pusher.finalize if @pusher
+    @manager.finalize if @manager
   end
 
   def locals
@@ -107,11 +108,8 @@ class TestViewRendererSimple < MigrationTest::TestBase
   end
 
   def get_pusher_for_current_view
-    @pusher = Red::Engine::Pusher.new :event_server => Red.boss, 
-                                      :views => [@manager.tree],
-                                      :manager => @manager,
-                                      :push_changes => false, 
-                                      :auto_push => true
+    @manager.start_auto_updating_client nil, :push_changes => false
+    @pusher = @manager.pusher
   end
 
   def assert_objs_equal(objs, expected)

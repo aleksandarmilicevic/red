@@ -49,21 +49,11 @@ EOT
       end
 
       def red_styles
-        vm = Red.boss.client_view_manager
-        return "" unless vm
-        styles = vm.view_tree.styles.map do |css|
-          vm.render_to_plain_text :partial => css
-        end.join("\n\n")
-        styles.html_safe
+        traverse_views_with {|tree| tree.styles}
       end
 
       def red_scripts
-        vm = Red.boss.client_view_manager
-        return "" unless vm
-        scripts = vm.view_tree.scripts.map do |js|
-          vm.render_to_plain_text :partial => js
-        end.join("\n\n")
-        scripts.html_safe
+        traverse_views_with {|tree| tree.scripts}
       end
 
       def red_assets        
@@ -101,6 +91,17 @@ EOS
           end
         end
       end
+
+      private
+
+      def traverse_views_with(&block)
+        Red.boss.client_views.map{ |vm|
+          block.call(vm.view_tree).map{ |file|
+            vm.render_to_plain_text :partial => file
+          }
+        }.flatten.join("\n\n").html_safe
+      end
+
     end
 
   end

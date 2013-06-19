@@ -180,15 +180,16 @@ module Red
           if !id.nil?
             unmarshal_to_record(id, rec_cls)
           else
-            rec = rec_cls.new
-            hash.each do |k,v|
-              fld = rec_cls.meta.field(k)
-              if fld
-                val = unmarshal(v, fld.type)
-                rec.write(field(fld, val))
-              end
-            end
-            rec 
+            raise MarshallingError, "no record id is provided"
+            # rec = rec_cls.new
+            # hash.each do |k,v|
+            #   fld = rec_cls.meta.field(k)
+            #   if fld
+            #     val = unmarshal(v, fld.type)
+            #     rec.write(field(fld, val))
+            #   end
+            # end
+            # rec 
           end
         end    
       end

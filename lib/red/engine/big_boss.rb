@@ -18,7 +18,6 @@ module Engine
       else
         (class << self; self end).send :include, SDGUtils::Events::EventProvider
       end
-      views = lambda{client_views.values.map{|vm| vm.view_tree}}
       self.register_listener(Red::E_CLIENT_CONNECTED, self)
     end
 
@@ -54,35 +53,29 @@ module Engine
     # Managing clients
     # ------------------------------------------------
     begin
-      
-      # @modifies `@client_views'
+      def curr_client() thr(:client) end
+
       # @param client [Client]
-      # @param view []
-      def remember_client_view(client, view)
-        old = client_views[client]
-        client_views[client] = view
-        old
+      # @param view [ViewManager]
+      def add_client_view(client, view)
+        client_views(client) << view
       end
 
-      def client_view(client=nil)         
-        client = thr(:client) unless client
-        client_views[client] 
+      def clear_client_views(client=curr_client)
+        client_views(client).each{|view| view.finalize}
+        client_views(client).clear
       end
 
-      def client_listener(client=nil)     
-        client_view(client).access_listener rescue nil 
+      # @result [Array(ViewManager)]
+      def client_views(client=curr_client)         
+        client2views[client] ||= []
       end
 
-      def client_pusher(client=nil)       
-        (client_view(client).pusher rescue nil) ||
-          (client_pushers[client])
+      def client_pusher(client=curr_client)       
+        client_pushers[client]
       end
 
-      def client_view_manager(client=nil) 
-        client_view(client).view_manager rescue nil 
-      end
-
-      def fireClientConnected(params)
+       def fireClientConnected(params)
         fire(Red::E_CLIENT_CONNECTED, params)
       end
       
@@ -91,28 +84,21 @@ module Engine
       end
 
       def push_changes
-        client_views.each do |cl, view| 
-          if view.pusher
-            view.pusher.push
-          else
-            Red.conf.logger.error "No pusher for client #{cl}"
-          end
-        end
+        client2views.values.flatten.each {|view| view.push}
       end
 
       protected      
 
       def clients()          @clients ||= [] end 
-      def client_views()     @client_views ||= {} end
+      def client2views()     @client2views ||= {} end
       def client_pushers()   @client_pushers ||= {} end
 
-      # @modifies `@clients'
       def handle_client_connected(params)
         client = params[:client]
         return unless client
         debug "Client connected: #{client.inspect}."
         clients << client
-        client_pushers.merge! :client => params[:pusher]
+        client_pushers.merge! client => params[:pusher]
       end
     end
 

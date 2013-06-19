@@ -113,6 +113,13 @@ module Red
           red_meta.recorder
         end
 
+        def field(*args)
+          fld = super
+          if fld.transient?
+            attr_accessible fld.getter_sym
+          end
+        end
+        
         protected
 
         def after_query_listeners

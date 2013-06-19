@@ -12,9 +12,10 @@
 //
 //= require jquery
 //= require jquery_ujs
-//= require handlebars
-//= require ember
-//= require ember-data
 //= require red
+// require handlebars
+// require ember
+// require ember-data
+// require red-ember
 //= require red_jq_bindings
 //= require_tree .

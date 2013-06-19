@@ -8,12 +8,30 @@ module Red
     #  Class +ViewManager+
     # ----------------------------------------------------------
     class ViewManager
-      attr_reader :client, :server
-
       def initialize(renderer_conf={})
-        # @client = hash[:client]      
-        # @server = hash[:server]      
         @renderer_conf = renderer_conf
+      end
+
+      def render_view(view_opts)        
+        @renderer = ViewRenderer.new(@renderer_conf)
+        node = @renderer.render_to_node(view_opts)
+        @view_tree = @renderer.tree
+        node
+      end
+
+      def view_tree() @view_tree end      
+      alias_method :tree, :view_tree
+
+      def render_to_plain_text(view_opts)
+        @renderer = ViewRenderer.new(@renderer_conf)
+        view = @renderer.render_to_node(view_opts)
+        view.result
+      end
+
+      def rerender_node(node)         
+        new_node = rerender_only(node)
+        swap_nodes(node, new_node)
+        new_node
       end
 
       def rerender_only(node)
@@ -31,31 +49,38 @@ module Red
           @view_tree.set_root(new_node)
         end
       end
-      
-      def rerender_node(node)         
-        new_node = rerender_only(node)
-        swap_nodes(node, new_node)
-        new_node
-      end
-      
-      def render_view(view_opts)        
-        @renderer = ViewRenderer.new(@renderer_conf)
-        view = @renderer.render_to_node(view_opts)
-        @view_tree = @renderer.tree
-        @view_tree.client = client
-        view
-      end
-
-      def render_to_plain_text(view_opts)
-        @renderer = ViewRenderer.new(@renderer_conf)
-        view = @renderer.render_to_node(view_opts)
-        view.result
-      end
-
-      def view_tree() @view_tree end      
-      alias_method :tree, :view_tree
-
+            
       def renderer() @renderer end #TODO: remove
+
+      # -----------------------------------------
+
+      def start_auto_updating_client(client, hash={})      start_listening(client, true, hash) end
+      def start_collecting_client_updates(client, hash={}) start_listening(client, false, hash) end
+
+      def start_listening(client, auto_push, hash={})
+        @client = client
+        @pusher = Red::Engine::Pusher.new({
+          :client    => client, 
+          :views     => lambda{[view_tree()]}, 
+          :listen    => true,
+          :auto_push => auto_push,
+          :manager   => self
+        }.merge!(hash))
+      end
+
+      def push() 
+        fail "Auto-updating has not been started.  Call `start_auto_updating_first'" unless pusher 
+        pusher.push
+      end
+
+      def finalize()  
+        pusher.stop_listening if pusher
+      end
+
+      def pusher()
+        @pusher 
+      end
+
     end
 
   end

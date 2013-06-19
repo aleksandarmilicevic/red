@@ -7,7 +7,48 @@ var Red = (function() {
         
         check_defined : function(x, msg) {
             if (x === undefined) throw Error(msg);   
-        }
+        },
+        
+        sweepDom : function(from, to, html) {
+            if (!(from.size() == 1 && to.size() == 1)) {
+                console.error("inconsistent start/end tags: #startTag = " + from.size() + ", #endTag = " + to.size());
+                return;
+            }
+            from.nextUntil(to).detach();
+            from.after(html);
+            from.detach();
+            to.detach();
+        },
+        
+        searchDom : function(node_id, html) {
+            //TODO: cache this stuff somehow
+            var startTag = "reds_" + node_id;
+            var endTag = "rede_" + node_id;
+            var startTagStr = "<" + startTag + ">";
+            var endTagStr = "</" + endTag + ">";
+            var elements = document.getElementsByTagName("*");
+            for(var i=0; i<elements.length; i++){
+                var element = elements[i];
+                if (element.tagName.toLowerCase() === startTag) {
+                    me.sweepDom($(element), $("rede_" + node_id), html);
+                    return;  
+                }
+                var attr = element.attributes;
+                for(var j=0; j<attr.length; j++){
+                    var attrVal = attr[j].nodeValue;
+                    var startIdx = attrVal.indexOf(startTagStr);
+                    if (startIdx != -1) {
+                        var endIdx = attrVal.indexOf(endTagStr);
+                        if (endIdx != -1) {
+                            attr[j].nodeValue = attrVal.substring(0, startIdx) + html + attrVal.substring(endIdx + endTagStr.length);
+                            return;
+                        } else {
+                            console.error("start but not end tag found in attribute " + attrVal);
+                        }
+                    }
+                }
+            }
+        },
     };
     
     var Meta = {
@@ -76,16 +117,6 @@ var Red = (function() {
             return that;
         },
         
-        Model : DS.Model.extend({
-           get: function(args) {
-               return this._super(args);
-           },
-           
-           set: function(args) {
-               return this._super(args);
-           }
-        }),
-
         // must call with new, better to call record instead
         Record : function(props) {
             $.extend(this, Red.record(props));
@@ -124,6 +155,7 @@ var Red = (function() {
         /**
          */
         updateReceived : function(data) {
+            var updateStart = new Date().getTime();
             me.check_defined(data.type, "malformed JSON update: field 'type' not found");
             if (data.type === "record_update") {
                 me.check_defined(data.payload, "field 'payload' not found in a 'record_update' message");
@@ -142,13 +174,21 @@ var Red = (function() {
                 me.check_defined(data.payload, "field 'payload' not found in a 'node_update' message")
                 me.check_defined(data.payload.node_id, "field 'payload.node_id' not found in a 'node_update' message");
                 me.check_defined(data.payload.inner_html, "field 'payload.inner_html' not found in a 'node_update' message");
-                var query = 'data-frag-id=' + data.payload.node_id
-                var reds = $('reds['+query+']');
-                var rede = $('rede['+query+']');
-                reds.nextUntil(rede).detach();
-                reds.after(data.payload.inner_html);
-                reds.detach();
-                rede.detach();
+                me.searchDom(data.payload.node_id, data.payload.inner_html);
+                
+                // var reds = $('reds_'+data.payload.node_id);
+                // var rede = $('rede_'+data.payload.node_id);
+                // if (reds.size() > 0) {
+                    // me.sweepDom(reds, rede, data.payload.inner_html);
+                // } else {
+                    // var start = new Date().getTime();
+                    // me.searchAttributes(data.payload.node_id, data.payload.inner_html);
+                    // var end = new Date().getTime();
+                    // var time = end - start;
+                    // console.debug('Start time: ' + start);
+                    // console.debug('End time: ' + end);
+                    // console.debug('Execution time: ' + time);
+                // }                
             } else if (data.type === "body_update") {
                 me.check_defined(data.payload, "field 'payload' not found in a 'body_update' message");
                 me.check_defined(data.payload.html, "field 'payload.html' not found in a 'body_update' message");
@@ -156,6 +196,9 @@ var Red = (function() {
             } else {
                 //throw Error("unknown update message type: " + data.type)
             }
+            var updateEnd = new Date().getTime();
+            var time = updateEnd - updateStart;
+            console.debug('Total update execution time: ' + time + "ms");
         },
     };
 

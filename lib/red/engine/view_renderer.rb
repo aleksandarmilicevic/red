@@ -400,9 +400,6 @@ module Red
         when node.tree? || node.expr?
           opts = {:inline => "<%= #{node.src} %>"}
           parent_binding = node.parent.view_binding if node.parent
-          # if node.view_binding && parent_binding && node.view_binding.parent != parent_binding
-            # fail "DLFKJDLFE"
-          # end             
           opts.merge! :view_binding => (node.view_binding || parent_binding)
           root = render_to_node opts
           fail "expected one children for render :inline" unless root.children.size == 1
@@ -469,7 +466,7 @@ module Red
         col.each do |obj|
           node = start_node(:tree)
           begin
-            my_render(hash.merge :object => obj)
+            my_render(hash.merge :object => obj, :normalized => false)
           ensure
             end_node(node)
           end             
@@ -587,13 +584,9 @@ module Red
         when ".erb"
           erb_out_var = "out"
           erb = ERB.new(content, nil, "%<>", erb_out_var)          
-          # Red.conf.logger.debug 
-          # puts "BEFORE:\n#{erb.src}"
           instrumented = instrument_erb(erb.src, erb_out_var)
           erb.src.clear
           erb.src.concat(instrumented)
-          # Red.conf.logger.debug 
-          # puts "AFTER:\n#{erb.src}"
           return erb.result(bndg)
         when ".scss"
           engine = Sass::Engine.new(content, :syntax => :scss)
@@ -748,6 +741,10 @@ module Red
         when Proc
           _normalize :recurse => hash
         when Hash
+          if hash[:normalized]
+            return hash.merge :view => current_view(), 
+                              :view_binding => get_view_binding_obj(hash) 
+          end
           view = hash[:view] || current_view() || "application"
           tmpl = hash[:template] || "main"
           partial = hash[:partial]
@@ -790,7 +787,8 @@ module Red
           
           # -------------------------------------------------------------------
                
-          ans = hash.merge :view => view, 
+          ans = hash.merge :normalized => true, 
+                           :view => view, 
                            :template => tmpl, 
                            :partial => is_partial,
                            :locals => locals,

@@ -18,9 +18,17 @@ module Red
         if node.no_deps?
           str
         else
-          "<reds data-frag-id='#{node.id}'> _reds_ </reds>" +
+          # " <reds data-frag-id='#{node.id}'> _reds_ </reds> " +
+          #   str + 
+          #   " <rede data-frag-id='#{node.id}'> _rede_ </rede> "
+
+          # " <reds data-frag-id='#{node.id}'></reds> " +
+          #   str + 
+          #   " <rede data-frag-id='#{node.id}'/></rede> "          
+
+          " <reds_#{node.id}></reds_#{node.id}> " +
             str + 
-            "<rede data-frag-id='#{node.id}'> _rede_ </rede>"
+            " <rede_#{node.id}></rede_#{node.id}> " 
         end
       end
     end

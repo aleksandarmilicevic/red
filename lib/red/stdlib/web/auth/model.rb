@@ -18,11 +18,13 @@ module Auth
       password_hash: String,
       remember_token: String
     } do
-
-      attr_accessor :password
+      
+      transient {{
+          password: String
+        }}
 
       before_validation { |user| 
-        user.email = email.downcase 
+        user.email = user.email.downcase if user.email
         user.password_hash = pswd_hash(user.password) rescue nil
       }
 
@@ -78,14 +80,15 @@ module Auth
         }}
       
       requires {
-        email = email.downcase
+        self.email = self.email.downcase
         AuthUser.where(:email => email).empty?
       }
     
       ensures {
         client.create_user! :name => name, 
                             :email => email, 
-                            :password_hash => pswd_hash(password)
+                            :password => password
+        client.save
       }
     end
     
@@ -98,7 +101,7 @@ module Auth
         }}
 
       requires {
-        email = email.downcase
+        self.email = self.email.downcase
       }
     
       ensures {
@@ -107,6 +110,7 @@ module Auth
         pswd_ok = u.authenticate(password)
         incomplete "Wrong password for user #{u.name} (#{email})" unless pswd_ok
         client.user = u
+        client.save
       }
     end
 
@@ -119,6 +123,7 @@ module Auth
 
       ensures {
         client.user = nil
+        client.save
       }
     end
 
@@ -131,6 +136,7 @@ module Auth
 
       ensures {
         client.user.destroy
+        client.save
       }
     end
   end

@@ -29,8 +29,7 @@ module Engine
       start_listening if @conf.listen
     end
 
-    def start_listening
-      @push_client = Faye::Client.new(@conf.push_server)
+    def start_listening      
       debug "listening for data model changes"
       @conf.event_server.register_listener(@conf.events, self) 
     end
@@ -38,7 +37,6 @@ module Engine
     def stop_listening
       debug "not listening for data model changes anymore"
       @conf.event_server.unregister_listener(@conf.events, self) 
-      @push_client = nil
     end
 
     def finalize
@@ -47,8 +45,12 @@ module Engine
       end
     end
 
+    def push_client
+      @push_client ||= Faye::Client.new(@conf.push_server)
+    end
+
     def push
-      # send_updates # this is for Ember stuff
+      # send_updates # this is for the Ember stuff only
       refresh_views
     end
 
@@ -77,7 +79,7 @@ module Engine
       begin
         client = @conf.client
         channel = Red::View::JsHelpers.push_channel_to(client)
-        @push_client.publish(channel, hash)
+        push_client.publish(channel, hash)
       rescue => e
         debug "Failed to push update to #{client}"
         debug e.message
@@ -283,7 +285,7 @@ end
           full = rr.render view_tree.root.render_options 
           @conf.log.debug "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
           @conf.log.debug full
-          @push_client.publish(channel, :html => full)
+          push_client.publish(channel, :html => full)
         rescue => e
           @conf.log.debug "Failed to push update to client #{view_tree.client}"
           @conf.log.debug e.message

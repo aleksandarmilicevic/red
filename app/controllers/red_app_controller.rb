@@ -1,4 +1,5 @@
 require 'red/stdlib/web/machine_model'
+require 'red/engine/view_manager'
 
 class RedAppController < ActionController::Base
   protect_from_forgery
@@ -23,9 +24,47 @@ class RedAppController < ActionController::Base
         .attrs(hash)
         .build(escape_body).html_safe()
     end    
+
+    # ===============================================================
+    # Renders a specified view using the `ViewManager' so that all
+    # field accesses are detected and the view is automatically
+    # updated when those fields change. 
+    #
+    # @param hash [Hash]
+    # ===============================================================
+    def autoview(hash)
+      vm = Red::Engine::ViewManager.new
+                            
+      opts = {
+        :layout => false, 
+      }.merge!(hash)
+
+      locals = {
+        :client => client, 
+        :server => server
+      }.merge!(opts[:locals] ||= {})
+
+      opts[:locals] = locals
+      view = vm.render_view(opts)
+      tree = vm.view_tree()
+
+      text = print_with_html_delims(view)
+
+      log = Red.conf.logger
+      log.debug "@@@ View tree: "
+      log.debug tree.print_full_info
+
+      Red.boss.add_client_view client, vm
+      vm.start_collecting_client_updates(client) 
+      # changes are pushed explicitly after each event
+
+      text
+    end
   end
 
   helper RedAppHelper
+
+  include RedAppHelper
 
   before_filter :notify_red_boss
 
