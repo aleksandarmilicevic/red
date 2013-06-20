@@ -48,7 +48,7 @@ class EventController < RedAppController
     event.from = client()
     event.to = server()
 
-    timeIt("Unmarhsalling") {
+    Red.boss.time_it("[EventController] Unmarhsalling") {
       unmarshal_and_set_event_params(event)
     }
 
@@ -56,10 +56,8 @@ class EventController < RedAppController
     begin
       @updated_records = Set.new
       Red.boss.register_listener Red::E_FIELD_WRITTEN, self
-      timeIt("Event execution") {
-        execute_event(event, lambda { |ans|
-                       success(event_name, ans)
-                     })
+      Red.boss.time_it("[EventController] Event execution") {
+        execute_event(event, lambda { |ans| success(event_name, ans)})
       }
     rescue Red::Model::EventNotCompletedError => e
       return error(e.message, 400)
@@ -73,7 +71,7 @@ class EventController < RedAppController
     ensure
       Red.boss.unregister_listener Red::E_FIELD_WRITTEN, self
 
-      timeIt("Auto-save") {
+      Red.boss.time_it("[EventController] Auto-save") {
         @updated_records.each do |r|
           if r.changed?
             log_debug "Auto-saving record #{r}"
@@ -84,9 +82,7 @@ class EventController < RedAppController
         end 
       }
       
-      timeIt("Push") { 
-        Red.boss.push_changes
-      }
+      Red.boss.push_changes
     end   
   end
 
@@ -123,11 +119,6 @@ class EventController < RedAppController
         log_warn "Could not set field #{fld} to value #{val.inspect}", e
       end
     end
-  end
-
-  def timeIt(str) 
-    time = Benchmark.realtime{yield}
-    log_debug(" @@@@@@@ #{str} time: #{time*1000}ms")
   end
   
   def log_debug(str, e=nil) log :debug, str, e end

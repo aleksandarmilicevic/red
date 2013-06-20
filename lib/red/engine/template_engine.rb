@@ -1,7 +1,6 @@
 require 'sass'
 require 'parser/current'
 
-
 module Red::Engine
 
   module ERBCompiler
@@ -37,6 +36,7 @@ module Red::Engine
           while cn[:type]==:const && cnn=is_next_concat_const(parent, worklist, var) do
             cn[:end_pos] = cnn[:end_pos]
             cn[:source] = eval("#{cn[:source]} + #{cnn[:source]}").inspect
+            cn[:template] = cn[:template] + cnn[:template]
             worklist.shift  
           end
           concat_nodes << cn
@@ -55,22 +55,22 @@ module Red::Engine
         bpos = n[:begin_pos]
         epos = n[:end_pos]
         pre = src[last_pos...bpos]
-        original_concat_src = src[bpos...epos]
+        orig_src = src[bpos...epos]
         instr_src += pre
-        instr_src += as_node_code(var, n[:type], n[:source], original_concat_src)
+        instr_src += as_node_code(var, n[:type], n[:source], n[:template], orig_src)
         last_pos = epos
       end
       instr_src += src[last_pos..-1]
       instr_src
     end
     
-    def as_node_code(var, type, source, original)
+    def as_node_code(var, type, source, template, original)
       varsym = var.to_sym.inspect
-      fetch_locals_code = """
+      locals_code = """
 (local_variables - [#{varsym}]).reduce({}){|acc, v| acc.merge v => eval(v.to_s)}
         """.strip
       """
-#{var}.as_node(#{type.inspect}, #{fetch_locals_code}, #{source.inspect}){
+#{var}.as_node(#{type.inspect}, #{locals_code}, #{source.inspect}){
   #{original}
 };"""
     end
@@ -93,13 +93,18 @@ module Red::Engine
       return false unless ast_node.children[1] == :concat
       begin
         ch = ast_node.children[2]
-        type = :const
-        unless ch.type == :str
-          ch = ch.children[0].children[0] 
+        if ch.type == :str
+          type = :const
+          src = ch.src.expression.to_source
+          tpl = eval(src)
+        else
+          src = ch.children[0].children[0].src.expression.to_source
+          tpl = "<%= #{src} %>"
           type = :expr
         end
         return :type => type, 
-               :source => ch.src.expression.to_source,
+               :source => src,
+               :template => tpl,
                :begin_pos => ast_node.src.expression.begin_pos, 
                :end_pos => ast_node.src.expression.end_pos 
       rescue Exception
@@ -120,16 +125,14 @@ module Red::Engine
       # @param source [String]
       # @param formats [Array]
       # @result [CompiledTemplate]
-      def compile(source, formats=[], &block) 
-        divider = block || lambda{}
+      def compile(source, formats=[])
         if formats.nil? || formats.empty?
           CompiledTemplate.new("TXT", lambda{source})
         elsif formats.size == 1
           get_compiler(formats.first).call(source)
         else
-          rest = compile(source, formats[1..-1], &divider)
+          rest = compile(source, formats[1..-1])
           fst = get_compiler(formats.first)
-
           if rest.engine.arity == 0
             # can precompile
             rest_src = rest.execute
@@ -141,9 +144,7 @@ module Red::Engine
             CompiledTemplate.new("#{fst_name}.#{rest.name}", lambda { |*env| 
                                    rest_src = rest.execute(*env)
                                    fst_compiler = fst.call(rest_src)
-
-                                   divider.call()
-
+                                   env.first.eval "engine_divider()" #rescue nil
                                    fst_compiler.execute(*env) 
                                  })
           end

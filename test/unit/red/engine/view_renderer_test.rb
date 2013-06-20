@@ -141,13 +141,14 @@ class TestViewRendererSimple < MigrationTest::TestBase
 
   def assert_rerender(assert_stuff)
     root = @manager.tree.root
+    rroot = rerender root
+    assert_stuff.call
     for idx in 0..root.children.size-1
       n = root.children[idx]
       new_node = rerender n
       assert_equal n.type, new_node.type
       assert_not_equal new_node, n unless n.const?
       assert_equal new_node, root.children[idx]
-      # assert_equal n.src, new_node.src
       assert_stuff.call
     end
   end
@@ -595,7 +596,7 @@ rooms: <%= render lambda{Room.find(@room1_id)} %>
       root = @manager.tree.root
       expected = "#widget-g708 .cl1 { color: green; } #widget-g708 .cl2 { color: red; }"
       assert_equal_ignore_whitespace expected, result
-      assert root.children.empty?
+      assert root.children.empty?, "expected empty children in the root node"
       assert_objs_equal root.deps.objs, { @room1 => [["name", "g708"]] }
     }
     assert_stuff.call

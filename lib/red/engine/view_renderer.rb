@@ -3,6 +3,7 @@ require 'red/engine/access_listener'
 require 'red/engine/template_engine'    
 require 'sdg_utils/config'
 require 'sdg_utils/assertions'
+require 'sdg_utils/caching/cache.rb'
 
 module Red
   module Engine
@@ -36,6 +37,10 @@ module Red
       def render(*args) @renderer.render(*args) end
       def mk_out()      @renderer end
 
+      def engine_divider()
+        @renderer.send :_collapseTopNode
+      end
+      
       def widget(name, locals={})    
         @@widget_id = @@widget_id + 1
         render :partial => "widget", 
@@ -142,7 +147,7 @@ module Red
       include SDGUtils::Assertions
       
       attr_reader :type, :children, :extras, :deps
-      attr_accessor :id, :src, :output, :render_options
+      attr_accessor :id, :src, :output, :render_options, :compiled_tpl
       attr_accessor :parent_tree, :parent, :index_in_parent
       attr_accessor :locals_map
 
@@ -169,6 +174,15 @@ module Red
 
       def view_binding() 
         render_options[:view_binding] if render_options 
+      end
+
+      def template
+        return nil unless src
+        if const?
+          eval(src)
+        else
+          "<%= #{src} %>"
+        end
       end
       
       private
@@ -295,6 +309,7 @@ module Red
         "#{ind_str}Object: #{extras[:object]}\n" +
         "#{ind_str}Src: #{src[0..60].inspect}\n" +
         "#{ind_str}Output: #{output[0..60].inspect}\n" +
+        "#{ind_str}Children: #{children.size}\n" +          
         "#{ind_str}Deps:\n#{deps_str}\n"
       end
 
@@ -369,6 +384,7 @@ module Red
         node = start_node(type, source)
         node.locals_map = locals_map
         begin
+          node.compiled_tpl = lambda{_compile_content(node.template, [".erb"])}
           yield
         ensure
           end_node(node)
@@ -388,23 +404,35 @@ module Red
       # @param node [ViewInfoNode]
       # @result [ViewInfoNode]
       def rerender_node(node)
-        # TODO: optimize so that it doesn't have to parse strings every time
-        case
-        when node.const?
-          node # TODO: clone ?
-        when node.parent.nil?; 
-          ans = render_to_node node.render_options
-          ans.src = node.src
-          ans          
-        when node.tree? || node.expr?
-          opts = {:inline => "<%= #{node.src} %>"}
-          parent_binding = node.parent.view_binding if node.parent
-          opts.merge! :view_binding => (node.view_binding || parent_binding)
-          root = render_to_node opts
-          fail "expected one children for render :inline" unless root.children.size == 1
-          root.children[0]              
-        else 
-          fail "unknown node type: #{node.type}"
+        return node if node.const?
+
+        vb = begin
+               parent_binding = node.parent.view_binding if node.parent
+               node.view_binding || parent_binding
+             end
+
+        root = case
+               when tpl=node.compiled_tpl
+                 tpl = (Proc === tpl ? tpl.call : tpl)
+                 opts = { :compiled_tpl => tpl,
+                          :view_binding => vb }
+                 ans = render_to_node opts
+                 ans.compiled_tpl = tpl
+                 ans
+               when !node.src.empty?
+                 opts = { :inline => "#{node.template}", 
+                          :view_binding => vb }
+                 render_to_node opts
+               else 
+                 render_to_node node.render_options
+               end
+        
+        root.src = node.src
+        if node.parent.nil?
+          root
+        else
+          fail "Expected exactly 1 child" unless root.children.size == 1
+          root.children[0]
         end
       end
 
@@ -430,6 +458,10 @@ module Red
       end
 
       protected
+
+      def trace(str)     Red.conf.logger.debug str end
+      def trace_hit(ch)  trace "++++++++ #{ch.name} cache HIT: #{ch.hits}" end
+      def trace_miss(ch) trace "-------- #{ch.name} cache MISS: #{ch.misses}" end
 
       def _around_root(hash)
         @rendering = true
@@ -474,27 +506,35 @@ module Red
       
       def _process(hash)
         case 
+        when hash.key?(:compiled_tpl)
+        # === compiled template
+          _render_template hash[:compiled_tpl], hash
+
         # === nothing
         when hash.key?(:nothing)
-          _render_content("", {:formats => [".txt"]}.merge(hash))
+          tpl = _compile_content("", [".txt"])
+          _render_template tpl, hash
+
         # === plain text
         when text = hash.delete(:text) 
-          _render_content(text, {:formats => [".txt"]}.merge(hash))
+          tpl = _compile_content(text, hash[:formats] || [".txt"])
+          _render_template tpl, hash
+
         # === inline template (default format .erb)
         when content = hash.delete(:inline)
-          _render_content(content, {:formats => ['.erb']}.merge(hash))
+          tpl = _compile_content(content, hash[:formats] || [".erb"])
+          _render_template tpl, hash
+
         # === Pathname pointing to file template
         when path = hash.delete(:pathname) 
-          raise ViewError, "Not a file: #{file}" unless path.file?
-          curr_node.extras[:pathname] = path
-          ext = hash[:object] ? " for obj: #{hash[:object]}:#{hash[:object].class}" : ""
-          Red.conf.logger.debug "### #{_indent}Rendering file #{path}#{ext}"
-          opts = {:inline => path.read, :formats => path_formats(path)}.merge(hash)
-          _process(opts)
+          tpl = _compile_file(path, hash)
+          _render_template tpl, hash
+
         # === String pointing to file template 
         when file = hash.delete(:file)
           opts = {:pathname => Pathname.new(file)}.merge(hash)
           _process opts
+
         # === template name, uses a convention to look up the actual file
         when hash.key?(:template)
           view = hash[:view]
@@ -535,19 +575,46 @@ module Red
         hash[:__binding__] || hash[:view_binding].get_binding()
       end
 
-      def _render_content(content, hash)
+      def _render_template(tpl, hash)
         top_node = curr_node
         b = read_binding_from(hash)
-        compiled_tpl = TemplateEngine.compile(content, hash[:formats]) {
-          collapseTopNode
-        }
-        text = compiled_tpl.execute(b)
+        top_node.compiled_tpl = tpl unless top_node.compiled_tpl
+        text = tpl.execute(b)
         if top_node.children.empty?
           top_node.output = text
         end
       end
 
-      def collapseTopNode
+      @@content_tpl_cache = SDGUtils::Caching::Cache.new("content", :fake => true)
+
+      def _compile_content(content, formats)
+        @@content_tpl_cache.on_hit { |cache|
+          trace_hit(cache)
+        }.on_miss { |cache|
+          trace_miss(cache)
+        }.fetch(formats.join("") + content) {
+          TemplateEngine.compile(content, formats)
+        }
+      end
+
+      @@file_tpl_cache = SDGUtils::Caching::Cache.new("file")
+
+      def _compile_file(path, hash)
+        raise ViewError, "Not a file: #{file}" unless path.file?
+        curr_node.extras[:pathname] = path
+        ext = hash[:object] ? " for obj: #{hash[:object]}:#{hash[:object].class}" : ""
+        formats = hash[:formats] || path_formats(path)
+        @@file_tpl_cache.on_hit { |cache|
+          trace_hit(cache)
+        }.on_miss { |cache|
+          trace_miss(cache)
+          trace "### #{_indent}Rendering file #{path}#{ext}"
+        }.fetch(path.realpath.to_s + formats.join("")) {
+          _compile_content(path.read, formats)
+        }
+      end
+
+      def _collapseTopNode
         top_node = curr_node
         top_node.all_children.map{|e| e.deps}.each{|d| top_node.deps.merge!(d)}
         top_node.reset_children

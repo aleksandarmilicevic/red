@@ -135,18 +135,23 @@ module Engine
       buffer.clear #TODO: should be atomic with prev
       
       affected_nodes = Set.new
-      updated_records.each do |mod_record|
-        an = @conf.check_views ? discover_affected_nodes(mod_record) : []
-        affected_nodes += an
-      end
+      Red.boss.time_it("[Pusher] Discovering affected nodes") {
+        updated_records.each do |mod_record|
+          an = @conf.check_views ? discover_affected_nodes(mod_record) : []
+          affected_nodes += an
+        end
+      }
       @_affected_nodes += affected_nodes.to_a # TODO: for testing only
 
-      un = @conf.update_views ? update_views(affected_nodes) : [] 
+      un = []
+      Red.boss.time_it("[Pusher] Updating views") {
+        un = update_views(affected_nodes) if @conf.update_views
+      }
       @_updated_nodes += un.clone # TODO: for testing only
-      
-      if @conf.push_changes
-        push_view_changes(un) 
-      end
+
+      Red.boss.time_it("[Pusher] Pushing changes") {
+        push_view_changes(un) if @conf.push_changes
+      }
     end
 
     # Go through each view (+ViewInfoTree+), check all of its

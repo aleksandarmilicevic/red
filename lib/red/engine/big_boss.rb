@@ -30,6 +30,11 @@ module Engine
       debug "Big Boss stopped"
       access_listener.stop_listening
     end
+
+    def time_it(str) 
+      time = Benchmark.realtime{yield}
+      Red.conf.logger.debug(" =========================== #{str} time: #{time*1000}ms")
+    end
     
     # ------------------------------------------------
     # Global field access listener stuff
@@ -84,7 +89,9 @@ module Engine
       end
 
       def push_changes
-        client2views.values.flatten.each {|view| view.push}
+        time_it("[RedBoss] PushChanges") {
+          client2views.values.flatten.each {|view| view.push}
+        }
       end
 
       protected      
