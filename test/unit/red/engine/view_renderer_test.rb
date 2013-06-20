@@ -67,7 +67,7 @@ class TestViewRendererSimple < MigrationTest::TestBase
   
   def my_render(hash)
     @manager = Red::Engine::ViewManager.new :view_finder => hash.delete(:view_finder)
-    @manager.render_view({:formats =>[".erb", ".txt"]}.merge!(hash)).result
+    @manager.render_view({:formats => %w(.txt .erb)}.merge!(hash)).result
   end
 
   def rerender(node)
@@ -587,7 +587,7 @@ rooms: <%= render lambda{Room.find(@room1_id)} %>
 
   def do_test7(tpl, mycss)    
     result = my_render :view => @@test_view, :inline => tpl.strip, 
-                    :formats => [".erb", ".scss", ".css"],
+                    :formats => %w(.css .scss .erb), 
                     :locals => locals(), 
                     :view_finder => get_finder2({:mycss => mycss.strip})
    
@@ -636,7 +636,7 @@ rooms: <%= render lambda{Room.find(@room1_id)} %>
   
   def do_test8(tpl, room_tpl, ch1_check)    
     result = my_render :view => @@test_view, :inline => tpl.strip, 
-                    :formats => [".scss", ".erb", ".css"],
+                    :formats => %w(.css .erb .scss),
                     :locals => locals(),
                     :view_finder => get_finder2({:room => room_tpl.strip})
    
@@ -698,7 +698,7 @@ pre <%= render :partial => "\#{room1.name}" %> post
     XXX
     
     result = my_render :view => @@test_view, :inline => tpl.strip, 
-                    :formats => [".erb", ".txt"],
+                    :formats => %w(.txt .erb), 
                     :locals => locals(),
                     :view_finder => get_finder2({:g708 => g708.strip})
    
@@ -719,7 +719,7 @@ pre <%= render :partial => "\#{room1.name}" %> post
   
   def do_test10(tpl, expected)
     result = my_render :view => @@test_view, :inline => tpl.strip, 
-                    :formats => [".erb", ".txt"],
+                    :formats => %w(.txt .erb), 
                     :locals => locals()
     check_test10_stuff(expected, result, "g708")
   end
@@ -795,7 +795,7 @@ pre <%= render :partial => "\#{room1.name}" %> post
 
   def do_test11(tpl, user_tpl, room_tpl)
     result = my_render :view => @@test_view, :inline => tpl.strip, 
-                       :formats => [".erb", ".txt"],
+                       :formats => %w(.txt .erb), 
                        :locals => locals(),
                        :view_finder => get_finder2({:user => user_tpl.strip, 
                                                     :room => room_tpl.strip})
@@ -814,7 +814,7 @@ pre <%= render :partial => "\#{room1.name}" %> post
   
   def do_test11(tpl, user_tpl, room_tpl)
     result = my_render :view => @@test_view, :inline => tpl.strip, 
-                       :formats => [".erb", ".txt"],
+                       :formats => %w(.txt .erb), 
                        :locals => locals(),
                        :view_finder => get_finder2({:user => user_tpl.strip, 
                                                     :room => room_tpl.strip})
@@ -851,7 +851,7 @@ pre <%= render :partial => "\#{room1.name}" %> post
 
   def do_test12(tpl, branch_result, branch_check)
     result = my_render :view => @@test_view, :inline => tpl.strip, 
-                    :formats => [".erb", ".txt"],
+                    :formats => %w(.txt .erb), 
                     :locals => locals()
    
     assert_stuff = lambda{       

@@ -1,10 +1,9 @@
 require 'red/view/view_helpers'
 require 'red/engine/access_listener'
+require 'red/engine/template_engine'    
 require 'sdg_utils/config'
 require 'sdg_utils/assertions'
-require 'sass'
-require 'parser/current'
-    
+
 module Red
   module Engine
 
@@ -488,7 +487,7 @@ module Red
         when path = hash.delete(:pathname) 
           raise ViewError, "Not a file: #{file}" unless path.file?
           curr_node.extras[:pathname] = path
-          ext = hash[:object] ? " for object = #{hash[:object]}:#{hash[:object].class}" : ""
+          ext = hash[:object] ? " for obj: #{hash[:object]}:#{hash[:object].class}" : ""
           Red.conf.logger.debug "### #{_indent}Rendering file #{path}#{ext}"
           opts = {:inline => path.read, :formats => path_formats(path)}.merge(hash)
           _process(opts)
@@ -529,7 +528,7 @@ module Red
       # @result [Array(String)]
       # @param path [Pathname]
       def path_formats(path)
-        path.basename.to_s.split(".")[1..-1].map{|e| ".#{e}"}.reverse
+        path.basename.to_s.split(".")[1..-1].map{|e| ".#{e}"}
       end
 
       def read_binding_from(hash)
@@ -539,153 +538,20 @@ module Red
       def _render_content(content, hash)
         top_node = curr_node
         b = read_binding_from(hash)
-        # fmt = hash[:formats].first
-        # _render_format(content, b, fmt)
-        curr_content = content
-        for idx in 0..(hash[:formats].size-1) 
-          fmt = hash[:formats][idx]
-          end_node(top_node)
-          cn = if idx == 0 
-                 top_node
-               else
-                 x = ViewInfoNode.create(top_node.type)
-                 x.src = curr_content
-                 x.extras.merge! top_node.extras
-                 x.render_options.merge! top_node.render_options
-                 x
-               end
-          @stack.push(cn)
-          begin 
-            formatted = _render_format(curr_content, b, fmt)
-            curr_content = formatted if formatted
-            if idx > 0 && formatted
-              top_node.all_children.map{|e| e.deps}.each{|d| top_node.deps.merge!(d)}
-              top_node.deps.merge!(cn.deps)
-              top_node.reset_children
-              top_node.reset_output
-              top_node.set_children(0, cn.children)
-              top_node.output = cn.output
-            end
-          ensure 
-            end_node(cn)
-            @stack.push(top_node)
-          end          
+        compiled_tpl = TemplateEngine.compile(content, hash[:formats]) {
+          collapseTopNode
+        }
+        text = compiled_tpl.execute(b)
+        if top_node.children.empty?
+          top_node.output = text
         end
       end
 
-      # Returns false if no formatting was applied, and final
-      # string output otherwise.
-      #
-      # @param content [String]
-      # @param format [String]
-      def _render_format(content, bndg, format)
-        cn = curr_node
-        case format
-        when ".erb"
-          erb_out_var = "out"
-          erb = ERB.new(content, nil, "%<>", erb_out_var)          
-          instrumented = instrument_erb(erb.src, erb_out_var)
-          erb.src.clear
-          erb.src.concat(instrumented)
-          return erb.result(bndg)
-        when ".scss"
-          engine = Sass::Engine.new(content, :syntax => :scss)
-          css = engine.render
-          cn.output = css
-          return css
-        when ".sass"
-          engine = Sass::Engine.new(content, :syntax => :sass)
-          css = engine.render
-          cn.output = css
-          return css
-        else
-          cn.output = content
-          return false
-        end
-      end
-
-      def instrument_erb(src, var)
-        src = src.gsub(/#{var}\ =\ ''/, "#{var}=mk_out")
-        ast = Parser::CurrentRuby.parse(src)
-
-        # discover concat calls
-        concat_nodes = []
-        # array of (node, parent) pairs
-        worklist = [[ast, nil]]
-        while !worklist.empty? do
-          node, parent = worklist.shift
-          if cn = is_concat_node(node, var)
-            while cn[:type]==:const && cnn=is_next_concat_const(parent, worklist, var) do
-              cn[:end_pos] = cnn[:end_pos]
-              cn[:source] = eval("#{cn[:source]} + #{cnn[:source]}").inspect
-              worklist.shift  
-            end
-            concat_nodes << cn
-          else
-            # node.children.each{ |ch| worklist << [ch,node] if Parser::AST::Node === ch }
-            worklist = node.children.map{ |ch| [ch, node] if Parser::AST::Node === ch }.compact + worklist
-          end
-        end
-
-        # instrument src by wrapping all concat calls in `as_node'
-        instr_src = ""
-        last_pos = 0
-        concat_nodes.sort_by! do |n|
-          n[:begin_pos]
-        end.each do |n|
-          bpos = n[:begin_pos]
-          epos = n[:end_pos]
-          pre = src[last_pos...bpos]
-          original_concat_src = src[bpos...epos]
-          instr_src += pre
-          instr_src += as_node_code(var, n[:type], n[:source], original_concat_src)
-          last_pos = epos
-        end
-        instr_src += src[last_pos..-1]
-        instr_src
-      end
-
-      def as_node_code(var, type, source, original)
-        varsym = var.to_sym.inspect
-        fetch_locals_code = """
-(local_variables - [#{varsym}]).reduce({}){|acc, v| acc.merge v => eval(v.to_s)}
-        """.strip
-        """
-#{var}.as_node(#{type.inspect}, #{fetch_locals_code}, #{source.inspect}){
-  #{original}
-};"""
-      end
-
-      def is_next_concat_const(curr_parent, worklist, outvar)
-        return false unless curr_parent.type == :begin
-        return false if worklist.empty?
-        node, parent = worklist[0]
-        return false unless parent == curr_parent
-        cn = is_concat_node(node, outvar)
-        return false unless cn && cn[:type] == :const
-        cn
-      end
-
-      def is_concat_node(ast_node, outvar)
-        return false unless ast_node.type == :send
-        return false unless (ast_node.children.size == 3 rescue false)
-        return false unless (ast_node.children[0].children.size == 1 rescue false)
-        return false unless ast_node.children[0].children[0] == outvar.to_sym
-        return false unless ast_node.children[1] == :concat
-        begin
-          ch = ast_node.children[2]
-          type = :const
-          unless ch.type == :str
-            ch = ch.children[0].children[0] 
-            type = :expr
-          end
-          return :type => type, 
-                 :source => ch.src.expression.to_source,
-                 :begin_pos => ast_node.src.expression.begin_pos, 
-                 :end_pos => ast_node.src.expression.end_pos 
-        rescue Exception
-          false
-        end
+      def collapseTopNode
+        top_node = curr_node
+        top_node.all_children.map{|e| e.deps}.each{|d| top_node.deps.merge!(d)}
+        top_node.reset_children
+        top_node.reset_output
       end
 
       def current_view()
