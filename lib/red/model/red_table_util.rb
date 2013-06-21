@@ -12,16 +12,16 @@ module Red
       # Class +FldInfo+
       #
       # @attr scalar [Boolean]           - whether the field is scalar
-      # @attr primitive [Boolean]        - whether the range of the field 
+      # @attr primitive [Boolean]        - whether the range of the field
       #                                    is of primitive type
-      # @attr type [:attr,               - attribute stored in a column in the 
+      # @attr type [:attr,               - attribute stored in a column in the
       #                                    same table
       #             :own_one,            - owning scalar reference, foreign key
       #                                    stored in this table, deletion propagated
       #             :own_many,           - owning set of references, foreign key
       #                                    stored in the referenced table, deletion
       #                                    propagated
-      #             :ref_one,            - scalar reference, foreign key stored in 
+      #             :ref_one,            - scalar reference, foreign key stored in
       #                                    this table, deletion not propagated
       #             :ref_many]           - set of references, join table is needed
       # @attr field [Symbol]            - name of the field in the model
@@ -76,13 +76,13 @@ module Red
         def join_domain_field()  @join_domain_field.to_sym end
         def join_range_field()   @join_range_field.to_sym end
       end
-      
+
       class << self
 
         def red_seq_pos_column_name
           'position'
         end
-        
+
         # Model name for a given model class.
         #
         # @param cls [Class < Record]
@@ -154,7 +154,7 @@ module Red
         end
 
         # Returns various information about a given field relevant when
-        # creating a corresponding DB column or join table. 
+        # creating a corresponding DB column or join table.
         #
         # @param record_cls [Class < Record]
         # @param fld_name [String]
@@ -164,7 +164,7 @@ module Red
         end
 
         # Returns various information about a given field relevant when
-        # creating a corresponding DB column or join table. 
+        # creating a corresponding DB column or join table.
         #
         # @param fld [FieldMeta]
         def fld_table_info_1(fld)
@@ -187,10 +187,10 @@ module Red
 
           ret = FldInfo.new
 
-          ret.primitive = range_type.primitive? 
+          ret.primitive = range_type.primitive?
           ret.polymorphic = !range_klass.red_subclasses.empty? ||
                             (range_klass.red_root != range_klass)
-          
+
           ret.field = fld.name
           ret.column = fld.red_foreign_key_name
           ret.range_class = range_type.klass.red_model_name
@@ -209,9 +209,9 @@ module Red
               ret.type = :attr
               ret.col_type = range_type.to_db_s
             else
-              if fld.belongs_to_parent? 
+              if fld.belongs_to_parent?
                 # foreign key is here
-                ret.type = :own_one 
+                ret.type = :own_one
               else
                 # foreign key is here
                 ret.type = :ref_one
@@ -246,7 +246,7 @@ module Red
 
         def invert(ret, prime_inf)
           ret.prime_inf = prime_inf
-          case 
+          case
           when prime_inf.attr?
             fail "Should never happen"
           when prime_inf.own_one?
@@ -275,7 +275,7 @@ module Red
   #TODO delete below
 
       #   # Returns various information about a given field relevant when
-      #   # creating a corresponding DB column or join table. 
+      #   # creating a corresponding DB column or join table.
       #   #
       #   # @param fld [FieldMeta]
       #   def _fld_table_info_1(fld)
@@ -285,10 +285,10 @@ module Red
       #     ret = FldInfo.new
 
       #     ret.scalar = fld.type.scalar?
-      #     ret.primitive = range_type.primitive? 
+      #     ret.primitive = range_type.primitive?
       #     ret.polymorphic = !range_klass.red_subclasses.empty? ||
       #                       (range_klass.red_root != range_klass)
-          
+
       #     ret.field = fld.name
       #     ret.column = fld.red_foreign_key_name
       #     ret.range_class = range_type.klass.red_model_name
@@ -299,7 +299,7 @@ module Red
       #         ret.type = :attr
       #         ret.col_type = range_type.to_db_s
       #       else
-      #         if fld.belongs_to_parent? 
+      #         if fld.belongs_to_parent?
       #           ret.type = :own_one
       #         else
       #           ret.type = :ref_one

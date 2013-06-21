@@ -23,24 +23,24 @@ class RedAppController < ActionController::Base
         .when(!multiline, :attr, "class", "singlelineedit")
         .attrs(hash)
         .build(escape_body).html_safe()
-    end    
+    end
 
     # ===============================================================
     # Renders a specified view using the `ViewManager' so that all
     # field accesses are detected and the view is automatically
-    # updated when those fields change. 
+    # updated when those fields change.
     #
     # @param hash [Hash]
     # ===============================================================
     def autoview(hash)
       vm = Red::Engine::ViewManager.new
-                            
+
       opts = {
-        :layout => false, 
+        :layout => false,
       }.merge!(hash)
 
       locals = {
-        :client => client, 
+        :client => client,
         :server => server
       }.merge!(opts[:locals] ||= {})
 
@@ -55,7 +55,7 @@ class RedAppController < ActionController::Base
       log.debug tree.print_full_info
 
       Red.boss.add_client_view client, vm
-      vm.start_collecting_client_updates(client) 
+      vm.start_collecting_client_updates(client)
       # changes are pushed explicitly after each event
 
       text
@@ -86,13 +86,13 @@ class RedAppController < ActionController::Base
       begin
         machine_cls_name = Red.conf[prop]
         Red.meta.get_machine(machine_cls_name)
-      rescue 
+      rescue
         false
       end
     end
 
     def try_find_machine(parent)
-      res = Red.meta.machines.find_all do |m| 
+      res = Red.meta.machines.find_all do |m|
         !m.meta.abstract? && m.meta.all_supersigs.member?(parent)
       end
       if res.size == 1
@@ -100,13 +100,13 @@ class RedAppController < ActionController::Base
       elsif res.empty?
         false
       else
-        fail "More than one WebServer specification found: #{res.map{|m| m.name}}" 
+        fail "More than one WebServer specification found: #{res.map{|m| m.name}}"
       end
     end
 
     def init_server
       @@server_cls = try_read_machine_from_conf(:server_machine) ||
-                     try_find_machine(RedLib::Web::WebServer) || 
+                     try_find_machine(RedLib::Web::WebServer) ||
                      fail("No web server machine spec found")
       @@client_cls = try_read_machine_from_conf(:client_machine) ||
                      try_find_machine(RedLib::Web::WebClient) ||
@@ -125,21 +125,21 @@ class RedAppController < ActionController::Base
   init_server
 
   # ---------------------------------------------------------------------
-  
+
   def client
     client = session[:client]
     if client.nil?
       session[:client] ||= client = @@client_cls.new
       client.auth_token = SecureRandom.hex(32)
-      client.save! #TODO: make sure no other client has the same token?      
-    end    
+      client.save! #TODO: make sure no other client has the same token?
+    end
     unless Red.boss.has_client?(client)
       pusher = Red::Engine::Pusher.new :client => client, :listen => false
       Red.boss.fireClientConnected :client => client, :pusher => pusher
-    end      
+    end
     session[:client]
   end
-  
+
   def server
     @@server
   end
@@ -147,7 +147,7 @@ class RedAppController < ActionController::Base
   protected
 
   def notify_red_boss
-    Red.boss.set_thr :request => request, :session => session, 
+    Red.boss.set_thr :request => request, :session => session,
                      :client => client, :server => server, :controller => self
   end
 

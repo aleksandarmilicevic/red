@@ -24,20 +24,20 @@ module Red
             if f.has_impl?
               add_delegators(f)
             else
-              add_associations(f) 
+              add_associations(f)
             end
           end
           r.meta.inv_fields.each do |invf|
             if invf.inv.has_impl?
               add_inv_delegators(invf)
             else
-              add_associations(invf) 
+              add_associations(invf)
             end
           end
-          log "\n" 
+          log "\n"
         end
       end
-            
+
       protected
 
       # ---------------------------------------------------------------------
@@ -55,8 +55,8 @@ module Red
                    f.type
                  end
           unless type.unary?
-            tuple_cls_name = impl_cls_namer.call(f)            
-            super_cls = if f.type.seq? 
+            tuple_cls_name = impl_cls_namer.call(f)
+            super_cls = if f.type.seq?
                           Red::Model::RedSeqTuple
                         else
                           Red::Model::RedTuple
@@ -91,10 +91,10 @@ module Red
       # ---------------------------------------------------------------------
       # "Add associations" stuff
       #
-      # TODO: check if generated associations will override methods from 
+      # TODO: check if generated associations will override methods from
       #       ActiveRecord::Base (e.g., if there is a field called "connection"
       # ---------------------------------------------------------------------
-      
+
       # @param fld [FieldMeta]
       def add_delegators(fld)
         return if fld.is_inv?
@@ -144,7 +144,7 @@ module Red
         case
         when fldinf.attr?              # ATTR
           record.send :attr_accessible, fldinf.field
-        when fldinf.own_one?           # OWN_ONE: foreign key is here          
+        when fldinf.own_one?           # OWN_ONE: foreign key is here
           record.send :belongs_to, fldinf.field, opts.merge(:dependent => :destroy)
         when fldinf.ref_one?           # REF_ONE: foreign key is here
           record.send :belongs_to, fldinf.field, opts
@@ -158,7 +158,7 @@ module Red
           # TODO: :order => ''
           record.send :has_many, fldinf.field, opts.merge(:dependent => :destroy)
         when fldinf.ref_many?          # REF_MANY: foreign key is in a join table
-          record.send :has_and_belongs_to_many, fldinf.field, 
+          record.send :has_and_belongs_to_many, fldinf.field,
             opts.merge(:association_foreign_key => fldinf.join_range_column,
                        :join_table => fldinf.join_table)
         else
@@ -180,8 +180,8 @@ module Red
       def log_debug(str)
         Red.conf.logger.debug str
       end
-    end      
-      
+    end
+
   end
 end
-    
+

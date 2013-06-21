@@ -30,17 +30,17 @@ module Red
         end
       end
 
-      # TODO how do we serialize higher-arity types? 
+      # TODO how do we serialize higher-arity types?
       #
       # Takes an object and an Alloy type (`AType') and tries to
-      # unmarshal the object to match that type.  
+      # unmarshal the object to match that type.
       #
       # For non-scalar types the object is unmarshalled to an `Array'.
       # For binary types the object is unmarshalled to a `Hash'.
       #
       # @param obj [Object]
       # @param obj [AType]
-      def unmarshal(obj, atype=nil)                
+      def unmarshal(obj, atype=nil)
         return nil if obj.nil?
         return unmarshal_guess_type(obj) unless atype
         case
@@ -48,18 +48,18 @@ module Red
           unmarshal_to_array(obj, atype.remove_multiplicity)
         when atype.unary?
           unmarshal_unary(obj, atype)
-        when atype.binary? 
+        when atype.binary?
           unmarshal_to_hash(obj, atype.column!(0), atype.column!(1))
-        else 
+        else
           raise MarshallingError, "Higher-arity type: #{atype}"
         end
       end
 
       # Takes an object and an Alloy type and tries to unmarshal the
-      # object either to a primitive value or a record. 
+      # object either to a primitive value or a record.
       #
       # If `utype' is primitive, it attempts to convert `obj' to that
-      # type.  Otherwise, it calls `unmarshal_to_record'. 
+      # type.  Otherwise, it calls `unmarshal_to_record'.
       #
       # @param obj [Object]
       # @param utype [UnaryType]
@@ -72,7 +72,7 @@ module Red
           end
         else
           klass = utype.klass
-          case 
+          case
           when klass <= Array
             unmarshal_to_array(obj)
           when klass <= Hash
@@ -120,7 +120,7 @@ module Red
       # object to an array of elements of `elem_utype' type.
       #
       # If `utype' is primitive, it attempts to convert `obj' to that
-      # type.  Otherwise, it calls `unmarshal_to_record'. 
+      # type.  Otherwise, it calls `unmarshal_to_record'.
       #
       # @param obj [Object]
       # @param elem_utype [UnaryType]
@@ -129,8 +129,8 @@ module Red
         when Array; obj.map {|e| unmarshal(e, elem_utype)}
         when Hash
           hash = obj
-          (0...hash.size).map do |idx| 
-            val = hash[idx] || hash["#{idx}"] 
+          (0...hash.size).map do |idx|
+            val = hash[idx] || hash["#{idx}"]
             unmarshal(val, elem_utype)
           end
         else
@@ -162,7 +162,7 @@ module Red
           msg = "Unmarshalling integer to Record without knowing the record class"
           raise MarshallingError, msg unless rec_cls
           begin
-            rec_cls.find(id) 
+            rec_cls.find(id)
           rescue Exception => e
             raise MarshallingError.new(e), "Couldn't find record #{rec_cls.name}(#{id})"
           end
@@ -173,9 +173,9 @@ module Red
         when Hash
           hash = obj.clone
 
-          type = hash.delete("__type__")         
-          rec_cls = pick_type(rec_cls, type)          
-        
+          type = hash.delete("__type__")
+          rec_cls = pick_type(rec_cls, type)
+
           id = hash.delete("id")
           if !id.nil?
             unmarshal_to_record(id, rec_cls)
@@ -189,9 +189,9 @@ module Red
             #     rec.write(field(fld, val))
             #   end
             # end
-            # rec 
+            # rec
           end
-        end    
+        end
       end
 
       private
@@ -216,7 +216,7 @@ module Red
           end
         end
       end
-    end    
+    end
 
   end
 end

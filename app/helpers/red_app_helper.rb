@@ -14,5 +14,5 @@ module RedAppHelper
       .attrs(hash)
       .build()
   end
-  
+
 end

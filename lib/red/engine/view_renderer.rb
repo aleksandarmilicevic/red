@@ -1,6 +1,6 @@
 require 'red/view/view_helpers'
 require 'red/engine/access_listener'
-require 'red/engine/template_engine'    
+require 'red/engine/template_engine'
 require 'sdg_utils/config'
 require 'sdg_utils/assertions'
 require 'sdg_utils/caching/cache.rb'
@@ -26,13 +26,13 @@ module Red
       @@widget_id = 0
 
       def parent() @parent end
-        
-      def initialize(renderer, parent=nil) 
+
+      def initialize(renderer, parent=nil)
         @renderer = renderer
         @parent = parent
         @user_inst_vars = {}
       end
-      
+
       def user_inst_vars() @user_inst_vars ||= {} end
 
       def render(*args) @renderer.render(*args) end
@@ -41,11 +41,11 @@ module Red
       def engine_divider()
         @renderer.send :_collapseTopNode
       end
-      
-      def widget(name, locals={})    
+
+      def widget(name, locals={})
         @@widget_id = @@widget_id + 1
-        render :partial => "widget", 
-               :locals => { :widget_name => name, 
+        render :partial => "widget",
+               :locals => { :widget_name => name,
                             :widget_id => @@widget_id,
                             :locals => locals }
       end
@@ -58,7 +58,7 @@ module Red
       def _add_getters(hash)
         singl_cls = (class << self; self end)
         cls = self.class
-        hash.each do |k, v| 
+        hash.each do |k, v|
           if k.to_s =~ /^[A-Z]/
             # constant
             cls.send :remove_const, k if cls.const_defined?(k, false)
@@ -69,7 +69,7 @@ module Red
             name = (k[0] == '@') ? k[1..-1] : k
             define_singleton_method(name.to_sym, body)
             if k[0] == '@'
-              instance_variable_set(k, v) 
+              instance_variable_set(k, v)
               @user_inst_vars.merge! k => v
             end
           end
@@ -83,7 +83,7 @@ module Red
           end
         end
       end
-                  
+
       def method_missing(sym, *args)
         case @parent
         when NilClass
@@ -110,7 +110,7 @@ module Red
       def to_s
         "#{target}.#{method}(#{args.reduce(""){|acc, e| acc + e.to_s}})"
       end
-    end    
+    end
 
     # ================================================================
     #  Class +ViewInfoTree+
@@ -146,7 +146,7 @@ module Red
     # ================================================================
     class ViewInfoNode
       include SDGUtils::Assertions
-      
+
       attr_reader :type, :children, :extras, :deps
       attr_accessor :id, :src, :output, :render_options, :compiled_tpl
       attr_accessor :parent_tree, :parent, :index_in_parent
@@ -158,7 +158,7 @@ module Red
       def self.create_expr()  ViewInfoNode.new(:expr) end
       def self.create_tree()  ViewInfoNode.new(:tree) end
 
-      def self.create(type) 
+      def self.create(type)
         case type
         when :const; create_const
         when :expr;  create_expr
@@ -173,8 +173,8 @@ module Red
 
       def retype_to_tree() @type = :tree end
 
-      def view_binding() 
-        render_options[:view_binding] if render_options 
+      def view_binding()
+        render_options[:view_binding] if render_options
       end
 
       def template
@@ -185,7 +185,7 @@ module Red
           "<%= #{src} %>"
         end
       end
-      
+
       private
 
       def initialize(type)
@@ -206,7 +206,7 @@ module Red
         "\n#{print_short_info}"
       end
 
-      public 
+      public
 
       def output=(str)
         unless @children.empty? || str.empty?
@@ -224,7 +224,7 @@ module Red
         end
         ans
       end
-      
+
       def reset_children() @children = [] end
       def reset_output()   @output = "" end
 
@@ -277,9 +277,9 @@ module Red
       end
 
       def synth?
-        !!extras[:synth]    
+        !!extras[:synth]
       end
-      
+
       def no_deps?
         deps.empty?
       end
@@ -287,11 +287,11 @@ module Red
       def clear_deps
         deps = ViewDependencies.new
       end
-      
+
       def reload_all
         deps.objs.each do |obj, fld|
           obj.reload
-        end        
+        end
       end
 
       def short_info()
@@ -303,7 +303,7 @@ module Red
          "Object: #{extras[:object]}",
          "Src: #{src[0..60].inspect}",
          "Output: #{output[0..60].inspect}",
-         "Children: #{children.size}",          
+         "Children: #{children.size}",
          "Deps:",
          "#{deps_str}".split("\n"),
         ].flatten
@@ -344,17 +344,17 @@ module Red
       #   "#{ind_str}Object: #{extras[:object]}\n" +
       #   "#{ind_str}Src: #{src[0..60].inspect}\n" +
       #   "#{ind_str}Output: #{output[0..60].inspect}\n" +
-      #   "#{ind_str}Children: #{children.size}\n" +          
+      #   "#{ind_str}Children: #{children.size}\n" +
       #   "#{ind_str}Deps:\n#{deps_str}\n"
       # end
 
       # def print_full_info(depth=1)
       #   children_str = @children.select{|c|
       #                    !c.synth?
-      #                  }.map{|c| 
+      #                  }.map{|c|
       #                    c.print_full_info(depth+1)
       #                  }.join("\n")
-      #   print_short_info(depth) + "\n" + "#{children_str}"           
+      #   print_short_info(depth) + "\n" + "#{children_str}"
       # end
 
       def to_s
@@ -367,7 +367,7 @@ module Red
     #  Class +ViewRenderer+
     # ================================================================
     class ViewRenderer
-      
+
       def default_opts
         @@default_opts ||= SDGUtils::Config.new(nil, {
           :event_server => Red.boss,
@@ -406,7 +406,7 @@ module Red
       #                                          par[:args], par[:result])
       #   else
       #     fail "unexpected event type: #{event}"
-      #   end        
+      #   end
       # end
 
       # ------------------------------------------------------------
@@ -422,18 +422,18 @@ module Red
           node.compiled_tpl = lambda{_compile_content(node.template, [".erb"])}
           yield
         ensure
-          end_node(node)            
+          end_node(node)
         end
       end
-      
+
       def concat(str)
         curr_node.output.concat(str)
       end
 
-      def force_encoding(enc) 
+      def force_encoding(enc)
         curr_node.result.force_encoding(enc)
       end
-      
+
       # ------------------------------------------------------------
 
       # @param node [ViewInfoNode]
@@ -455,13 +455,13 @@ module Red
                  ans.compiled_tpl = tpl
                  ans
                when !node.src.empty?
-                 opts = { :inline => "#{node.template}", 
+                 opts = { :inline => "#{node.template}",
                           :view_binding => vb }
                  render_to_node opts
-               else 
+               else
                  render_to_node node.render_options
                end
-        
+
         root.src = node.src
         if node.parent.nil?
           root
@@ -475,12 +475,12 @@ module Red
         my_render(*args)
         return @tree.root
       end
-      
+
       def render(*args)
         my_render(*args)
         ""
       end
-      
+
       def my_render(hash)
         hash = _normalize(hash)
         case
@@ -525,7 +525,7 @@ module Red
           _process_collection(hash.delete(:collection), hash)
         else
           _process(hash)
-        end          
+        end
       end
 
       def _process_collection(col, hash)
@@ -535,12 +535,12 @@ module Red
             my_render(hash.merge :object => obj, :normalized => false)
           ensure
             end_node(node)
-          end             
+          end
         end
       end
-      
+
       def _process(hash)
-        case 
+        case
         when hash.key?(:compiled_tpl)
         # === compiled template
           _render_template hash[:compiled_tpl], hash
@@ -551,7 +551,7 @@ module Red
           _render_template tpl, hash
 
         # === plain text
-        when text = hash.delete(:text) 
+        when text = hash.delete(:text)
           tpl = _compile_content(text, hash[:formats] || [".txt"])
           _render_template tpl, hash
 
@@ -561,11 +561,11 @@ module Red
           _render_template tpl, hash
 
         # === Pathname pointing to file template
-        when path = hash.delete(:pathname) 
+        when path = hash.delete(:pathname)
           tpl = _compile_file(path, hash)
           _render_template tpl, hash
 
-        # === String pointing to file template 
+        # === String pointing to file template
         when file = hash.delete(:file)
           opts = {:pathname => Pathname.new(file)}.merge(hash)
           _process opts
@@ -589,14 +589,14 @@ module Red
             _process hash.merge(path)
           end
         # === Unknown
-        else 
+        else
           raise ViewError "Nothing specified" # OR render :nothing ?
         end
       end
 
-      # Returns the list of file formats of this file in reverse order. 
+      # Returns the list of file formats of this file in reverse order.
       #
-      # Example: 
+      # Example:
       #   path = "dir/file.txt.erb"
       #   result = [".erb", ".txt"]
       #
@@ -668,7 +668,7 @@ module Red
         end
         raise ViewError, err_msg
       end
-      
+
       TAB1 = "|  "
       TAB2 = "`--"
       def _indent()
@@ -693,7 +693,7 @@ module Red
 
       def end_node(expected=nil)
         node = @stack.pop
-        fail "stack corrupted" unless expected.nil? || expected === node         
+        fail "stack corrupted" unless expected.nil? || expected === node
         node
       end
 
@@ -702,7 +702,7 @@ module Red
         when :nothing, NilClass
           _normalize :nothing => true
         when Symbol, String
-          if @rendering 
+          if @rendering
             _normalize :partial => true, :template => "primitive", :object => hash
           else
             _normalize :template => hash.to_s
@@ -711,22 +711,22 @@ module Red
           _normalize :recurse => hash
         when Hash
           if hash[:normalized]
-            return hash.merge :view => current_view(), 
-                              :view_binding => get_view_binding_obj(hash) 
+            return hash.merge :view => current_view(),
+                              :view_binding => get_view_binding_obj(hash)
           end
           view = hash[:view] || current_view() || "application"
           tmpl = hash[:template] || "main"
           partial = hash[:partial]
           is_partial = !!partial
-          
+
           if is_partial && (partial != is_partial)
             # meaning that hash[:partial] is not a bool, but presumably string
             tmpl = partial
           end
-          
+
           # -------------------------------------------------------------------
           #  extract type hierarchy if an object is given
-          # -------------------------------------------------------------------          
+          # -------------------------------------------------------------------
           obj = hash[:object]
           hier = if Red::Model::Record === obj
                    record_cls = obj.class
@@ -735,14 +735,14 @@ module Red
                  else
                    []
                  end
-        
+
           locals = {}.merge!(hash[:locals] || {})
-          
-          # -------------------------------------------------------------------          
+
+          # -------------------------------------------------------------------
           #  if object is specified, add local variables pointing to it
           # -------------------------------------------------------------------
           if obj
-            to_var = lambda{|str| 
+            to_var = lambda{|str|
               return nil unless str
               str = str.to_sym
               ok = Object.new.send(:define_singleton_method, str, lambda{}) rescue false
@@ -753,12 +753,12 @@ module Red
               locals.merge! hname => obj
             end
           end
-          
+
           # -------------------------------------------------------------------
-               
-          ans = hash.merge :normalized => true, 
-                           :view => view, 
-                           :template => tmpl, 
+
+          ans = hash.merge :normalized => true,
+                           :view => view,
+                           :template => tmpl,
                            :partial => is_partial,
                            :locals => locals,
                            :layout=> false,
@@ -839,7 +839,7 @@ module Red
             end
           end
         end
-        nil  
+        nil
       end
 
       # @param dir [Pathname]
@@ -847,20 +847,20 @@ module Red
       # @return [Pathname, nil]
       def check_file(dir, template_name)
         return nil unless dir.directory?
-        
+
         no_ext = dir.join(template_name)
         @candidates << no_ext.to_s
         no_ext.file? and return no_ext
-        
+
         any_ext = dir.join(template_name + ".*")
         @candidates << any_ext.to_s
-        candidates = Dir[any_ext]    
-        
+        candidates = Dir[any_ext]
+
         if candidates.empty?
           return nil
         else
           return Pathname.new(candidates.first)
-        end    
+        end
       end
     end
 

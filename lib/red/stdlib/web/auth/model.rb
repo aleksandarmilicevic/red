@@ -18,12 +18,12 @@ module Auth
       password_hash: String,
       remember_token: String
     } do
-      
+
       transient {{
           password: String
         }}
 
-      before_validation { |user| 
+      before_validation { |user|
         user.email = user.email.downcase if user.email
         user.password_hash = pswd_hash(user.password) rescue nil
       }
@@ -31,9 +31,9 @@ module Auth
       before_save :update_remember_token
 
       validates :name,  presence: true, length: { maximum: 50 }
-      
+
       VALID_EMAIL_REGEX = /\A[\w+\-.]+@[a-z\d\-.]+\.[a-z]+\z/i
-      validates :email, presence: true, 
+      validates :email, presence: true,
                         format: { with: VALID_EMAIL_REGEX },
                         uniqueness: { case_sensitive: false }
 
@@ -45,18 +45,18 @@ module Auth
         password_hash == pswd_hash(pswd)
       end
 
-      private 
+      private
 
       def update_remember_token
         self.remember_token = SecureRandom.urlsafe_base64
       end
     end
   end
-  
+
   #===========================================================
   # Machine model
   #===========================================================
-  
+
   Red::Dsl.machine_model do
     abstract_machine AuthClient < WebClient, {
       user: AuthUser
@@ -72,29 +72,29 @@ module Auth
   Red::Dsl.event_model do
     event Register do
       from client: AuthClient
-      
+
       params {{
           name: String,
           email: String,
           password: String,
         }}
-      
+
       requires {
         self.email = self.email.downcase
         AuthUser.where(:email => email).empty?
       }
-    
+
       ensures {
-        client.create_user! :name => name, 
-                            :email => email, 
+        client.create_user! :name => name,
+                            :email => email,
                             :password => password
         client.save
       }
     end
-    
+
     event SignIn do
       from client: AuthClient
-      
+
       params {{
           email: String,
           password: String
@@ -103,7 +103,7 @@ module Auth
       requires {
         self.email = self.email.downcase
       }
-    
+
       ensures {
         u = AuthUser.where(:email => email).first
         incomplete "User #{email} not found" unless u
@@ -140,6 +140,6 @@ module Auth
       }
     end
   end
-  
+
 end
 end

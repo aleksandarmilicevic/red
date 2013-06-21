@@ -38,8 +38,8 @@ module Engine
     # ------------------------------------------------
 
     begin
-      def time_it(task, &block) 
-        if @timer 
+      def time_it(task, &block)
+        if @timer
           @timer.time_it(task, &block)
         else
           yield
@@ -66,7 +66,7 @@ module Engine
     end
 
     # ------------------------------------------------
-    # Thread-local stuff, doesn't need synchronizing. 
+    # Thread-local stuff, doesn't need synchronizing.
     # ------------------------------------------------
     begin
       def set_thr(hash)  hash.each {|k,v| Thread.current[k] = v} end
@@ -92,18 +92,18 @@ module Engine
       end
 
       # @result [Array(ViewManager)]
-      def client_views(client=curr_client)         
+      def client_views(client=curr_client)
         client2views[client] ||= []
       end
 
-      def client_pusher(client=curr_client)       
+      def client_pusher(client=curr_client)
         client_pushers[client]
       end
 
        def fireClientConnected(params)
         fire(Red::E_CLIENT_CONNECTED, params)
       end
-      
+
       def has_client?(client)
         clients.member?(client)
       end
@@ -114,9 +114,9 @@ module Engine
         }
       end
 
-      protected      
+      protected
 
-      def clients()          @clients ||= [] end 
+      def clients()          @clients ||= [] end
       def client2views()     @client2views ||= {} end
       def client_pushers()   @client_pushers ||= {} end
 
@@ -131,7 +131,7 @@ module Engine
 
     # -------------------------------------------------------
     # ActiveRecord Callbacks
-    #  
+    #
     # Just delegates to fire, which is already synchronized.
     # -------------------------------------------------------
     begin

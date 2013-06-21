@@ -5,21 +5,21 @@ require 'red/model/red_meta_model'
 require_relative 'red_dsl_engine.rb'
 
 module Red
-  
+
   module Dsl
     include Alloy::Dsl
     extend self
-    
+
     # def alloy_model(name="", &block)
     #   fail "Unsupported, use `data_model' or `machine_model"
     # end
-    
+
     def data_model(name="", &block)
       mm = _model_builder_class.get_new(
         :mods_to_include => [Red::Dsl::MData])
       mm.model(:data, name, &block)
     end
-    
+
     def machine_model(name="", &block)
       mm = _model_builder_class.get_new(
         :mods_to_include => [Red::Dsl::MMachine])
@@ -27,19 +27,19 @@ module Red
     end
 
     def event_model(name="", &block)
-      mm = _model_builder_class.get_new( 
+      mm = _model_builder_class.get_new(
         :mods_to_include => [Red::Dsl::MEvent])
       mm.model(:events, name, &block)
     end
-        
+
     # ==================================================================
-    # Model to be included in each +data_model+. 
+    # Model to be included in each +data_model+.
     # ==================================================================
     module MData
       include Alloy::Dsl::Mult
       include Alloy::Dsl::Abstract
       extend self
-      
+
       def record(name, fields={}, &block)
         sb = Alloy::DslEngine::SigBuilder.new(
           :default_superclass => Red::Model::Data)
@@ -50,15 +50,15 @@ module Red
         record(name, fields, &block).abstract
       end
     end
-    
+
     # ==================================================================
-    # Model to be included in each +machine_model+. 
+    # Model to be included in each +machine_model+.
     # ==================================================================
     module MMachine
       include Alloy::Dsl::Mult
       include Alloy::Dsl::Abstract
       extend self
-      
+
       def machine(name, fields={}, &block)
         sb = Alloy::DslEngine::SigBuilder.new(
           :default_superclass => Red::Model::Machine)
@@ -69,14 +69,14 @@ module Red
         machine(name, fields, &block).abstract
       end
     end
-    
+
     # ==================================================================
-    # Model to be included in each +event_model+. 
+    # Model to be included in each +event_model+.
     # ==================================================================
     module MEvent
       include Alloy::Dsl::Mult
       extend self
-      
+
       def event(name, fields={}, &block)
         sb = Alloy::DslEngine::SigBuilder.new(
           :default_superclass => Red::Model::Event)

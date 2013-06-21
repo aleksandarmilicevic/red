@@ -1,21 +1,21 @@
 % if client.user
-  
+
   <div id="auth_welcome_div" class="login welcome">
-    <span class="welcome">Welcome </span> 
-    <span class="name"><%= client.user.name %> </span> 
+    <span class="welcome">Welcome </span>
+    <span class="name"><%= client.user.name %> </span>
     (<span class="email"><%= client.user.email %></span>)
     <a href="#" class="fire" data-type="submit-event" data-event-type="SignOut">Sign Out</a>
   </div>
-  
+
 % else
 
-  
-  <div id="auth_login_div" class="login signin">    
+
+  <div id="auth_login_div" class="login signin">
     <div id="title">
-      <div id="reg"><span id="register_lbl">Register</span></div>                    
+      <div id="reg"><span id="register_lbl">Register</span></div>
       <div id="signin"><span id="signin_lbl">Sign In</span></div>
     </div>
-    
+
     <form id="login_form">
         <div id="name_div" class="edit">
             <div class="label">Name:</div>     <input class="value" type="text"   name="name" value=""/>
@@ -27,16 +27,16 @@
             <div class="label">Password:</div> <input class="value" type="password" name="password" value=""/>
         </div>
     </form>
-    
+
     <div id="auth_login_buttons_div">
         <div id="signin_grp">
             <a id="register_lnk" href="#">register</a>
-            <button id="signin_btn" class="fire" type="button" data-type="submit-event" data-event-type="SignIn" 
+            <button id="signin_btn" class="fire" type="button" data-type="submit-event" data-event-type="SignIn"
                 data-event-form="login_form">Sign In</buton>
         </div>
-        <div id="register_grp">              
-            <a id="signin_lnk" href="#">sign in</a>  
-            <button id="register_btn" class="fire" type="button" data-type="submit-event" data-event-type="Register" 
+        <div id="register_grp">
+            <a id="signin_lnk" href="#">sign in</a>
+            <button id="register_btn" class="fire" type="button" data-type="submit-event" data-event-type="Register"
                 data-event-form="login_form">Register</buton>
         </div>
     </div>

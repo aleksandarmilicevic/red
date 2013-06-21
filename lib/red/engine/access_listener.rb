@@ -5,7 +5,7 @@ module Red::Engine
   # ================================================================
   #  Class +ViewDependencies+
   # ================================================================
-  class ViewDependencies      
+  class ViewDependencies
     # Maps record objects to field accesses (represented by an array
     # of (field, value) pairs.
     #
@@ -21,12 +21,12 @@ module Red::Engine
     # Returns a list of queried +RedRecord+ classes.
     #
     # @return Array(RedRecord.class)
-    def classes() 
+    def classes()
       result = Set.new
       queries.each {|q| result.add(q.target)}
       result.to_a
     end
-    
+
     # Returns a list of find queries
     #
     # @return Array(RedRecord.class, Array(Object), ActiveRecord::Relation)
@@ -35,7 +35,7 @@ module Red::Engine
     def empty?
       objs.empty? && queries.empty?
     end
-    
+
     def merge!(that)
       that.objs.each do |record, fv|
         fv.each do |field, value|
@@ -44,33 +44,33 @@ module Red::Engine
       end
       queries.concat(that.queries)
     end
-      
+
     def field_accessed(object, field, value)
       value = value.clone rescue value
       flds = (objs[object] ||= [])
       unless flds.find {|f, v| f == field && v == value}
         flds << [field, value]
-      end 
+      end
     end
-    
+
     # @param args [Array] is either [Query] or [target, method, args, result]
     def handle_query_executed(*args)
       query = args.size == 1 ? args[0] : Query.new(*args)
       queries << query
       nil
     end
-    
-    # def record_queried(record) 
+
+    # def record_queried(record)
     #   classes << record.class unless classes.member?(record.class)
     # end
-    
+
     def to_s
-      fa = objs.map{ |k, v| 
-        "  #{k.class.name}(#{k.id})::(#{v.map{|f,fv| f.name}.join(', ')})" 
+      fa = objs.map{ |k, v|
+        "  #{k.class.name}(#{k.id})::(#{v.map{|f,fv| f.name}.join(', ')})"
       }.join("\n")
       cq = queries.map{|q| "  " + q.to_s}.join("\n")
       "Field accesses:\n#{fa}\nClasses queried:\n  #{cq}"
-    end      
+    end
   end
 
   # ================================================================
@@ -78,22 +78,22 @@ module Red::Engine
   # ================================================================
   class AccessListener
     EVENTS = [Red::E_FIELD_READ, Red::E_FIELD_WRITTEN, Red::E_QUERY_EXECUTED]
-    
+
     def initialize(hash={})
       @deps_list = Set.new
       @conf = Red.conf.access_listener.extend(hash)
     end
-    
+
     def start_listening
       debug "listening for field accesses"
-      @conf.event_server.register_listener(EVENTS, self) 
+      @conf.event_server.register_listener(EVENTS, self)
     end
-    
+
     def stop_listening
       debug "not listening for field accesses"
-      @conf.event_server.unregister_listener(EVENTS, self) 
+      @conf.event_server.unregister_listener(EVENTS, self)
     end
-    
+
     def finalize
       @conf.event_server.unregister_listener(EVENTS, self)
     end
@@ -110,11 +110,11 @@ module Red::Engine
     # Event handler
     def call(event, par)
       obj, fld, ret, val = par[:object], par[:field], par[:return], par[:value]
-      
+
       unless @deps_list.empty?
         debug "notifying #{@deps_list.size} deps about event #{event}"
       end
-      
+
       case event
       when Red::E_FIELD_READ
         debug "field read: #{obj}.#{fld.name}"
@@ -129,7 +129,7 @@ module Red::Engine
         for_each_deps{|d| d.handle_query_executed(query)}
       else
         fail "unexpected event type: #{event}"
-      end        
+      end
     end
 
     # ---------------------------------------------------------------------------
@@ -146,5 +146,5 @@ module Red::Engine
     def pref()     "[AccessListener]" end
     def debug(msg) @conf.log.debug "#{pref} #{msg}" end
   end
-  
+
 end

@@ -19,7 +19,7 @@ module Red
 
       #----------------------------------------
       # Class +MigrationRecorder+
-      # 
+      #
       # @attr name [String]
       # @attr recorders [{Symbol => Array[Recorder]]
       #----------------------------------------
@@ -37,20 +37,20 @@ module Red
         def change; new_rec :change end
         def up;     new_rec :up end
         def down;   new_rec :down end
-          
+
         def to_s
           buff = "class #{@name} < ActiveRecord::Migration\n"
-          buff << @recorders.map {|sym, rec| 
+          buff << @recorders.map {|sym, rec|
             "  def #{sym}\n#{rec.map{|e| e.to_s}.join("\n")}  end\n"
           }.join("\n")
           buff << "end\n"
           buff
         end
 
-        private 
+        private
 
         def new_rec sym
-          rec = SDGUtils::Recorder.new :indent    => "    ", 
+          rec = SDGUtils::Recorder.new :indent    => "    ",
                                        :block_var => "t"
           (@recorders[sym] ||= []) << rec
           rec
@@ -193,7 +193,7 @@ module Red
 
         # Handles a given field of the given record
         #
-        # @param tbl 
+        # @param tbl
         # @param fld_name [Symbol]
         # @param r [Record]
         def handle_field(tbl, fld)
@@ -207,7 +207,7 @@ module Red
                        {:polymorphic => true} #{:default => fld_info.range_class}
                      else
                        {}
-                     end              
+                     end
               tbl.references fld_info.field, opts
             elsif fld_info.own_many?
               # nothing to add here, foreign key goes in the other table
@@ -223,7 +223,7 @@ module Red
         end
 
         def new_change_recorder
-          _self_if_standalone || 
+          _self_if_standalone ||
             begin
               unless @change_migration
                 @change_migration = MigrationRecorder.new("CreateMissingTables")
@@ -241,7 +241,7 @@ module Red
               mgr
             end
         end
-        
+
         def _self_if_standalone
           if @exe
             self

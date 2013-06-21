@@ -9,7 +9,7 @@ module Red
     #------------------------------------------------------------------------
     class MalformedEventError < StandardError
     end
-    
+
     class EventNotCompletedError < StandardError
     end
 
@@ -17,4 +17,4 @@ module Red
     end
   end
 end
-    
+

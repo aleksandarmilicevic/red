@@ -10,7 +10,7 @@ module Crud
       params {{
           className: String,
         }}
-    
+
       ensures {
         cls = Red.meta.get_record(className)
         error "Record class #{cls} not found" unless cls
@@ -42,7 +42,7 @@ module Crud
       def write_error(target, fld, value)
         error "couldn't write field #{target}.#{fld.name}"
       end
-    end    
+    end
 
     event DeleteRecord do
       params {{
@@ -64,7 +64,7 @@ module Crud
         }}
 
       requires {
-        !targets.nil?        
+        !targets.nil?
       }
 
       ensures {
@@ -72,6 +72,6 @@ module Crud
       }
     end
   end
-  
+
 end
 end

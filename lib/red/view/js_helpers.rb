@@ -10,7 +10,7 @@ module Red
       def js_ns_prefix(ns)
         ns ? "#{ns}." : "var "
       end
-      
+
       def js_record_prefix
         js_ns_prefix(Red.conf.js_record_ns)
       end
@@ -22,11 +22,11 @@ module Red
       def js_name(cls)
         cls.relative_name.underscore
       end
-    
+
       # @param client [WebClient, Object#auth_token]
       def push_channel_to(client)
         "/data/update/#{client.auth_token}"
-      end    
+      end
 
       def red_tags
         ch = push_channel_to Red.boss.thr(:client)
@@ -45,7 +45,7 @@ module Red
   <meta name="client-id" content="#{Red.boss.thr(:client).id}"/>
   <meta name="server-id" content="#{Red.boss.thr(:server).id}"/>
 EOT
-        out.html_safe 
+        out.html_safe
       end
 
       def red_styles
@@ -56,7 +56,7 @@ EOT
         traverse_views_with {|tree| tree.scripts}
       end
 
-      def red_assets        
+      def red_assets
         styles = red_styles
         scripts = red_scripts
         return "" if styles.empty? && scripts.empty?
@@ -64,7 +64,7 @@ EOT
   <script type="text/javascript">
     #{scripts}
   </script>
-  
+
   <style media="screen" type="text/css">
     #{styles}
   </style>

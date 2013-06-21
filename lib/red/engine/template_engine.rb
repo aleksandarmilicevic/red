@@ -12,7 +12,7 @@ module Red::Engine
     def get
       lambda { |source|
         erb_out_var = "out"
-        erb = ERB.new(source, nil, "%<>", erb_out_var)          
+        erb = ERB.new(source, nil, "%<>", erb_out_var)
         instrumented = instrument_erb(erb.src, erb_out_var)
         erb.src.clear
         erb.src.concat(instrumented)
@@ -25,7 +25,7 @@ module Red::Engine
     def instrument_erb(src, var)
       src = src.gsub(/#{var}\ =\ ''/, "#{var}=mk_out")
       ast = Parser::CurrentRuby.parse(src)
-      
+
       # discover concat calls
       concat_nodes = []
       # array of (node, parent) pairs
@@ -37,7 +37,7 @@ module Red::Engine
             cn[:end_pos] = cnn[:end_pos]
             cn[:source] = eval("#{cn[:source]} + #{cnn[:source]}").inspect
             cn[:template] = cn[:template] + cnn[:template]
-            worklist.shift  
+            worklist.shift
           end
           concat_nodes << cn
         else
@@ -45,7 +45,7 @@ module Red::Engine
           worklist = node.children.map{ |ch| [ch, node] if Parser::AST::Node === ch }.compact + worklist
         end
       end
-      
+
       # instrument src by wrapping all concat calls in `as_node'
       instr_src = ""
       last_pos = 0
@@ -63,7 +63,7 @@ module Red::Engine
       instr_src += src[last_pos..-1]
       instr_src
     end
-    
+
     def as_node_code(var, type, source, template, original)
       varsym = var.to_sym.inspect
       locals_code = """
@@ -74,7 +74,7 @@ module Red::Engine
   #{original}
 };"""
     end
-    
+
     def is_next_concat_const(curr_parent, worklist, outvar)
       return false unless curr_parent.type == :begin
       return false if worklist.empty?
@@ -84,7 +84,7 @@ module Red::Engine
       return false unless cn && cn[:type] == :const
       cn
     end
-    
+
     def is_concat_node(ast_node, outvar)
       return false unless ast_node.type == :send
       return false unless (ast_node.children.size == 3 rescue false)
@@ -102,11 +102,11 @@ module Red::Engine
           tpl = "<%= #{src} %>"
           type = :expr
         end
-        return :type => type, 
+        return :type => type,
                :source => src,
                :template => tpl,
-               :begin_pos => ast_node.src.expression.begin_pos, 
-               :end_pos => ast_node.src.expression.end_pos 
+               :begin_pos => ast_node.src.expression.begin_pos,
+               :end_pos => ast_node.src.expression.end_pos
       rescue Exception
         false
       end
@@ -140,17 +140,17 @@ module Red::Engine
           elsif fst == IDEN
             rest
           else
-            fst_name = fst.call("").name 
-            CompiledTemplate.new("#{fst_name}.#{rest.name}", lambda { |*env| 
+            fst_name = fst.call("").name
+            CompiledTemplate.new("#{fst_name}.#{rest.name}", lambda { |*env|
                                    rest_src = rest.execute(*env)
                                    fst_compiler = fst.call(rest_src)
                                    env.first.eval "engine_divider()" #rescue nil
-                                   fst_compiler.execute(*env) 
+                                   fst_compiler.execute(*env)
                                  })
           end
         end
       end
-      
+
       # Returns a 1-arg lambda which when executed on a given source
       # string returns an instance of the `CompiledTemplate' class.
       #
@@ -179,7 +179,7 @@ module Red::Engine
   class CompiledTemplate
     # Takes a proc which is the execute method of this compiled template
     # @param engine [Proc]
-    def initialize(name, engine) 
+    def initialize(name, engine)
       fail "not a proc" unless Proc === engine
       @name = name
       @arity = engine.arity
@@ -188,16 +188,16 @@ module Red::Engine
     def engine() @engine end
     def arity()  @arity end
     def name()   @name end
-    def execute(*env)     
-      if @engine.arity == 0 
-        @engine.call 
+    def execute(*env)
+      if @engine.arity == 0
+        @engine.call
       else
         fail "expected arity: #{@engine.arity}, actual: 0" if env.empty?
-        @engine.call(*env) 
+        @engine.call(*env)
       end
     end
   end
 
 
-  
+
 end

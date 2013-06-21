@@ -8,7 +8,7 @@ module Red
   # =================================================================
   # Class +CInitializer+
   #
-  # Performs various initialization tasks. 
+  # Performs various initialization tasks.
   #
   # Options:
   #   :resolver  - resolver to use, defaults to +Red::Resolver+
@@ -33,7 +33,7 @@ module Red
       init_all_but_rails_no_freeze
       deep_freeze
     end
-    
+
     def init_all_but_rails_no_freeze
       configure_alloy
       resolve_fields
@@ -48,28 +48,28 @@ module Red
     end
 
     # ----------------------------------------------------------------
-    # Finds and requires all Red models 
+    # Finds and requires all Red models
     # ----------------------------------------------------------------
     def require_models
       return if @@required
       @@required = true
-      #TODO: make these folders configurable    
+      #TODO: make these folders configurable
       (Dir[Rails.root.join("app", "models", "{**/*.rb}")] +
        Dir[Rails.root.join("app", "events", "{**/*.rb}")]).each do |d|
         require d.to_s
       end
     end
-    
+
     def resolve_fields(force=false)
       @alloy_initializer.resolve_fields(force)
     end
-    
+
     def expand_fields(force=true)
       return unless force || Red.test_and_set(:fields_expanded)
       # @alloy_initializer.init_inv_fields(force)
       Red::Model::Assoc.expand_fields
     end
-    
+
     def init_inv_fields(force=false)
       @alloy_initializer.init_inv_fields(force)
     end

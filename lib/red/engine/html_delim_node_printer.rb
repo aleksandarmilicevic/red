@@ -5,7 +5,7 @@ module Red
       extend self
 
       def print_with_html_delims(node)
-        result = 
+        result =
           if node.children.empty?
             node.result
           else
@@ -13,22 +13,22 @@ module Red
           end
         enclose_result(result, node)
       end
-      
+
       def enclose_result(str, node)
         if node.no_deps?
           str
         else
           # " <reds data-frag-id='#{node.id}'> _reds_ </reds> " +
-          #   str + 
+          #   str +
           #   " <rede data-frag-id='#{node.id}'> _rede_ </rede> "
 
           # " <reds data-frag-id='#{node.id}'></reds> " +
-          #   str + 
-          #   " <rede data-frag-id='#{node.id}'/></rede> "          
+          #   str +
+          #   " <rede data-frag-id='#{node.id}'/></rede> "
 
           " <reds_#{node.id}></reds_#{node.id}> " +
-            str + 
-            " <rede_#{node.id}></rede_#{node.id}> " 
+            str +
+            " <rede_#{node.id}></rede_#{node.id}> "
         end
       end
     end

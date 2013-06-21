@@ -12,7 +12,7 @@ module Red
         record_cls = record.meta.sig_cls
         hier = record_cls.all_supersigs.reverse + [record_cls]
         fld_hash = {}
-        hier.each do |r| 
+        hier.each do |r|
           r.meta.fields.each do |f|
             fld_hash[f.name] = f
           end
@@ -28,7 +28,7 @@ module Red
       end
 
       def ser_as_red_json(record)
-        #TODO: 
+        #TODO:
         json_hash = record.as_json :root => false
         json_hash.delete("created_at")
         json_hash.delete("updated_at")
@@ -59,7 +59,7 @@ module Red
 end
 
 # ====================================================================
-# Methods: 
+# Methods:
 #   * red_inspect
 #   * as_red_json
 # ====================================================================
@@ -71,9 +71,9 @@ module Red::Model
     end
 
     def as_red_json(hash={})
-      json = Serializer.ser_as_red_json(self)      
+      json = Serializer.ser_as_red_json(self)
       if hash[:root]
-        root_name = self.class.name.underscore.singularize 
+        root_name = self.class.name.underscore.singularize
         json = { root_name => json }
       end
       json
@@ -83,7 +83,7 @@ module Red::Model
 end
 
 class Array
-  def red_inspect() 
+  def red_inspect()
     str = map{|e| e.red_inspect}.join(", ")
     "[#{str}]"
   end
@@ -106,7 +106,7 @@ class Hash
   end
 
   def as_red_json(hash={})
-    reduce({}) do |acc,kv| 
+    reduce({}) do |acc,kv|
       key = kv[0].as_red_json(hash)
       value = kv[1].as_red_json(hash)
       acc[key] = value

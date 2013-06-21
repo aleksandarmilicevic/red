@@ -5,15 +5,15 @@ class Class
   def red_model_name
     Red::Model::TableUtil.red_model_name(self)
   end
-  
+
   def red_table_name
     Red::Model::TableUtil.red_table_name(self)
   end
-  
+
   def red_ref_name
     Red::Model::TableUtil.red_ref_name(self)
   end
-  
+
   def red_key_col_name
     Red::Model::TableUtil.red_key_col_name(self)
   end

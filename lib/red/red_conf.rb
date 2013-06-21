@@ -13,11 +13,11 @@ module Red
       c.log            = Logger.new(NilIO.instance)
     end
   end
-      
+
   def self.default_pusher_conf
     SDGUtils::Config.new do |c|
       c.event_server   = lambda{Red.boss}
-      c.views          = [] 
+      c.views          = []
       c.deps           = nil
       c.manager        = nil #must be set by the caller
       c.client         = nil
@@ -28,18 +28,18 @@ module Red
       c.update_views   = true
       c.push_changes   = true
       c.auto_push      = false
-      c.events         = [Red::E_RECORD_SAVED, Red::E_RECORD_DESTROYED, 
+      c.events         = [Red::E_RECORD_SAVED, Red::E_RECORD_DESTROYED,
                           Red::E_RECORD_QUERIED]
       c.log            = lambda{Red.conf.logger}
     end
   end
-  
+
   def self.default_alloy_conf
     SDGUtils::PushConfig.new(Alloy.conf) do |c|
       c.inv_field_namer = lambda { |fld| "_" + fld.name }
       #c.logger = SDGUtils::IO::LoggerIO.new(Rails.logger)
-      # :inv_field_namer => lambda { |fld| 
-      #     begin 
+      # :inv_field_namer => lambda { |fld|
+      #     begin
       #       owner_fld = "owner_#{fld.parent.red_ref_name}"
       #       default_name = "#{fld.name}_of_#{fld.parent.red_table_name}"
       #       if fld.belongs_to_parent? && !fld.type.range.klass.meta.field(owner_fld)

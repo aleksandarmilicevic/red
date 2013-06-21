@@ -5,8 +5,8 @@ require 'alloy/alloy'
 require 'sdg_utils/meta_utils'
 
 module Red
-    
-  module Model    
+
+  module Model
     #-------------------------------------------------------------------
     # == Class +MetaModel+
     #
@@ -23,12 +23,12 @@ module Red
       def initialize
         reset
       end
-      
+
       def reset
         @base_records = []
         @records = []
         @machines = []
-        @events = [] 
+        @events = []
         @cache = {}
         @restriction_mod = nil
       end
@@ -47,7 +47,7 @@ module Red
       def get_record(name)      _cache(_records, name) end
       def get_machine(name)     _cache(_machines, name) end
       def get_event(name)       _cache(_events, name) end
-      
+
       alias_method :base_record, :get_base_record
       alias_method :record, :get_record
       alias_method :machine, :get_machine
@@ -75,6 +75,6 @@ module Red
       def _events;       _restrict @events end
 
     end
-    
+
   end
 end

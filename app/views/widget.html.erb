@@ -3,22 +3,22 @@
   <%= render :partial => "#{widget_name}/index", :locals => locals %>
 
   <style media="screen" type="text/css">
-    <%= render :partial => "widget-style", :locals => { :widget_id => widget_id, 
-                                                        :widget_name => widget_name, 
+    <%= render :partial => "widget-style", :locals => { :widget_id => widget_id,
+                                                        :widget_name => widget_name,
                                                         :locals => locals} %>
   </style>
-  
+
   <script type="text/javascript">
-    $(function () {        
+    $(function () {
         var $ = function (selector, context) {
             var ctx = context;
             if (context === undefined) {
                 ctx = jQuery("#widget-<%= widget_id %>");
-            }    
+            }
             return jQuery(selector, ctx);
         };
-        
+
         <%= render :partial => "#{widget_name}/script", :locals => locals %>
-    });    
+    });
   </script>
 </div>

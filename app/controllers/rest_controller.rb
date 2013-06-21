@@ -1,23 +1,23 @@
 class RestController < RedAppController
-  
+
   before_filter :extract_info
-  
+
   # GET /<resource>.json (e.g., GET /posts.json)
-  def index    
+  def index
     ids = params[:ids] || params[:id]
     @records = if ids
                  @record_cls.find(ids)
-               else  
+               else
                  @record_cls.all
                end
-    render_json @records    
+    render_json @records
   end
 
   # GET /<resource>/<id>.json  (e.g., GET /posts/1.json)
   def show
     @record = @record_cls.find(params[:id])
     #instance_variable_set("@#{params[:resource].singularize}".to_sym, @record)
-    
+
     render_json @record
   end
 
@@ -37,11 +37,11 @@ class RestController < RedAppController
   def create
     params_key = params[:resource].singularize.to_sym
     @record = @record_cls.new(params[params_key])
-    
+
     if @post.save
-      render_json @post, status: :created, location: @post 
+      render_json @post, status: :created, location: @post
     else
-      render_json @post.errors, status: :unprocessable_entity 
+      render_json @post.errors, status: :unprocessable_entity
     end
   end
 
@@ -50,7 +50,7 @@ class RestController < RedAppController
   def update
     params_key = params[:resource].singularize.to_sym
     @record = @record_cls.find(params[:id])
-    
+
     if @post.update_attributes(params[params_key])
       head :no_content
     else
@@ -67,12 +67,12 @@ class RestController < RedAppController
   end
 
   protected
-  
+
   def render_json(target, hash={})
     # opts = hash.merge :json => target, :root => @resource.singularize
     # render opts
 
-    if target.kind_of?(ActiveRecord::Relation) || target.kind_of?(Array) 
+    if target.kind_of?(ActiveRecord::Relation) || target.kind_of?(Array)
       root = @resource.pluralize
     else
       root = @resource.singularize
@@ -82,13 +82,13 @@ class RestController < RedAppController
   end
 
   def extract_info
-    @resource = params[:resource] 
+    @resource = params[:resource]
     fail "No record class specified" unless @resource
-     
+
     @record_name = @resource.classify
-     
+
     @record_cls = Red.meta.record(@record_name) || Red.meta.machine(@record_name)
-    fail "No #{@record_name} record found" unless @record_cls    
+    fail "No #{@record_name} record found" unless @record_cls
   end
-      
+
 end

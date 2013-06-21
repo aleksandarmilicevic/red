@@ -4,25 +4,25 @@ require 'red/model/red_model_errors'
 class EventController < RedAppController
   include Red::Model::Marshalling
 
-  private 
+  private
 
   def error(short, long=nil, status_code)
-    Rails.logger.warn "[ERROR] #{short}. #{long}" 
+    Rails.logger.warn "[ERROR] #{short}. #{long}"
     short = long unless short
-    json = {:kind => "error", :msg => short, :status => status_code} 
+    json = {:kind => "error", :msg => short, :status => status_code}
     push_status(json)
     render :json => json, :status => status_code
   end
 
   def success(event_name, ans=nil)
-    json = {:kind => "event_completed", 
-            :event => {:name => event_name, :params => params[:params]}, 
-            :msg => "Event #{event_name} successfully completed", 
+    json = {:kind => "event_completed",
+            :event => {:name => event_name, :params => params[:params]},
+            :msg => "Event #{event_name} successfully completed",
             :ans => ans}
     push_status(json)
     render :json => json
   end
-  
+
   def push_status(json)
     pusher = Red.boss.client_pusher
     pusher.push_json(:type => "status_message", :payload => json) if pusher
@@ -30,13 +30,13 @@ class EventController < RedAppController
 
   public
 
-  def call(event, params) 
+  def call(event, params)
     record = params[:object]
     return unless Red::Model::Record === record
     log_debug "Detected an update on record #{record} during execution of #{@curr_event}"
     @updated_records << record
   end
-  
+
   def index
     event_name = params[:event]
     return error("event name not specified") unless event_name
@@ -52,7 +52,7 @@ class EventController < RedAppController
       unmarshal_and_set_event_params(event)
     }
 
-    #TODO: enclose in transaction    
+    #TODO: enclose in transaction
     begin
       @updated_records = Set.new
       Red.boss.register_listener Red::E_FIELD_WRITTEN, self
@@ -79,14 +79,14 @@ class EventController < RedAppController
           else
             log_debug "Updated record #{r} needs no saving"
           end
-        end 
+        end
       }
-      
+
       Red.boss.push_changes
-    end   
+    end
   end
 
-  private 
+  private
 
   def execute_event(event, cont)
     ok = event.requires
@@ -104,14 +104,14 @@ class EventController < RedAppController
 
     fld = nil
     val = nil
-    event_params.each do |name, value| 
-      begin 
+    event_params.each do |name, value|
+      begin
         fld = event.meta.field(name)
         if !fld
           log_warn "invalid parameter '#{name}' for event #{event.class.name}"
         else
           val = unmarshal(value, fld.type)
-          event.set_param(name, val) 
+          event.set_param(name, val)
         end
       rescue Red::Model::Marshalling::MarshallingError => e
         log_warn "Could not unmarshal `#{value.inspect}' for field #{fld}", e
@@ -120,16 +120,16 @@ class EventController < RedAppController
       end
     end
   end
-  
+
   def log_debug(str, e=nil) log :debug, str, e end
   def log_warn(str, e=nil)  log :warn, str, e end
 
   def log(level, str, e=nil)
     Red.conf.logger.send level, "[EventController] #{str}"
-    if e 
+    if e
       Red.conf.logger.send level, e.message
-      Red.conf.logger.send level, e.backtrace.join("  \n") 
+      Red.conf.logger.send level, e.backtrace.join("  \n")
     end
   end
-  
+
 end

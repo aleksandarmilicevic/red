@@ -15,11 +15,11 @@ module Engine
     include Red::Engine::HtmlDelimNodePrinter
 
     attr_reader :_affected_nodes, :_updated_nodes
-    def __reset_saved_fields() 
+    def __reset_saved_fields()
       @_affected_nodes = []
-      @_updated_nodes = [] 
+      @_updated_nodes = []
     end
-    
+
     def initialize(hash={})
       @conf = Red.conf.pusher.extend(hash)
       msg = "Listen=true but no event server specified"
@@ -29,14 +29,14 @@ module Engine
       start_listening if @conf.listen
     end
 
-    def start_listening      
+    def start_listening
       debug "listening for data model changes"
-      @conf.event_server.register_listener(@conf.events, self) 
+      @conf.event_server.register_listener(@conf.events, self)
     end
 
     def stop_listening
       debug "not listening for data model changes anymore"
-      @conf.event_server.unregister_listener(@conf.events, self) 
+      @conf.event_server.unregister_listener(@conf.events, self)
     end
 
     def finalize
@@ -58,7 +58,7 @@ module Engine
     # Monitoring for changes and pushing updates to clients
     # -------------------------------------------------------
     # TODO: move to a separate thread
-    # TODO: batch 
+    # TODO: batch
 
     def handle_record_saved(params)
       record = params[:record]
@@ -86,7 +86,7 @@ module Engine
         debug e.backtrace.join("\n")
       end
     end
-    
+
     private
 
     def buffer() @buffer ||= Set.new end
@@ -119,21 +119,21 @@ module Engine
       # end
       # push_record_update(updated_records.to_a) unless updated_records.empty?
     # end
-# 
+#
     # def push_record_update(mod_records)
-      # result = mod_records.map do |rec| 
+      # result = mod_records.map do |rec|
         # debug "enquing record update: #{rec}"
         # { :record_type => rec.class.name,
           # :json => rec.as_red_json({:root => true}) }
       # end
-      # push_json :type => "record_update", 
+      # push_json :type => "record_update",
                 # :payload => result
     # end
 
     def refresh_views
       updated_records = buffer.clone
       buffer.clear #TODO: should be atomic with prev
-      
+
       affected_nodes = Set.new
       Red.boss.time_it("[Pusher] Discovering affected nodes") {
         updated_records.each do |mod_record|
@@ -170,7 +170,7 @@ module Engine
         when Red::Engine::ViewInfoTree
           view_tree = view
           dirty_nodes = traverse_view_tree(view_tree, record)
-          affected_nodes += dirty_nodes 
+          affected_nodes += dirty_nodes
         when Red::Engine::ViewInfoNode
           view_node = view
           affected_nodes << view_node if check_deps(view_node.deps, record)
@@ -179,7 +179,7 @@ module Engine
         end
       end
       unless affected_nodes.empty?
-        debug "    client has dirty nodes" 
+        debug "    client has dirty nodes"
       end
       affected_nodes
     end
@@ -191,8 +191,8 @@ module Engine
     # @return [Array(ViewInfoTree, ViewInfoNode, ViewInfoNode)]
     def update_views(dirty_nodes)
       updated_nodes = []
-      dirty_nodes.each do |dn| 
-        begin 
+      dirty_nodes.each do |dn|
+        begin
           #TODO not the most efficient thing to do
           Red.boss.time_it("[Pusher] Reloading all"){
             dn.reload_all
@@ -214,14 +214,14 @@ module Engine
       end
       updated_nodes
     end
-    
+
     def push_view_changes(stale_nodes)
       stale_nodes.each do |old_node, new_node|
         result = print_with_html_delims(new_node)
         debug "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
         debug "pushing update for node #{old_node.id}"
         debug "update size (in characters): #{result.size}"
-        push_json :type => "node_update", 
+        push_json :type => "node_update",
                   :payload => {:node_id => old_node.id, :inner_html => result}
       end
     end
@@ -241,7 +241,7 @@ module Engine
     end
 
     def check_record_deps(deps, record)
-      deps.obj(record).each do |field, old_value| 
+      deps.obj(record).each do |field, old_value|
         new_value = record.read_field(field)
         if new_value != old_value
           debug "    field '#{field.name}' changed from '#{old_value}' to '#{new_value}'"
@@ -270,21 +270,21 @@ module Engine
       Red.boss.time_it("[Pusher] Checking dependencies #{deps.to_s.inspect} for record #{record}") {
         Red.boss.time_it("[Pusher] Checking field dependencies") {
           check_record_deps(deps, record)
-        } || 
+        } ||
         Red.boss.time_it("[Pusher] Checking queries") {
           !affected_queries(deps).empty?
         }
       }
     end
 
-    private 
+    private
 
     def pref()     "[Pusher(#{@conf.client})]" end
     def debug(msg) @conf.log.debug "#{pref} #{msg}" end
     def warn(msg)  @conf.log.warn "#{pref} #{msg}" end
 
     def fail_to_connect(url)
-      warn "could not connect to push server at #{push_server}"      
+      warn "could not connect to push server at #{push_server}"
       nil
     end
   end
@@ -300,7 +300,7 @@ end
           # vm = Red.boss.client_views[@conf.client]
           # full = vm.render_view
           rr = @conf.renderer
-          full = rr.render view_tree.root.render_options 
+          full = rr.render view_tree.root.render_options
           @conf.log.debug "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
           @conf.log.debug full
           push_client.publish(channel, :html => full)

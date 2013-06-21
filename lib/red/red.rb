@@ -8,7 +8,7 @@ module Red
 
   include Red::Engine::EventConstants
 
-  class CMain 
+  class CMain
     include TestAndSet
 
     def initialize
@@ -16,8 +16,8 @@ module Red
     end
 
     def conf
-      require 'red/red_conf' 
-      @conf ||= Red::default_conf 
+      require 'red/red_conf'
+      @conf ||= Red::default_conf
       @conf
     end
 
@@ -29,15 +29,15 @@ module Red
       require 'red/model/red_meta_model'
       @meta ||= Red::Model::MetaModel.new
     end
-    
+
     def boss
       require 'red/engine/big_boss'
-      @boss ||= Red::Engine::BigBoss.new(Alloy.boss) 
+      @boss ||= Red::Engine::BigBoss.new(Alloy.boss)
     end
-    
-    def initializer 
+
+    def initializer
       require 'red/initializer'
-      @initializer ||= Red::CInitializer.new 
+      @initializer ||= Red::CInitializer.new
     end
 
     def reset
@@ -61,7 +61,7 @@ module Red
 
   def reset
     Alloy.reset
-    red.reset 
+    red.reset
   end
 
   extend SDGUtils::Delegate
