@@ -3,6 +3,7 @@ require 'red/engine/pusher'
 require 'red/engine/access_listener'
 require 'sdg_utils/meta_utils'
 require 'sdg_utils/event/events'
+require 'sdg_utils/timing/timer'
 
 module Red
 module Engine
@@ -13,6 +14,7 @@ module Engine
 
     def initialize(alloy_boss)
       super() # important to initialize monitor included by Sync
+      reset_timer()
       if alloy_boss
         delegate_all SDGUtils::Events::EventProvider, :to => alloy_boss
       else
@@ -31,11 +33,25 @@ module Engine
       access_listener.stop_listening
     end
 
-    def time_it(str) 
-      time = Benchmark.realtime{yield}
-      Red.conf.logger.debug(" =========================== #{str} time: #{time*1000}ms")
+    # ------------------------------------------------
+    # Timing and benchmarking stuff
+    # ------------------------------------------------
+
+    begin
+      def time_it(task, &block) 
+        @timer.time_it(task, &block) if @timer
+      end
+
+      def reset_timer
+       @timer = SDGUtils::Timing::Timer.new
+      end
+
+      def print_timings
+        return "" unless @timer
+        @timer.print
+      end
     end
-    
+
     # ------------------------------------------------
     # Global field access listener stuff
     # ------------------------------------------------

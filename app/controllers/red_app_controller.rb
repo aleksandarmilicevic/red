@@ -67,6 +67,7 @@ class RedAppController < ActionController::Base
   include RedAppHelper
 
   before_filter :notify_red_boss
+  around_filter :time_it
 
   # ---------------------------------------------------------------------
   #  SERVER INITIALIZATION
@@ -143,9 +144,20 @@ class RedAppController < ActionController::Base
     @@server
   end
 
+  protected
+
   def notify_red_boss
     Red.boss.set_thr :request => request, :session => session, 
                      :client => client, :server => server, :controller => self
+  end
+
+  def time_it
+    task = "[RedAppController] #{request.method} #{self.class.name}.#{params[:action]}"
+    Red.boss.reset_timer
+    Red.boss.time_it(task){yield}
+    Red.conf.logger.debug "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-="
+    Red.conf.logger.debug Red.boss.print_timings
+    Red.conf.logger.debug "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-="
   end
 
 end
