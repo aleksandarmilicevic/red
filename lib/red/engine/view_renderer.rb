@@ -4,6 +4,7 @@ require 'red/engine/template_engine'
 require 'sdg_utils/config'
 require 'sdg_utils/assertions'
 require 'sdg_utils/caching/cache.rb'
+require 'sdg_utils/print_utils/tree_printer'
 
 module Red
   module Engine
@@ -421,7 +422,7 @@ module Red
           node.compiled_tpl = lambda{_compile_content(node.template, [".erb"])}
           yield
         ensure
-          end_node(node)
+          end_node(node)            
         end
       end
       
@@ -693,6 +694,7 @@ module Red
       def end_node(expected=nil)
         node = @stack.pop
         fail "stack corrupted" unless expected.nil? || expected === node         
+        node
       end
 
       def _normalize(hash)

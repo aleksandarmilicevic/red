@@ -54,8 +54,13 @@ module Red
 
       # -----------------------------------------
 
-      def start_auto_updating_client(client, hash={})      start_listening(client, true, hash) end
-      def start_collecting_client_updates(client, hash={}) start_listening(client, false, hash) end
+      def start_auto_updating_client(client, hash={})   
+        start_listening(client, true, hash) 
+      end
+      
+      def start_collecting_client_updates(client, hash={}) 
+        start_listening(client, false, hash) 
+      end
 
       def start_listening(client, auto_push, hash={})
         @client = client

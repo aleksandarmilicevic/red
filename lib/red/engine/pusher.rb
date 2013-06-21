@@ -193,8 +193,13 @@ module Engine
       updated_nodes = []
       dirty_nodes.each do |dn| 
         begin 
-          dn.reload_all #TODO not the most efficient thing to do
-          new_node = @conf.manager.rerender_node(dn)
+          #TODO not the most efficient thing to do
+          Red.boss.time_it("[Pusher] Reloading all"){
+            dn.reload_all
+          }
+          new_node = Red.boss.time_it("[Pusher] rerendering node"){
+            @conf.manager.rerender_node(dn)
+          }
           if dn.result != new_node.result
             updated_nodes << [dn, new_node]
           else
@@ -261,7 +266,15 @@ module Engine
     end
 
     def check_deps(deps, record)
-      check_record_deps(deps, record) || !affected_queries(deps).empty?
+      return false if deps.empty?
+      Red.boss.time_it("[Pusher] Checking dependencies #{deps.to_s.inspect} for record #{record}") {
+        Red.boss.time_it("[Pusher] Checking field dependencies") {
+          check_record_deps(deps, record)
+        } || 
+        Red.boss.time_it("[Pusher] Checking queries") {
+          !affected_queries(deps).empty?
+        }
+      }
     end
 
     private 

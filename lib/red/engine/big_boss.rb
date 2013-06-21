@@ -39,7 +39,11 @@ module Engine
 
     begin
       def time_it(task, &block) 
-        @timer.time_it(task, &block) if @timer
+        if @timer 
+          @timer.time_it(task, &block)
+        else
+          yield
+        end
       end
 
       def reset_timer
