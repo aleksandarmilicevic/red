@@ -293,34 +293,68 @@ module Red
         end        
       end
 
-      TAB1 = "|  "
-      TAB2 = "`--"
-      def _indent(depth, t1, t2)
-        (0..depth-1).reduce("") {|acc,i| acc + (i == depth-1 ? t2 : t1)}
+      def short_info()
+        deps_str = @deps.to_s.split("\n").map{|e| "  " + e}.join("\n")
+        [
+         "Id: #{id}",
+         "Type: #{type}",
+         "File: #{extras[:pathname]}",
+         "Object: #{extras[:object]}",
+         "Src: #{src[0..60].inspect}",
+         "Output: #{output[0..60].inspect}",
+         "Children: #{children.size}",          
+         "Deps:",
+         "#{deps_str}".split("\n"),
+        ].flatten
       end
 
-      def print_short_info(depth=1)
-        ind_str = _indent(depth, TAB1, TAB2)
-        ind_str2 = _indent(depth, TAB1, TAB1)
-        deps_str = @deps.to_s.split("\n").map{|e| ind_str2 + "  " + e}.join("\n")
-        "#{ind_str}Id: #{id}\n" +
-        "#{ind_str}Type: #{type}\n" +
-        "#{ind_str}File: #{extras[:pathname]}\n" +
-        "#{ind_str}Object: #{extras[:object]}\n" +
-        "#{ind_str}Src: #{src[0..60].inspect}\n" +
-        "#{ind_str}Output: #{output[0..60].inspect}\n" +
-        "#{ind_str}Children: #{children.size}\n" +          
-        "#{ind_str}Deps:\n#{deps_str}\n"
+      def print_short_info()
+        short_info.join("\n")
       end
+
+      TREE_PRINTER = SDGUtils::PrintUtils::TreePrinter.new({
+        :indent_size  => 2,
+        :print_root   => true,
+        :children_sep => "\n",
+        :box         => {
+                          :width => :tight
+                        },
+        :printer      => lambda {|node| node.short_info},
+        :descender    => lambda {|node| node.children.select{|c| !c.synth?}},
+      })
 
       def print_full_info(depth=1)
-        children_str = @children.select{|c|
-                         !c.synth?
-                       }.map{|c| 
-                         c.print_full_info(depth+1)
-                       }.join("\n")
-        print_short_info(depth) + "\n" + "#{children_str}"           
+        TREE_PRINTER.print_tree(self, 1)
       end
+
+      # TAB1 = "|  "
+      # TAB2 = "`--"
+      # def _indent(depth, t1, t2)
+      #   (0..depth-1).reduce("") {|acc,i| acc + (i == depth-1 ? t2 : t1)}
+      # end
+
+      # def print_short_info(depth=1)
+      #   ind_str = _indent(depth, TAB1, TAB2)
+      #   ind_str2 = _indent(depth, TAB1, TAB1)
+      #   deps_str = @deps.to_s.split("\n").map{|e| ind_str2 + "  " + e}.join("\n")
+      #   "#{ind_str}Id: #{id}\n" +
+      #   "#{ind_str}Type: #{type}\n" +
+      #   "#{ind_str}File: #{extras[:pathname]}\n" +
+      #   "#{ind_str}Object: #{extras[:object]}\n" +
+      #   "#{ind_str}Src: #{src[0..60].inspect}\n" +
+      #   "#{ind_str}Output: #{output[0..60].inspect}\n" +
+      #   "#{ind_str}Children: #{children.size}\n" +          
+      #   "#{ind_str}Deps:\n#{deps_str}\n"
+      # end
+
+      # def print_full_info(depth=1)
+      #   children_str = @children.select{|c|
+      #                    !c.synth?
+      #                  }.map{|c| 
+      #                    c.print_full_info(depth+1)
+      #                  }.join("\n")
+      #   print_short_info(depth) + "\n" + "#{children_str}"           
+      # end
 
       def to_s
         "#{self.class.name}(#{id})"

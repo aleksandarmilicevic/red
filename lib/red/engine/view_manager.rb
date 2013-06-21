@@ -69,7 +69,8 @@ module Red
       end
 
       def push() 
-        fail "Auto-updating has not been started.  Call `start_auto_updating_first'" unless pusher 
+        fail "Auto-updating has not been started. " +
+             "Call `start_auto_updating_first'" unless pusher 
         pusher.push
       end
 
