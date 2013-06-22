@@ -507,8 +507,12 @@ module Red
     class EventMeta < Alloy::Ast::SigMeta
       attr_accessor :from, :to
 
-      def params
-        fields - [to, from]
+      def params(include_inherited=false)
+        my_params = fields - [to, from]
+        if include_inherited && parent_sig < Event
+          my_params += parent_sig.meta.params
+        end
+        my_params
       end
     end
 
@@ -532,6 +536,13 @@ module Red
       def incomplete(msg)
         raise EventNotCompletedError, msg
       end
+
+      def check_precondition(cond, msg)
+        raise EventPreconditionNotSatisfied, msg unless cond
+        true
+      end
+
+      alias_method :check, :check_precondition
 
       def error(msg)
         fail msg

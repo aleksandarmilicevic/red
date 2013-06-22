@@ -4,28 +4,13 @@ require 'red/model/red_model_errors'
 class EventController < RedAppController
   include Red::Model::Marshalling
 
-  private
+  protected
 
-  def error(short, long=nil, status_code)
-    Rails.logger.warn "[ERROR] #{short}. #{long}"
-    short = long unless short
-    json = {:kind => "error", :msg => short, :status => status_code}
-    push_status(json)
-    render :json => json, :status => status_code
-  end
-
-  def success(event_name, ans=nil)
-    json = {:kind => "event_completed",
+  def event_succeeded(event_name, ans=nil)
+    success :kind => "event_completed",
             :event => {:name => event_name, :params => params[:params]},
             :msg => "Event #{event_name} successfully completed",
-            :ans => ans}
-    push_status(json)
-    render :json => json
-  end
-
-  def push_status(json)
-    pusher = Red.boss.client_pusher
-    pusher.push_json(:type => "status_message", :payload => json) if pusher
+            :ans => ans
   end
 
   public
@@ -57,12 +42,13 @@ class EventController < RedAppController
       @updated_records = Set.new
       Red.boss.register_listener Red::E_FIELD_WRITTEN, self
       Red.boss.time_it("[EventController] Event execution") {
-        execute_event(event, lambda { |ans| success(event_name, ans)})
+        execute_event(event, lambda { |ans| event_succeeded(event_name, ans)})
       }
     rescue Red::Model::EventNotCompletedError => e
       return error(e.message, 400)
     rescue Red::Model::EventPreconditionNotSatisfied => e
-      msg = "Precondition for #{event_name} not satisfied"
+      trace = "#{e.message}\n#{e.backtrace.join("\n")}"
+      msg = "Precondition for #{event_name} not satisfied.\n#{trace}"
       return error(e.message, msg, 412)
     rescue => e
       trace = "#{e.message}\n#{e.backtrace.join("\n")}"
@@ -90,7 +76,7 @@ class EventController < RedAppController
 
   def execute_event(event, cont)
     ok = event.requires
-    raise Red::Model::EventPreconditionNotSatisfied unless ok
+    raise Red::Model::EventPreconditionNotSatisfied, "Precondition failed" unless ok
     ans = event.ensures
     cont.call(ans)
   end

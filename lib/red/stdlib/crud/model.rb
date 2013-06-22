@@ -13,9 +13,35 @@ module Crud
 
       ensures {
         cls = Red.meta.get_record(className)
-        error "Record class #{cls} not found" unless cls
-        error "Can't create a machine" if cls.kind_of?(Red::Model::Machine)
+        incomplete "Record class #{cls} not found" unless cls
+        incomplete "Can't create a machine" if cls.kind_of?(Red::Model::Machine)
         cls.create!
+      }
+    end
+
+    event CreateRecordAndLink < CreateRecord do
+      params {{
+          target: Red::Model::Record,
+          fieldName: String
+        }}
+
+      requires { 
+        super()
+        msg = "Target object must be a Record but it's #{target.class}"
+        check Red::Model::Record === target, msg
+      }
+
+      ensures {
+        new_record = super()
+        fld = target.meta.field(fieldName)
+        incomplete "Field #{fieldName} not found in class #{record.class}" unless fld
+        if fld.scalar?
+          target.write_field(fld, new_record)
+        else
+          target.read_field(fld) << new_record
+        end
+        target.save!
+        new_record
       }
     end
 

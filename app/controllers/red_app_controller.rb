@@ -1,8 +1,12 @@
 require 'red/stdlib/web/machine_model'
 require 'red/engine/view_manager'
+require 'red/model/marshalling'
+require 'red/model/red_model_errors'
 
 class RedAppController < ActionController::Base
   protect_from_forgery
+
+  include Red::Model::Marshalling
 
   module RedAppHelper
     def autosave_fld(record, fld_name, hash={})
@@ -145,6 +149,30 @@ class RedAppController < ActionController::Base
   end
 
   protected
+
+  def error(short, long=nil, status_code=412)
+    Rails.logger.warn "[ERROR] #{short}. #{long}"
+    short = long unless short
+    json = {:kind => "error", :msg => short, :status => status_code}
+    push_status(json)
+    render :json => json, :status => status_code
+  end
+
+  def success(hash={})
+    hash = {:msg => hash} if String === hash
+    json = {:kind => "success", :status => 200}.merge!(hash)
+    push_status(json)
+    render :json => json
+  end
+
+  def push_status(json)
+    pusher = Red.boss.client_pusher
+    pusher.push_json(:type => "status_message", :payload => json) if pusher
+  end
+
+  def to_bool(str)
+    str == 'true' || str == 'yes'
+  end
 
   def notify_red_boss
     Red.boss.set_thr :request => request, :session => session,

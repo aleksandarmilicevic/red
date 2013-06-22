@@ -1,18 +1,19 @@
 $(function() {
     jQuery.fn.selectText = function(){
-       var doc = document;
-       var element = this[0];
-       if (doc.body.createTextRange) {
-           var range = document.body.createTextRange();
-           range.moveToElementText(element);
-           range.select();
-       } else if (window.getSelection) {
-           var selection = window.getSelection();        
-           var range = document.createRange();
-           range.selectNodeContents(element);
-           selection.removeAllRanges();
-           selection.addRange(range);
-       }
+        var doc = document;
+        var element = this[0];
+        var range = null;
+        if (doc.body.createTextRange) {
+            range = document.body.createTextRange();
+            range.moveToElementText(element);
+            range.select();
+        } else if (window.getSelection) {
+            var selection = window.getSelection();        
+            range = document.createRange();
+            range.selectNodeContents(element);
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
     };
 
     $(document).on("click", "[data-type='submit-event']", function(e) {
@@ -110,7 +111,7 @@ $(function() {
         var recordCls = $elem.attr("data-record-cls");
         var recordId = $elem.attr("data-record-id");
         var fieldName = $elem.attr("data-field-name");
-        var params = {}
+        var params = {};
         params[fieldName] = currentValue;
         $elem.addClass("red-updating", "fast", function(){
             new UpdateRecord({
@@ -122,14 +123,14 @@ $(function() {
                 console.debug(r);
                 $elem.removeClass("red-updating");
                 $elem.addClass("red-update-ok", duration, function() {
-                  setTimeout(function() {$elem.removeClass("red-update-ok")}, timeout); 
+                  setTimeout(function() {$elem.removeClass("red-update-ok");}, timeout); 
               });
             }).fail(function() { 
                 console.debug("autosave failed");
                 setValue($elem, oldValue);
                 $elem.removeClass("red-updating");
                 $elem.addClass("red-update-fail", duration, function() {
-                  setTimeout(function() {$elem.removeClass("red-update-fail")}, timeout); 
+                  setTimeout(function() {$elem.removeClass("red-update-fail");}, timeout); 
               });
             }).always(function() {
                 $elem.removeClass("red-updating");
