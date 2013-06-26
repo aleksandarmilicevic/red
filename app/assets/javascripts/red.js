@@ -151,7 +151,7 @@ var Red = (function() {
                     $.extend(obj, that);
                     me.defineRecordNonEnumProps(obj);    
                     return obj;
-                },
+                }
             });
 
             return that;
@@ -169,7 +169,9 @@ var Red = (function() {
                     cb = function(response) {
                     };
                 }
-                return jQuery.post(Red.eventUrl(that), cb);
+                var url = Red.eventUrl(that);
+                Object.defineProperty(this, "fired", {value: true});
+                return jQuery.post(url, cb);
             };
 
             return that;

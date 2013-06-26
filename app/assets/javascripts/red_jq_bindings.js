@@ -25,15 +25,7 @@ $(function() {
             params[ser[i].name] = ser[i].value;
         }
         Red.event(eventName, params).fire();
-    });
-    
-    $(document).on("click", "[data-type='submit-event-ask']", function(e) {
-        var eventName = $(this).attr("data-event-type");
-        var ev = eval('new ' + eventName + '({})');
-        for (var i = 0; i < ev.paramNames.length; i++) {
-            ev.params[ev.paramNames[i]] = window.prompt(ev.paramNames[i], "");
-        }
-        ev.fire();
+        return false;
     });
     
     /* ===========================================================
@@ -49,7 +41,7 @@ $(function() {
     $(document).on("click", "[data-trigger-event]", function(e) {
         var $elem = $(this);
         if ($elem.attr("disabled") === "disabled") 
-            return;
+            return false;
         var eventName = $elem.attr("data-trigger-event");
         var ev = eval('new ' + eventName + '({})');
         for (var i = 0; i < ev.paramNames.length; i++) {
@@ -57,7 +49,7 @@ $(function() {
             var paramValue = $elem.attr("data-param-" + paramName);
             var len = paramValue.length;
             if (paramValue === undefined) {
-                paramValue = window.prompt(paramName, "")
+                paramValue = window.prompt(paramName, "");
             } else if (paramValue.substring(0, 2) === "${" &&
                        paramValue.substring(len-1, len) === "}") {
                 paramValue = eval(paramValue.substring(2, len-1));
@@ -67,9 +59,16 @@ $(function() {
             }
             ev.params[paramName] = paramValue;
         }
-        ev.fire()
-        .done(function(response){$elem.trigger(eventName + "Done", [response]);})
-        .fail(function(response){$elem.trigger(eventName + "Failed", [response]);});
+        $elem.trigger(eventName + "Triggered", [ev]);
+        if (ev.fired !== true) {
+            ev.fire(
+            ).done(function(response) {
+                $elem.trigger(eventName + "Done", [response]);
+            }).fail(function(response) {
+                $elem.trigger(eventName + "Failed", [response]);
+            });
+        }
+        return false;
     });
     
     // ---------------------------------------------------------------- 
@@ -77,7 +76,7 @@ $(function() {
     // ---------------------------------------------------------------- 
   
     var isInput = function(elem) {
-        return !(elem.is("pre") || elem.is("div") || elem.is("span") || elem.is("a"))
+        return !(elem.is("pre") || elem.is("div") || elem.is("span") || elem.is("a"));
     };
    
     var extractValue = function(elem) {
@@ -98,6 +97,13 @@ $(function() {
         $(this).addClass("red-editing");
         var currentValue = extractValue($(this));
         $(this).data("old-value", currentValue);
+        $(this).data("canceled", false);
+        $(this).keyup(function(e) { 
+            if(e.which == 27) { 
+                $(this).data("canceled", true);
+                $(this).blur(); 
+            } 
+        });
     });
    
     $(document).on("blur", ".red-autosave", function(e) {
@@ -106,6 +112,10 @@ $(function() {
         var currentValue = extractValue($elem);
         var oldValue = $elem.data("old-value");
         if (oldValue == currentValue) return;
+        if ($elem.data("canceled")) {
+            setValue($elem, oldValue);
+            return;
+        }
         var duration = 200;
         var timeout = 800;
         var recordCls = $elem.attr("data-record-cls");
