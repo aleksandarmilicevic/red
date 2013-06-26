@@ -1,5 +1,5 @@
 module RedLib
-module Image
+module Util
 
   #===========================================================
   # Data model

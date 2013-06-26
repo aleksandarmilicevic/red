@@ -12,6 +12,16 @@ module Red
     class FieldError < SDGUtils::Errors::ErrorWithCause
     end
 
+    class ColInfo
+      def initialize(hash={})
+        @hash = hash
+        hash.each do |k, v|
+          self.class.send :attr_reader, k
+          instance_variable_set "@#{k}".to_sym, v
+        end
+      end
+    end
+
     #----------------------------------------
     # Class +MigrationRecorder+
     #----------------------------------------
@@ -120,7 +130,9 @@ module Red
         #
         # @param r [Record]
         def check_record(r)
-          if _my_table_exists? r.red_table_name
+          if anc=r.oldest_ancestor
+            log "Skipping class #{r}, will use #{anc} instead."
+          elsif _my_table_exists? r.red_table_name
             check_update r
           else
             gen_create_table r
@@ -137,36 +149,123 @@ module Red
           end
         end
 
-        # Generates a +create_table+ command for a given record +r+.
-        #
-        # @param r [Record]
         def gen_create_table(r)
-          if anc=r.oldest_ancestor
-            log "Skipping class #{r}, will use #{anc} instead."
-          else
-            rec = new_change_recorder
-            rec.create_table r.red_table_name.to_sym do |t|
-              sigs = [r.red_root] + r.red_root.all_subsigs
-              fields = sigs.map {|rr| rr.meta.fields}.flatten
-              fields.each do |f|
-                handle_field(t, f)
+          cols = get_columns_for_record(r)
+          rec = new_change_recorder
+          rec.create_table r.red_table_name.to_sym do |t|
+            cols.each do |col|
+              case col.kind
+              when :attr
+                t.column col.col_name, col.type
+              when :ref
+                if col.opts
+                  t.references col.fld_name, col.opts
+                else
+                  t.references col.fld_name
+                end
+              when :join
+                gen_create_join_table(col.fld, col.fld_info)
+              else
+                fail "Unexpected ColInfo kind: #{col.kind}"
               end
-              inv_fields = sigs.map {|rr| rr.meta.inv_fields}.flatten
-              inv_fields.find_all do |invf|
-                fldinf = Red::Model::TableUtil.fld_table_info(invf.inv)
-                fldinf.own_many?
-              end.each do |invf|
-                handle_field(t, invf)
-              end
-
-              unless r.meta.subsigs.empty?
-                t.column :type, :string
-              end
-              t.__newline unless @exe
-              t.timestamps
             end
+            t.__newline unless @exe
+            t.timestamps
+          end          
+        end        
+
+        # @param r [Record]
+        def get_columns_for_record(r)
+          sigs = [r.red_root] + r.red_root.all_subsigs
+          fields = sigs.map {|rr| rr.meta.fields}.flatten
+
+          inv_fields = sigs.map { |rr| 
+            rr.meta.inv_fields
+          }.flatten.find_all { |invf|
+            fldinf = Red::Model::TableUtil.fld_table_info(invf.inv)
+            fldinf.own_many?
+          }
+
+          cols = (fields + inv_fields).map { |f|
+            cols_for_field(f)
+          }.flatten
+            
+          unless r.meta.subsigs.empty?
+            type_col = ColInfo.new :kind => :attr, :col_name => :type, :type => :string
+            cols << type_col
+          end
+
+          cols
+        end
+
+        # Handles a given field of the given record
+        #
+        # @param fld [FieldMeta]
+        # @result [Array(ColInfo), ColInfo]
+        def cols_for_field(fld)
+          return [] if fld.has_impl?
+          begin
+            fld_info = Red::Model::TableUtil.fld_table_info(fld)
+            if fld_info.attr?
+              ColInfo.new :kind => :attr,
+                          :col_name => fld_info.field,
+                          :fld_name => fld_info.field, 
+                          :type => fld_info.col_type
+            elsif fld_info.to_one?
+              opts = if fld_info.polymorphic?
+                       {:polymorphic => true} #{:default => fld_info.range_class}
+                     else
+                       nil
+                     end
+              ColInfo.new :kind => :ref,
+                          :col_name => fld_info.column, 
+                          :fld_name => fld_info.field,
+                          :opts => opts
+            elsif fld_info.own_many?
+              # nothing to add here, foreign key goes in the other table
+              []
+            elsif fld_info.ref_many?
+              ColInfo.new :kind => :join, :fld => fld, :fld_info => fld_info
+            else
+              fail "Internal error: fld_table_info returned inconsistent info: " +
+                   "#{fld_info.inspect}"
+            end
+          rescue Exception => e
+            raise FieldError.new(e), "Error handling field #{fld}."
           end
         end
+
+        
+        # # Generates a +create_table+ command for a given record +r+.
+        # #
+        # # @param r [Record]
+        # def gen_create_table(r)
+        #   if anc=r.oldest_ancestor
+        #     log "Skipping class #{r}, will use #{anc} instead."
+        #   else
+        #     rec = new_change_recorder
+        #     rec.create_table r.red_table_name.to_sym do |t|
+        #       sigs = [r.red_root] + r.red_root.all_subsigs
+        #       fields = sigs.map {|rr| rr.meta.fields}.flatten
+        #       fields.each do |f|
+        #         handle_field(t, f)
+        #       end
+        #       inv_fields = sigs.map {|rr| rr.meta.inv_fields}.flatten
+        #       inv_fields.find_all do |invf|
+        #         fldinf = Red::Model::TableUtil.fld_table_info(invf.inv)
+        #         fldinf.own_many?
+        #       end.each do |invf|
+        #         handle_field(t, invf)
+        #       end
+
+        #       unless r.meta.subsigs.empty?
+        #         t.column :type, :string
+        #       end
+        #       t.__newline unless @exe
+        #       t.timestamps
+        #     end
+        #   end
+        # end
 
         # Generates a join table for a given field
         #
@@ -191,36 +290,36 @@ module Red
           end
         end
 
-        # Handles a given field of the given record
-        #
-        # @param tbl
-        # @param fld_name [Symbol]
-        # @param r [Record]
-        def handle_field(tbl, fld)
-          return if fld.has_impl?
-          begin
-            fld_info = Red::Model::TableUtil.fld_table_info(fld)
-            if fld_info.attr?
-              tbl.column fld_info.field, fld_info.col_type
-            elsif fld_info.to_one?
-              opts = if fld_info.polymorphic?
-                       {:polymorphic => true} #{:default => fld_info.range_class}
-                     else
-                       {}
-                     end
-              tbl.references fld_info.field, opts
-            elsif fld_info.own_many?
-              # nothing to add here, foreign key goes in the other table
-            elsif fld_info.ref_many?
-              gen_create_join_table(fld, fld_info)
-            else
-              fail "Internal error: fld_table_info returned inconsistent info: " +
-                   "#{fld_info.inspect}"
-            end
-          rescue Exception => e
-            raise FieldError.new(e), "Error handling field #{fld}."
-          end
-        end
+        # # Handles a given field of the given record
+        # #
+        # # @param tbl
+        # # @param fld_name [Symbol]
+        # # @param r [Record]
+        # def handle_field(tbl, fld)
+        #   return if fld.has_impl?
+        #   begin
+        #     fld_info = Red::Model::TableUtil.fld_table_info(fld)
+        #     if fld_info.attr?
+        #       tbl.column fld_info.field, fld_info.col_type
+        #     elsif fld_info.to_one?
+        #       opts = if fld_info.polymorphic?
+        #                {:polymorphic => true} #{:default => fld_info.range_class}
+        #              else
+        #                {}
+        #              end
+        #       tbl.references fld_info.field, opts
+        #     elsif fld_info.own_many?
+        #       # nothing to add here, foreign key goes in the other table
+        #     elsif fld_info.ref_many?
+        #       gen_create_join_table(fld, fld_info)
+        #     else
+        #       fail "Internal error: fld_table_info returned inconsistent info: " +
+        #            "#{fld_info.inspect}"
+        #     end
+        #   rescue Exception => e
+        #     raise FieldError.new(e), "Error handling field #{fld}."
+        #   end
+        # end
 
         def new_change_recorder
           _self_if_standalone ||
