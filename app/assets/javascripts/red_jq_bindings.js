@@ -126,18 +126,9 @@ $(function() {
         for (var i = 0; i < ev.meta.params.length; i++) {
             var param = ev.meta.params[i];
             var paramName = param.name;
-            var paramValue = $elem.attr("data-param-" + paramName);
+            var paramValue = Red.Utils.readParamValue($elem, "data-param-" + paramName);
             if (paramValue === undefined) {
                 undefParams.push(param);
-            } else {
-                var len = paramValue.length;
-                if (paramValue.substring(0, 2) === "${" &&
-                       paramValue.substring(len-1, len) === "}") {
-                    paramValue = eval(paramValue.substring(2, len-1));
-                    if (paramValue instanceof jQuery) {
-                        paramValue = jQuery.makeArray(paramValue);                    
-                    }
-                }
             }
             ev.params[paramName] = paramValue;
         }

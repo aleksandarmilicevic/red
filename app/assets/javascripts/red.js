@@ -136,6 +136,25 @@ var Red = (function() {
             };
             var url = '/recordRenderer?' + jQuery.param(params);
             return Red.Utils.remoteAction(url);
+        },
+
+        readParamValue : function(elem, paramName) {
+            var $elem = $(elem);
+            var paramValue = $elem.attr(paramName);
+
+            if (paramValue === undefined) return undefined;
+
+            // eval if matches /^\$\{.*\}$/
+            var len = paramValue.length;
+            if (paramValue.substring(0, 2) === "${" &&
+                paramValue.substring(len-1, len) === "}") {
+                paramValue = eval(paramValue.substring(2, len-1));
+                if (paramValue instanceof jQuery) {
+                    paramValue = jQuery.makeArray(paramValue);                    
+                }
+            }
+
+            return paramValue;
         }
 
     };
