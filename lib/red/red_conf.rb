@@ -1,4 +1,5 @@
 require 'alloy/alloy_conf'
+require 'red/store/fs_file_store'
 require 'sdg_utils/config'
 require 'sdg_utils/io'
 require 'socket'
@@ -54,6 +55,12 @@ module Red
     end
   end
 
+  def self.default_fs_file_store_conf
+    SDGUtils::Config.new do |c|
+      c.store_folder   = lambda{Rails.root.join("db").join("#{Rails.env}_file_store")}
+    end
+  end
+
   def self.default_conf
     SDGUtils::Config.new do |c|
       c.impl_field_namer = lambda { |fld| "#{fld.name}_REL" }
@@ -67,6 +74,8 @@ module Red
       c.alloy = default_alloy_conf
       c.pusher = default_pusher_conf
       c.access_listener = default_access_listener_conf
+      c.fs_file_store = default_fs_file_store_conf
+      c.file_store = Red::Store::FSFileStore.new(c.fs_file_store)
       c.logger = lambda{c.alloy.logger}
       c.log = lambda{c.alloy.logger}
       c.log_java_script = true

@@ -113,14 +113,14 @@ module Red
           red_meta.recorder
         end
 
-        def field(*args)
+        protected
+
+        def _field(*args)
           fld = super
           if fld.transient?
             attr_accessible fld.getter_sym
           end
         end
-
-        protected
 
         def after_query_listeners
           @@after_query_listeners ||= []
@@ -202,7 +202,7 @@ module Red
         if (self.id rescue false)
           red_meta.get_transient_value(self, fld)
         else
-          instance_variable_get("@#{fld.name}".to_sym)
+          super(fld)
         end
       end
 
@@ -211,7 +211,7 @@ module Red
         if (self.id rescue false)
           red_meta.set_transient_value(self, fld, val)
         else
-          instance_variable_set("@#{fld.name}".to_sym, val)
+          super(fld, val)
         end
       end
 
@@ -507,16 +507,23 @@ module Red
     class EventMeta < Alloy::Ast::SigMeta
       attr_accessor :from, :to
 
-      def params(include_inherited=false)
+      def params(include_inherited=true)
         my_params = fields - [to, from]
         if include_inherited && parent_sig < Event
-          my_params += parent_sig.meta.params
+          my_params += parent_sig.meta.params(true)
         end
         my_params
       end
     end
 
     module EventInstanceMethods
+      def initialize(hash={})
+        super rescue nil
+        hash.each do |k, v|
+          set_param(k, v)
+        end
+      end
+
       def from()         read_field(meta.from) end
       def from=(machine) write_field(meta.from, machine) end
       def to()           read_field(meta.to) end
@@ -533,6 +540,11 @@ module Red
         write_field meta.field(name), value
       end
 
+      def get_param(name)
+        #TODO check name
+        read_field meta.field(name)
+      end
+
       def incomplete(msg)
         raise EventNotCompletedError, msg
       end
@@ -544,8 +556,26 @@ module Red
 
       alias_method :check, :check_precondition
 
+      def check_present(*param_names)
+        param_names.each do |param_name|
+          obj = get_param(param_name)
+          msg ||= "param #{param_name} must not be nil"
+          check !obj.nil?, msg
+        end
+      end
+
+      def check_all_present
+        check_present(*meta.params.map{|fld| fld.name})
+      end
+      
       def error(msg)
         fail msg
+      end
+
+      def execute
+        ok = requires()
+        raise Red::Model::EventPreconditionNotSatisfied, "Precondition failed" unless ok
+        ensures()
       end
     end
 
@@ -578,6 +608,11 @@ module Red
         end
 
         alias_method :params, :transient
+
+        def param(*args)
+          _traverse_field_args(args, lambda{|name, type, hash={}|
+                                 _field(name, type, hash.merge({:transient => true}))})
+        end
 
         def requires(&block)
           define_method(:requires, &block)

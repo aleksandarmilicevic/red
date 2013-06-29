@@ -1,5 +1,9 @@
 var Red = (function() {
     var me = {
+
+        EventMeta : function() {},
+        RecordMeta :  function() {}, 
+
         construct : function(name) {
             eval('var ' + name + ' = function (){};');
             return eval('new ' + name + ';');
@@ -7,17 +11,36 @@ var Red = (function() {
 
         defineRecordNonEnumProps : function(record) {
             var func = function() {return record.__type__; };
-            Object.defineProperty(record, "name", {enumerable: false, value: func});
-            Object.defineProperty(record, "type", {enumerable: false, value: func});
+            Object.defineProperty(record, "name", {value: func});
+            Object.defineProperty(record, "type", {value: func});
+            Object.defineProperty(record, "meta", {value: new me.RecordMeta()});
         },
-        
+
+        defineEventNonEnumProps : function(event) {
+            Object.defineProperty(event, "meta", {value: new me.EventMeta()});        
+            Object.defineProperty(event, "viaForm", {
+                writable: true,
+                value: undefined
+            });        
+        },
+
         check_defined : function(x, msg) {
             if (x === undefined) throw Error(msg);
+        },
+        
+        defaultTo : function(val, defaultVal) {
+            if (typeof(val) === "undefined") {
+                return defaultVal;
+            } else {
+                return val;
+            }
         },
 
         sweepDom : function(from, to, html) {
             if (!(from.size() == 1 && to.size() == 1)) {
-                console.error("inconsistent start/end tags: #startTag = " + from.size() + ", #endTag = " + to.size());
+                var msg = "inconsistent start/end tags: #startTag = " + 
+                        from.size() + ", #endTag = " + to.size(); 
+                console.error(msg);
                 return;
             }
             from.nextUntil(to).detach();
@@ -55,6 +78,30 @@ var Red = (function() {
                 }
             }
         }
+    };
+
+    var MyXHR = function() {
+        var proto = {
+            doneFuncs: [], 
+            failFuncs: [], 
+            alwaysFuncs: [],
+            
+            done:   function(doneFunc)   { 
+                this.doneFuncs.push(doneFunc); 
+                return this;
+            }, 
+            
+            fail:   function(failFunc)   { 
+                this.failFuncs.push(failFunc); 
+                return this;
+            }, 
+            
+            always: function(alwaysFunc) { 
+                this.alwaysFuncs.push(alwaysFunc); 
+                return this; 
+            }
+        };    
+        jQuery.extend(this, proto);
     };
 
     var Meta = {
@@ -145,7 +192,7 @@ var Red = (function() {
 
             me.defineRecordNonEnumProps(that);
             
-            Object.defineProperty(that, "cloneTo", {
+            Object.defineProperty(that, "cloneOnto", {
                 enumerable: false,
                 value: function(obj) {
                     $.extend(obj, that);
@@ -165,14 +212,49 @@ var Red = (function() {
             that.params = params;
 
             that.fire = function(cb) {
-                if ( typeof cb === 'undefined') {
-                    cb = function(response) {
-                    };
+                cb = me.defaultTo(cb, function(response) {});
+                if (this.viaForm) {
+                    return this.fireViaForm(this.viaForm, cb);
+                } else {
+                    return this.fireDirectly(cb);
                 }
-                var url = Red.eventUrl(that);
+            };
+
+            that.fireViaForm = function(form, cb) {
+                cb = me.defaultTo(cb, function(response) {});
+                
+                if (!(typeof(form) === "object")) {
+                    form = $(form);
+                }
+
+                var iframe = $("#" + form.attr("target"));
+                var myXHR = new MyXHR();
+                iframe.load(function(){
+                    for (var i=0; i < myXHR.doneFuncs.length; i++) {
+                        myXHR.doneFuncs[i]("repodfnsdf");
+                    }
+                });
+                form.attr("action", Red.eventUrl(this));
+                form.submit();
+                return myXHR;
+            }; 
+
+            that.fireDirectly = function(cb) {
+                cb = me.defaultTo(cb, function(response) {}); 
+
+                var url = Red.eventUrl(this);
                 Object.defineProperty(this, "fired", {value: true});
                 return jQuery.post(url, cb);
             };
+
+            Object.defineProperty(that, "cloneOnto", {
+                enumerable: false,
+                value: function(obj) {
+                    $.extend(obj, that);
+                    me.defineEventNonEnumProps(obj);    
+                    return obj;
+                }
+            });
 
             return that;
         },

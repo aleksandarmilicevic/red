@@ -75,9 +75,7 @@ class EventController < RedAppController
   private
 
   def execute_event(event, cont)
-    ok = event.requires
-    raise Red::Model::EventPreconditionNotSatisfied, "Precondition failed" unless ok
-    ans = event.ensures
+    ans = event.execute
     cont.call(ans)
   end
 
@@ -96,7 +94,9 @@ class EventController < RedAppController
         if !fld
           log_warn "invalid parameter '#{name}' for event #{event.class.name}"
         else
+          value = to_record_hash(params[name]) if fld.type.isFile?
           val = unmarshal(value, fld.type)
+          # val = (fld.type.isFile?) ? params[name] : unmarshal(value, fld.type)
           event.set_param(name, val)
         end
       rescue Red::Model::Marshalling::MarshallingError => e
@@ -105,6 +105,17 @@ class EventController < RedAppController
         log_warn "Could not set field #{fld} to value #{val.inspect}", e
       end
     end
+  end
+
+  def to_record_hash(uploaded_file)
+    return nil unless uploaded_file
+    {
+      :__type__     => "RedLib::Util::FileRecord",
+      :content_type => uploaded_file.content_type,
+      :filename     => uploaded_file.original_filename,
+      :filepath     => File.absolute_path(uploaded_file.tempfile.path),
+      :size         => uploaded_file.size
+    }
   end
 
   def log_debug(str, e=nil) log :debug, str, e end

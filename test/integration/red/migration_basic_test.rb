@@ -80,7 +80,7 @@ class MigrationBasicTest < MigrationTest::TestBase
     assert_equal 4, D1::Phone.count
     #assert_equal 1, D1::PersonOtherPhoneJM.count
     
-    phones.each {|ph| assert ph.destroy }
+    phones.each {|ph| assert ph.destroy}
     assert_equal 1, D1::Person.count
     assert_equal 0, D1::Phone.count
     #assert_equal 0, D1::PersonOtherPhoneJM.count

@@ -63,7 +63,7 @@ module Red
         def single_owned?()      @type == :single_owned end
         def refd_by_many?()      @type == :refd_by_many end
         def one_of_many_owned?() @type == :one_of_many_owned end
-        def to_one?()            own_one?  || ref_one? end
+        def to_one?()            own_one?  || ref_one? || one_of_many_owned? end
         def to_many?()           own_many? || ref_many? end
 
         # def join?() ref_many? end

@@ -80,7 +80,7 @@ module Red
           when klass <= Red::Model::Record
             unmarshal_to_record(obj, klass)
           else
-            raise MarshallingError, "Unsupported unary class type: #{klass}"
+            raise MarshallingError.new, "Unsupported unary class type: #{klass}"
           end
         end
       end
@@ -106,13 +106,13 @@ module Red
           end
         when Array
           msg = "Unmarhsalling array to hash when lhs is not Int (lhs type: #{lhs_type})"
-          raise MarshallingError, msg if lhs_utype && !lhs.isInt?
+          raise MarshallingError.new, msg if lhs_utype && !lhs.isInt?
           arry = obj
           arry.reduce({}) do |acc, elem|
             acc.merge! acc.size => unmarshal(elem, rhs_utype)
           end
         else
-          raise MarshallingError, "Unmarshalling #{obj.class} to Hash"
+          raise MarshallingError.new, "Unmarshalling #{obj.class} to Hash"
         end
       end
 
@@ -134,7 +134,7 @@ module Red
             unmarshal(val, elem_utype)
           end
         else
-          raise MarshallingError, "can't unmarhsal #{obj.inspect} to Array"
+          raise MarshallingError.new, "can't unmarhsal #{obj.inspect} to Array"
         end
       end
 
@@ -160,7 +160,7 @@ module Red
         when Integer
           id = obj
           msg = "Unmarshalling integer to Record without knowing the record class"
-          raise MarshallingError, msg unless rec_cls
+          raise MarshallingError.new, msg unless rec_cls
           begin
             rec_cls.find(id)
           rescue Exception => e
@@ -168,7 +168,7 @@ module Red
           end
         when String, Symbol
           id = Integer(obj.to_s) rescue nil
-          raise MarshallingError, "cannot convert #{obj} to integer" unless id
+          raise MarshallingError.new, "cannot convert #{obj} to integer" unless id
           unmarshal_to_record(id, rec_cls)
         when Hash
           hash = obj.clone
@@ -180,16 +180,16 @@ module Red
           if !id.nil?
             unmarshal_to_record(id, rec_cls)
           else
-            raise MarshallingError, "no record id is provided"
-            # rec = rec_cls.new
-            # hash.each do |k,v|
-            #   fld = rec_cls.meta.field(k)
-            #   if fld
-            #     val = unmarshal(v, fld.type)
-            #     rec.write(field(fld, val))
-            #   end
-            # end
-            # rec
+            # raise MarshallingError.new, "no record id is provided"
+            rec = rec_cls.new
+            hash.each do |k,v|
+              fld = rec_cls.meta.field(k)
+              if fld
+                val = unmarshal(v, fld.type)
+                rec.write_field(fld, val)
+              end
+            end
+            rec
           end
         end
       end
@@ -200,14 +200,14 @@ module Red
       def pick_type(rec_cls, cls_name)
         cls_from_name = Red.meta.find_record(cls_name)
         if rec_cls.nil?
-          raise MarshallingError, "record #{cls_name} not found" unless cls_from_name
+          raise MarshallingError.new, "record #{cls_name} not found" unless cls_from_name
           cls_from_name
         else
           if cls_from_name.nil?
             rec_cls
           else
             msg = "actual type (#{cls_from_name}) not subclass of expected (#{rec_cls})"
-            raise MarshallingError, msg unless cls_from_name <= rec_cls
+            raise MarshallingError.new, msg unless cls_from_name <= rec_cls
             if cls_from_name < rec_cls
               cls_from_name
             else

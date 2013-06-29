@@ -29,6 +29,10 @@ class RedAppController < ActionController::Base
         .build(escape_body).html_safe()
     end
 
+    def file_location(file_record)
+      
+    end
+
     # ===============================================================
     # Renders a specified view using the `ViewManager' so that all
     # field accesses are detected and the view is automatically
@@ -162,7 +166,10 @@ class RedAppController < ActionController::Base
     hash = {:msg => hash} if String === hash
     json = {:kind => "success", :status => 200}.merge!(hash)
     push_status(json)
-    render :json => json
+    respond_to do |format|
+      format.json { render :json => json }
+      format.html { render :text => "hi" }
+    end
   end
 
   def push_status(json)

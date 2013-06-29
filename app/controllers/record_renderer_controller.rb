@@ -8,7 +8,10 @@ class RecordRendererController < RedAppController
     else
       record = unmarshal_to_record(target) rescue nil
     end
-    error "Could not find record: #{record_hash.inspect}" unless record || records
+    unless record || records
+      error "Could not find record: #{target.inspect}" 
+      return
+    end
 
     opts = record ? {:object => record} : {:collection => records}
     (params[:options] || {}).each {|key, val| 
