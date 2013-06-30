@@ -33,6 +33,13 @@ class EventController < RedAppController
     event.from = client()
     event.to = server()
 
+    #TODO: remove this!!
+    # begin
+    #   event.from.user = current_user
+    #   event.from.save!
+    # rescue
+    # end
+
     Red.boss.time_it("[EventController] Unmarhsalling") {
       unmarshal_and_set_event_params(event)
     }

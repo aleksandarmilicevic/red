@@ -153,10 +153,192 @@ var Red = (function() {
                     paramValue = jQuery.makeArray(paramValue);                    
                 }
             }
-
             return paramValue;
-        }
+        },
 
+        chainActions : function(actions, hash) {
+            return function() {
+                if (actions.length == 0) throw new Error("0 actions not allowed");
+                var action = actions.shift();
+                action()
+                    .done(function(r){
+                        if (actions.length == 0) {
+                            if (hash.done) hash.done(r);
+                        } else {  
+                            Red.Utils.chainActions(actions, hash)();
+                        }
+                    })
+                    .fail(function(r)   { if (hash.fail) hash.fail(r);})
+                    .always(function(r) { if (hash.always) hash.always(r);});
+            };
+        },
+
+        asyncUpdate : function($elem, cls, hash) {
+            var oldHtml = $elem.html();
+            var updatingCls = cls + "-updating";
+            var okCls = cls + "-update-ok";
+            var failCls = cls + "-update-fail";
+            
+            var duration = hash.duration || 200; 
+            var timeout = hash.timeout || 800;
+            
+            var actions = hash.actions || [hash.action];
+            $elem.addClass(updatingCls, "fast", function(){
+                Red.Utils.chainActions(actions, {
+                    done: function(r) {
+                        $elem.removeClass(updatingCls);
+                        if (hash.done) { hash.done(r); } else { $elem.html(r); }
+                        $elem.addClass(okCls, duration, function() {
+                            setTimeout(function() {$elem.removeClass(okCls);}, timeout); 
+                        });
+                    }, 
+                    fail: function(r) {
+                        $elem.removeClass(updatingCls);
+                        if (hash.fail) { hash.fail(r); }
+                        $elem.addClass(failCls, duration, function() {
+                            setTimeout(function() {$elem.removeClass(failCls);}, timeout); 
+                        });
+                    },
+                    always: function(r) {
+                        $elem.removeClass(updatingCls);
+                        if (hash.always) { hash.always(r); }
+                    }
+                })();
+            });
+        }, 
+
+        /* ==============================================================
+         * Goes through all undefined parameters (`undefParams') and asks
+         * the user to provide values for them.  Once all values have been
+         * provided, it calles the continuation function `triggerFunc'.
+         * 
+         * Rules for asking the user to provide missing parameter values:
+         * 
+         *   - if the parameter is of a primitive type, it simply prompts
+         *     for a string value
+         * 
+         *   - if the parameter is a file, it dynamically creates a form
+         *     with a file input, and an iframe in order to achieve
+         *     ajax-like file upload.
+         * 
+         *   - if the parameter is of a record type, it shows a browse
+         *     widget where the user can select an object. 
+         * ============================================================== */
+        askParams : function($elem, ev, undefParams, triggerFunc) {
+            if (undefParams.length === 0) {
+                triggerFunc();
+                return;
+            }
+            var elemId = $elem.attr("id");
+            var param = undefParams.shift();
+            if (param.isFile) {
+                var uploadDiv = null;
+                var iframe = null;
+                var fileForm = $elem.data('file-form');
+                if (typeof(fileForm) === "undefined") {
+                    uploadDiv = $('<div><form></form><iframe></iframe></div>');
+                    fileForm = $(uploadDiv.children()[0]);
+                    iframe = $(uploadDiv.children()[1]);
+                    
+                    uploadDiv.hide();
+                    
+                    var csrf = $('<input type="hidden" name="authenticity_token"></input>');
+                    csrf.val($('meta[name="csrf-token"]').attr("content"));
+                    fileForm.append(csrf);
+                    
+                    iframe.attr('id', elemId + "_upload_target");
+                    iframe.attr('name', iframe.attr('id'));
+                    iframe.attr('src', '#');
+                    iframe.attr('style', 'width:0;height:0;border:0px solid #fff;');
+                    
+                    fileForm.attr('method', 'post');
+                    fileForm.attr('enctype', 'multipart/form-data');
+                    fileForm.attr('target', iframe.attr('id'));
+                    
+                    ev.viaForm = fileForm;
+                    
+                    $elem.after(uploadDiv);
+                } else {
+                    uploadDiv = fileForm.parent();
+                    iframe = fileForm.next();
+                }
+                
+                var fileInput = $('<input type="file"></input>');
+                fileInput.attr('name', param.name);
+                fileForm.append(fileInput);
+                fileInput.bind("change", function(){ 
+                    ev.params[param.name] = $(this).val();
+                    Red.Utils.askParams($elem, ev, undefParams, triggerFunc);
+                });
+                fileInput.trigger("click");
+            } else if (param.isPrimitive) {
+                ev.params[param.name] =  window.prompt(param.name, "");
+                Red.Utils.askParams($elem, ev, undefParams, triggerFunc);
+            } else if (param.isRecord) {
+                alert("Missing Record parameters (" + param.name + ") not implemented");
+            } else {
+                console.debug("Unsupported parameter kind:");
+                console.debug(param);
+                throw new Error("unsupported parameter kind");
+            }
+        },
+
+        /* ===========================================================
+         * Creates event declaratively specified through element's 
+         * data attributes:
+         * 
+         *  - event name is read from either 'data-trigger-event' or 
+         *    'data-event-name' attribute
+         *  - reads event params from 'data-param-*' attributes
+         * =========================================================== */
+        declCreateEvent : function($elem) {
+            var eventName = $elem.attr("data-trigger-event") || 
+                            $elem.attr("data-event-name");
+            var ev = eval('new ' + eventName + '({})');
+            var undefParams = [];
+            for (var i = 0; i < ev.meta.params.length; i++) {
+                var param = ev.meta.params[i];
+                var paramName = param.name;
+                var paramValue = Red.Utils.readParamValue($elem, "data-param-" + paramName);
+                if (paramValue === undefined) {
+                    undefParams.push(param);
+                }
+                ev.params[paramName] = paramValue;
+            }
+            return { event: ev, undefParams: undefParams };
+        },
+
+        /* ===========================================================
+         * Creates event declaratively specified through element's
+         * data attributes (via the Red.Utils.declCreateEvent func),
+         * and then
+         * 
+         *  - prompts for missing parameters
+         *  - fires the event asynchronously (via $.post)
+         *  - triggers either ${eventName}Done or ${eventName}Failed 
+         *    handler (if bound) after the event has been executed 
+         * =========================================================== */
+        declTriggerEvent : function($elem) {
+            if ($elem.attr("disabled") === "disabled") 
+                return;
+            
+            var ans = Red.Utils.declCreateEvent($elem);
+            var ev = ans.event;
+            var undefParams = ans.undefParams;
+            var eventName = ev.meta.shortName;
+
+            Red.Utils.askParams($elem, ev, undefParams, function() {
+                $elem.trigger(eventName + "Triggered", [ev]);
+                if (ev.fired !== true) {
+                    ev.fire(
+                    ).done(function(response) {
+                        $elem.trigger(eventName + "Done", [response]);
+                    }).fail(function(response) {
+                        $elem.trigger(eventName + "Failed", [response]);
+                    });
+                }
+            });
+        }  
     };
 
     var PubSub = {

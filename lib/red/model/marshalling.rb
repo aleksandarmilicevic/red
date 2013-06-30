@@ -79,6 +79,8 @@ module Red
             unmarshal_to_hash(obj)
           when klass <= Red::Model::Record
             unmarshal_to_record(obj, klass)
+          when klass == Object
+            obj
           else
             raise MarshallingError.new, "Unsupported unary class type: #{klass}"
           end

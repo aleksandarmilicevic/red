@@ -12,7 +12,7 @@ module Util
     }
 
     record HashRecord do 
-      field entries: (set HashEntryRecord), :belongs_to_parent => true, :default => []
+      field entries: (set HashEntryRecord), :owned => true, :default => []
     end
   end
 

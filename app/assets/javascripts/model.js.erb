@@ -9,6 +9,7 @@
 <% Red.meta.events.each do |e| %>
   var <%= e.relative_name %> = function(props) {
     Red.event("<%= e.name %>", props).cloneOnto(this);
+    this.meta.shortName = <%= e.relative_name.inspect %>;
     this.meta.params = <%= 
       e.meta.params(true).map{ |f| 
         {:name => f.name, 
