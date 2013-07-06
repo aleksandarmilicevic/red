@@ -16,24 +16,8 @@ class RedAppController < ActionController::Base
         :fieldName => fld_name,
         :saveTarget => true
       }
-      hash[:body] = record.read_field(fld_name)
+      hash[:body] ||= record.read_field(fld_name)
       autotrigger(RedLib::Crud::LinkToRecord, "fieldValue", hash)
-      # tag = hash.delete(:tag) || "span"
-      # escape_body = true
-      # escape_body = !!hash[:escape_body] if hash.has_key?(:escape_body)
-      # multiline = !!hash[:multiline]
-
-      # blder = SDGUtils::HTML::TagBuilder.new(tag)
-      # blder
-      #   .body(record.read_field(fld_name))
-      #   .attr("data-record-cls", record.class.name)
-      #   .attr("data-record-id", record.id)
-      #   .attr("data-field-name", fld_name)
-      #   .attr("contenteditable", true)
-      #   .attr("class", "red-autotrigger")
-      #   .when(!multiline, :attr, "class", "singlelineedit")
-      #   .attrs(hash)
-      #   .build(escape_body).html_safe()
     end
 
     def autotrigger(event, fld_name, hash={})
@@ -60,7 +44,7 @@ class RedAppController < ActionController::Base
       event_params.each do |key, value|
         value_str = value.to_s
         if value.kind_of? Red::Model::Record
-          value_str = "${Red.createRecord('#{value.class.name}', #{value.id})}"
+          value_str = "${Red.Meta.createRecord('#{value.class.name}', #{value.id})}"
         end
         blder.attr("data-param-#{key}", value_str)
       end

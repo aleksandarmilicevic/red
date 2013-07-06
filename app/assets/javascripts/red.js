@@ -3,9 +3,6 @@ var Red = (function() {
   // private stuff
   // ============================================================
   var me = {
-    EventMeta : function() {},
-    RecordMeta :  function() {},
-
     construct : function(name) {
       eval('var ' + name + ' = function (){};');
       return eval('new ' + name + ';');
@@ -15,7 +12,6 @@ var Red = (function() {
       var func = function() {return record.__type__; };
       Object.defineProperty(record, "name", {value: func});
       Object.defineProperty(record, "type", {value: func});
-      Object.defineProperty(record, "meta", {value: new me.RecordMeta()});
     },
 
     defineEventNonEnumProps : function(event) {
@@ -73,11 +69,26 @@ var Red = (function() {
   //   Some meta stuff about the underlying Red model
   // ============================================================
 
-  var Meta = {
-    modelForRecord : function(recordName) {
-      return this.record2model[recordName];
-    }
+  var RedMeta = function() {};
+  RedMeta.prototype = {
+    search: function(hash, name) {
+      var ans = hash[name];
+      if (ans) return ans;
+      for (var p in hash) {
+        if (new RegExp("::" + name + "$").test(p))
+          return hash[p];
+      }
+        return null;
+    },
+       
+    record : function(name) { return this.search(this.records, name); }, 
+    event  : function(name) { return this.search(this.events, name); },
+
+    create       : function(constr, args) { return new constr(args); },
+    createRecord : function(name, id)     { return this.create(this.record(name), id); },
+    createEvent  : function(name, id)     { return this.create(this.event(name), id); }
   };
+
 
   // ============================================================
   //  Simulates jQuery's jqXHR type.
@@ -108,11 +119,108 @@ var Red = (function() {
   };
 
   // ============================================================
+  //   Constructor functions
+  // ============================================================
+
+  var Constr = {
+    id : function(id) {
+      return (id instanceof jQuery) ? id.attr('data-record-id') : id;
+    },
+    
+    extendProto : function(superFunc) {
+      var constr = function() {};
+      constr.prototype = superFunc.prototype;
+      return new constr();
+    },
+
+    extendSig : function(name, superConstr, paramsStr, superArgsStr, body) {
+      var funcStr = "f=function " + name + "(" + paramsStr + "){\n";
+      if (superConstr) 
+        funcStr += "  superConstr.call(this, " + superArgsStr + ");\n";
+      if (body)
+        funcStr += "  " + body + "\n";
+      var cstr = "{writable: true, value: arguments.callee}";
+      funcStr += "  Object.defineProperty(this, 'constructor', " + cstr + ");\n";
+      if (superConstr) {
+        var sup = "{writable: true, value: superConstr}";
+        funcStr += "  Object.defineProperty(this, 'superConstructor', " + sup + ");\n";
+      }
+      funcStr += "}";
+      var c = eval(funcStr);
+      if (superConstr)
+        c.prototype = Constr.extendProto(superConstr);
+      return c;
+    },
+
+    record : function(name, superRecordConstr) {
+      var c;
+      if (superRecordConstr) {
+        c = Constr.extendSig(name, superRecordConstr, "id", "Constr.id(id)");
+      } else {
+        var body = "this['id']=id;";
+        c = Constr.extendSig(name, null, "id", null, body);
+      }
+      c.recordConstr = true;
+      return c; 
+    },
+
+    event : function(name, superEventConstr) {
+      var c;
+      if (superEventConstr) {
+        c = Constr.extendSig(name, superEventConstr, "params", "params");
+      } else {
+        var body = "this.params=params; this.canceled=false;";
+        c = Constr.extendSig(name, null, "params", null, body);
+      }
+      c.eventConstr = true;
+      return c;
+    }
+  };
+
+  // ============================================================
+  //   Serialization
+  // ============================================================
+
+  var Serializer = {
+    serializeObject : function(obj) {
+      var ans = {};
+      for (var p in obj) { ans[p] = Serializer.serialize(obj[p]); }
+      return ans;
+    },
+
+    serializeArray : function(arr) {
+      var ans = [];
+      for (var i in arr) { ans.push(Serializer.serialize(arr[i])); }
+      return ans;
+    },
+
+    serialize : function(obj) {
+      var ans;
+      if (obj instanceof Array) {
+        ans = Serializer.serializeArray(obj);
+      } else if (obj instanceof Red.Model.Record) {
+        ans = Serializer.serializeObject(obj);
+        ans["is_record"] = true;
+        ans["__type__"] = obj.meta().name;
+      } else if (obj instanceof Object) {
+        ans = Serializer.serializeObject(obj);
+      } else {
+        ans = obj;
+      }
+      return ans;
+    }, 
+
+    param : function(obj) {
+      return jQuery.param(Serializer.serialize(obj));
+    }
+  };
+
+
+  // ============================================================
   //   Various utility functions
   // ============================================================
 
   var Utils = {
-
     defaultTo : function(val, defaultVal) {
       if (typeof(val) === "undefined") {
         return defaultVal;
@@ -120,6 +228,16 @@ var Red = (function() {
         return val;
       }
     },
+
+    truncate : function(str, len, opts) {
+      str = jQuery.trim(str);
+      if (str.length > len)
+        return str.substring(0, len-3) + "...";
+      else
+        return str;
+    },
+
+    trunc : function(str, len, opts) { return Utils.truncate(str, len, opts); },
 
     toggleShow : function($elem, opts) {
       if ($elem.attr('disabled')) return false;
@@ -187,7 +305,7 @@ var Red = (function() {
          if (requestOpts.controller) url += requestOpts.controller;
          if (requestOpts.action) url += '#' + requestOpts.action;
          if (requestOpts.format) url += '.' + requestOpts.format;
-         if (requestOpts.params) url += '?' + jQuery.param(requestOpts.params);
+         if (requestOpts.params) url += '?' + Serializer.param(requestOpts.params);
          if (typeof(requestOpts.method) === "string") {
            method = eval('jQuery.' + requestOpts.method);
          } else if (typeof(requestOpts.method) === "function") {
@@ -450,7 +568,7 @@ var Red = (function() {
       }
       var elemId = $elem.attr("id");
       var param = undefParams.shift();
-      if (param.isFile) {
+      if (param.isFile()) {
         var uploadDiv = null;
         var iframe = null;
         var fileForm = $elem.data('file-form');
@@ -491,10 +609,10 @@ var Red = (function() {
           Utils.askParams($elem, ev, undefParams, triggerFunc);
         });
         fileInput.trigger("click");
-      } else if (param.isPrimitive) {
+      } else if (param.isPrimitive()) {
         ev.params[param.name] =  window.prompt(param.name, "");
         Utils.askParams($elem, ev, undefParams, triggerFunc);
-      } else if (param.isRecord) {
+      } else if (param.isRecord()) {
         alert("Missing Record parameters (" + param.name + ") not implemented");
       } else {
         console.debug("Unsupported parameter kind:");
@@ -521,8 +639,8 @@ var Red = (function() {
             $elem.attr("data-event-name");
       var ev = eval('new ' + eventName + '({})');
       var undefParams = [];
-      for (var i = 0; i < ev.meta.params.length; i++) {
-        var param = ev.meta.params[i];
+      for (var paramIdx in ev.meta().params()) {
+        var param = ev.meta().params()[paramIdx];
         var paramName = param.name;
         var paramValue = Utils.readParamValue($elem, "data-param-" + paramName);
         if (paramValue === undefined) {
@@ -557,7 +675,7 @@ var Red = (function() {
       var ans = Utils.declCreateEvent($elem);
       var ev = ans.event;
       var undefParams = ans.undefParams;
-      var eventName = ev.meta.shortName;
+      var eventName = ev.meta().shortName();
 
       Utils.askParams($elem, ev, undefParams, function() {
         $elem.trigger(eventName + "Triggered", [ev]);
@@ -573,105 +691,77 @@ var Red = (function() {
     }
   };
 
-  var PubSub = {
+  var RedModel = function RedModel() {
 
-  };
+    ///////////////////////////////////////////////////////
+    this.RecordMeta = function RecordMeta(props) { jQuery.extend(this, props); };
+    this.RecordMeta.prototype = {
+      superRecord: function() { return this.parentSig; },
+      subRecords: function() { return this.subsigs; }
+    };
 
-  var Red = {
+    ///////////////////////////////////////////////////////
+    this.EventMeta = Constr.extendSig("EventMeta", this.RecordMeta, "props", "props");
+    this.EventMeta.prototype = {
+      superEvent: function() { return this.parentSig; },
+      subEvents: function() { return this.subsigs; },
+      shortName: function() { return this.relative_name; },
 
-    // ===============================================================
-    //   publish subscribe
-    // ===============================================================
-    publish_status_kind : function(kind, msg) {
-      Red.publish({
-        "type" : "status_message",
-        "payload" : {
-          "kind" : kind,
-          "msg" : msg
+      params: function() {
+        var ans = [];
+        if (this.superEvent() && this.superEvent().meta) {
+          ans = [].concat(this.superEvent().meta.params());
         }
-      });
-    },
-
-    publish_status : function(msg) {
-      Red.publish_status_kind("status", msg);
-    },
-    publish_warning : function(msg) {
-      Red.publish_status_kind("warning", msg);
-    },
-    publish_error : function(msg) {
-      Red.publish_status_kind("error", msg);
-    },
-
-    // ===============================================================
-    //   publish subscribe
-    // ===============================================================
-
-    Meta : $.extend({}, Meta),
-
-    Utils : $.extend({}, Utils),
-
-    // ===============================================================
-    //   AST: records/events
-    // ===============================================================
-
-    /* ----------------------------------------------------------------
-     *   Creates a new Record object.
-     * ---------------------------------------------------------------- */
-    record : function(type, props) {
-      var that = me.construct("Record");
-
-      that.is_record = true;
-
-      var recordProps = $.extend({__type__: type}, props);
-      for (p in recordProps) {
-        that[p] = recordProps[p];
+        var toFld = this.to();
+        var fromFld = this.from();
+        for (var fldIdx in this.fields) {
+          var fld = this.fields[fldIdx];
+          if (fld !== toFld && fld !== fromFld)
+            ans.push(fld);
+        }
+        return ans;
       }
+    };
 
-      me.defineRecordNonEnumProps(that);
+    ///////////////////////////////////////////////////////
+    this.Field = function Field(props) { jQuery.extend(this, props); };
+    this.Field.prototype = {
+      isRecord : function() {
+        var t = this.type;
+        return typeof(t) === "function" && t.recordConstr; 
+      }, 
+      isFile : function() {
+        return this.isRecord() && this.type.meta.name === "RedLib::Util::FileRecord";
+      }, 
+      isPrimitive : function() {
+        return !this.isRecord();
+      }
+    };
+    
 
-      /* ----------------------------------------------------------------
-       * 
-       * Extends a given "obj" object to include all the properties
-       * (including the non-enumerable ones) of this.
-       * 
-       * ---------------------------------------------------------------- */
-      Object.defineProperty(that, "cloneOnto", {
-        enumerable: false,
-        value: function(obj) {
-          $.extend(obj, this);
-          me.defineRecordNonEnumProps(obj);
-          return obj;
-        }
-      });
+    ///////////////////////////////////////////////////////
+    this.Record = Constr.record("Record");
+    jQuery.extend(this.Record.prototype, {
+    });
+    Object.defineProperty(this.Record.prototype, "meta", {
+      value: function() { return this.constructor.meta; }
+    });
 
-      return that;
-    },
+    ///////////////////////////////////////////////////////
+    this.Event = Constr.event("Event");
+    jQuery.extend(this.Event.prototype, {
+      is_event : true,
+      
+      cancel : function() { this.canceled = true; },
 
-    /* ----------------------------------------------------------------
-     * 
-     *   Creates a new Event object.
-     * 
-     * ---------------------------------------------------------------- */
-    event : function(name, params) {
-      var that = me.construct("Event");
-
-      that.is_event = true;
-      that.name     = name;
-      that.params   = params;
-      that.meta     = new me.EventMeta();
-      that.viaForm  = undefined;
-
-      that.canceled = false;
-      that.cancel   = function() { this.canceled = true; };
-
-      that.fire = function(cb) {
+      fire : function(cb) {
         cb = Utils.defaultTo(cb, function(response) {});
         if (this.viaForm) {
           return this.fireViaForm(this.viaForm, cb);
         } else {
           return this.fireDirectly(cb);
         }
-      };
+      },
 
       /* ----------------------------------------------------------------
        * 
@@ -686,13 +776,11 @@ var Red = (function() {
        * the iframe is loaded.
        * 
        * ---------------------------------------------------------------- */
-      that.fireViaForm = function(form, cb) {
+      fireViaForm : function(form, cb) {
         cb = Utils.defaultTo(cb, function(response) {});
         Object.defineProperty(this, "fired", {value: true});
 
-        if (!(typeof(form) === "object")) {
-          form = $(form);
-        }
+        if (!(typeof(form) === "object")) { form = $(form); }
 
         var iframe = $("#" + form.attr("target"));
         var myXHR = new MyXHR();
@@ -708,20 +796,20 @@ var Red = (function() {
         form.attr("action", this.actionUrl());
         form.submit();
         return myXHR;
-      };
+      },
 
       /* ----------------------------------------------------------------
        * Fires an Ajax POST request to this events action URL. 
        * 
        * Returns the same XHR object returned by jQuery.post. 
        * ---------------------------------------------------------------- */
-      that.fireDirectly = function(cb) {
+      fireDirectly : function(cb) {
         cb = Utils.defaultTo(cb, function(response) {});
         Object.defineProperty(this, "fired", {value: true});
 
         var url = this.actionUrl();
         return jQuery.post(url, cb);
-      };
+      },
 
       /* ----------------------------------------------------------------
        * 
@@ -730,47 +818,70 @@ var Red = (function() {
        * values of event parameters.
        * 
        * ---------------------------------------------------------------- */
-      that.actionUrl = function() {
+      actionUrl : function() {
         var urlParams = {
-            event : this.name,
+            event : this.meta().name,
             params : this.params
         };
         // TODO: auth token?
-        return "/event?" + jQuery.param(urlParams);
-      };
+        return "/event?" + Serializer.param(urlParams);
+      },
 
       /* ----------------------------------------------------------------
        * 
-       * Extends a given "obj" object to include all the properties
-       * (including the non-enumerable ones) of this.
+       * Returns the meta object for type of event. 
        * 
        * ---------------------------------------------------------------- */
-      that.cloneOnto = function(obj) {
-        jQuery.extend(obj, this);
-        me.defineEventNonEnumProps(obj);
-        return obj;
-      };
+      meta : function() { 
+        return this.constructor.meta; 
+      }
+    });
+  };
+    
 
-      return that;
-    },
+  // ===============================================================
+  //   publish subscribe
+  // ===============================================================
+  var RedEvents = function() {
+    var proto = {
+      publish_status_kind : function(kind, msg) {
+        Red.publish({
+          "type" : "status_message",
+          "payload" : {
+            "kind" : kind,
+            "msg" : msg
+          }
+        });
+      },
+      
+      publish_status  : function(msg) { proto.publish_status_kind("status", msg); },
+      publish_warning : function(msg) { proto.publish_status_kind("warning", msg); },
+      publish_error   : function(msg) { proto.publish_status_kind("error", msg); },
 
-    // must call with new, better to call record instead
-    Record : function(props) {
-      $.extend(this, Red.record(props));
-    },
+      subscribe_message_kind : function(kind, func) {
+        Red.subscribe(function(data) {
+          if (data.payload && data.payload.kind === kind) func(data, data.payload);
+        });
+      }, 
 
-    // must call with new, better to call event instead
-    Event : function(name, params) {
-      $.extend(this, Red.event(name, params));
-    },
+      subscribe_event_completed : function(eventName, func) {
+        proto.subscribe_message_kind("event_completed", function(data, payload) {
+          if (payload.event.name === eventName) func(data, payload.ans);
+        });
+      }
+    };
+    return $.extend(this, proto);
+  };
 
-    createRecord : function(recordClass, recordId) {
-      return Red.record(recordClass, {"id": recordId });
-    },
+  var Red = {
 
-    fireEvent : function(eventName, params, cb) {
-      Red.event(eventName, params).fire(cb);
-    },
+    Events : new RedEvents(),
+    Meta : new RedMeta(),
+    Model : new RedModel(),
+
+    Constr : jQuery.extend({}, Constr),
+    Utils : jQuery.extend({}, Utils),
+    Serializer : jQuery.extend({}, Serializer),
 
     // ===============================================================
     //   handlers
@@ -780,25 +891,10 @@ var Red = (function() {
       console.debug("[RED] update received; type:" + data.type + ", payload: " + JSON.stringify(data.payload));
     },
 
-    /**
-     */
     updateReceived : function(data) {
       var updateStart = new Date().getTime();
       me.check_defined(data.type, "malformed JSON update: field 'type' not found");
-      if (data.type === "record_update") {
-        me.check_defined(data.payload, "field 'payload' not found in a 'record_update' message");
-        var store = DS.get('defaultStore');
-        var loader = DS.loaderFor(store);
-        loader.load = function(type, data, prematerialized) {
-          prematerialized = prematerialized || {};
-          return store.load(type, data, prematerialized);
-        };
-        for (var i = 0; i < data.payload.length; i++) {
-          var elem = data.payload[i];
-          var cls = Red.Meta.modelForRecord(elem.record_type);
-          DS.JSONSerializer.create().extract(loader, elem.json, cls, null);
-        }
-      } else if (data.type === "node_update") {
+      if (data.type === "node_update") {
         me.check_defined(data.payload, "field 'payload' not found in a 'node_update' message");
         me.check_defined(data.payload.node_id, "field 'payload.node_id' not found in a 'node_update' message");
         me.check_defined(data.payload.inner_html, "field 'payload.inner_html' not found in a 'node_update' message");

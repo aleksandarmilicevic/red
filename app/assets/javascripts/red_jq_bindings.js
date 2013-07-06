@@ -41,6 +41,32 @@ $(function() {
   });
 
   // ===========================================================
+  //   truncate stuff
+  // ===========================================================
+
+  var isEditing = function($elem)   { return $elem.hasClass('red-editing'); };
+  var getVal = function($elem)      { return $elem.attr('data-value'); };
+  var setVal = function($elem, val) { return $elem.attr('data-value', val); };
+
+  $(document).on("mouseover", ".truncate-body", function(e) {
+    var $elem = $(this); 
+    if (isEditing($elem)) return; 
+    $elem.html(getVal($elem));
+  });
+
+  $(document).on("mouseout", ".truncate-body", function(e) {
+    var $elem = $(this); 
+    if (isEditing($elem)) return; 
+    $elem.html(Red.Utils.trunc(getVal($elem), 15));
+  });
+
+  $(document).on("blur", ".truncate-body", function(e) {
+    var $elem = $(this); 
+    setVal($elem, $elem.html());
+    $elem.mouseout();
+  });
+
+  // ===========================================================
   //   autotrigger stuff
   // ===========================================================
 
@@ -50,16 +76,20 @@ $(function() {
 
   var extractValue = function(elem) {
     if (isInput(elem)) { return elem.val(); }
-    else         { return elem.html(); }
+    else               { return elem.html(); }
   };
 
   var setValue = function(elem, val) {
     if (isInput(elem)) { return elem.val(val); }
-    else         { return elem.html(val); }
+    else               { return elem.html(val); }
   };
 
   $(document).on("keypress", ".singlelineedit", function(e) {
     if(e.which == 13) { $(this).blur(); }
+  });
+
+  $(document).on("keydown", ".red-autotrigger", function(e) {
+    if(e.which == 13 && e.ctrlKey) { $(this).blur(); }
   });
 
   $(document).on("keyup", ".red-autotrigger", function(e) {
@@ -94,10 +124,10 @@ $(function() {
         return event.fire();
       },
       done: function(response) {
-        $elem.trigger(event.meta.shortName + "Done", [response]);
+        $elem.trigger(event.meta().shortName() + "Done", [response]);
       },
       fail: function(response) {
-        $elem.trigger(event.meta.shortName + "Failed", [response]);
+        $elem.trigger(event.meta().shortName() + "Failed", [response]);
       }
     });
   });

@@ -41,6 +41,15 @@ module Store
       file_record.content = nil
     end
 
+    def destroy(file_record)
+      ensure_init
+
+      src = File.absolute_path(file_record.filepath)
+      if File.file?(src)
+        File.delete(src) rescue Red.conf.log.warn("could not delete #{src}")
+      end
+    end
+
     def extract_file(file_record)
       ensure_init
       file_record.filepath

@@ -42,8 +42,9 @@ module Red
       # @param obj [AType]
       def unmarshal(obj, atype=nil)
         return nil if obj.nil?
-        return unmarshal_guess_type(obj) unless atype
         case
+        when atype.nil?
+          unmarshal_guess_type(obj)
         when !atype.scalar?
           unmarshal_to_array(obj, atype.remove_multiplicity)
         when atype.unary?
@@ -51,7 +52,8 @@ module Red
         when atype.binary?
           unmarshal_to_hash(obj, atype.column!(0), atype.column!(1))
         else
-          raise MarshallingError, "Higher-arity type: #{atype}"
+          unmarshal_guess_type(obj)
+          # raise MarshallingError.new, "Higher-arity type: #{atype}"
         end
       end
 

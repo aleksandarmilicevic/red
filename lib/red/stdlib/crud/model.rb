@@ -84,7 +84,7 @@ module Crud
       params {{
           target: Red::Model::Record, 
           fieldName: String, 
-          fieldValue: Object,
+          fieldValue: lambda{|ev| ev.target.meta.field(fieldName).type},
         }}
 
       param saveTarget: Boolean, :default => true

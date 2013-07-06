@@ -1,23 +1,5 @@
-<% Red.meta.records.each do |r| %>
-  var <%= r.relative_name %> = function(id) {
-      var recordType = "<%= r.name %>";
-      var recordId = (id instanceof jQuery) ? id.attr("data-record-id") : id;
-      Red.createRecord(recordType, recordId).cloneOnto(this);
-  };
-<% end %>
+<% require 'red/view/javascript_generator' %>
+<%= Red::View::JavascriptGenerator.new.translate_model_to_javascript %>
 
-<% Red.meta.events.each do |e| %>
-  var <%= e.relative_name %> = function(props) {
-    Red.event("<%= e.name %>", props).cloneOnto(this);
-    this.meta.shortName = <%= e.relative_name.inspect %>;
-    this.meta.params = <%= 
-      e.meta.params(true).map{ |f| 
-        {:name => f.name, 
-         :type => f.type.remove_multiplicity.to_s, 
-         :isScalar => f.scalar?, 
-         :isPrimitive => f.primitive?, 
-         :isFile => f.type.isFile?,
-         :isRecord => !!(f.type.range.klass <= Red::Model::Record)}
-      }.to_json() %>;
-  };
-<% end %>
+
+<%#= JavascriptGenerator.new.translate_model_to_javascript %>

@@ -16,6 +16,7 @@ module Util
       def self.isFile?() true end
 
       before_save lambda{store.save(self)}
+      after_destroy lambda{store.destroy(self)}
 
       def extract_file() store.extract_file(self) end
       def read_content() store.read_content(self) end

@@ -10,7 +10,7 @@ class EventController < RedAppController
     success :kind => "event_completed",
             :event => {:name => event_name, :params => params[:params]},
             :msg => "Event #{event_name} successfully completed",
-            :ans => ans
+            :ans => ans.as_red_json
   end
 
   public

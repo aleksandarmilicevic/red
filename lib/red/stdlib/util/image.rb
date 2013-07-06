@@ -9,11 +9,12 @@ module Util
 
   Red::Dsl.data_model do
     record ImageRecord, {
-      file: FileRecord,
       width: Integer, 
       height: Integer, 
       img_type: String
     } do
+      field file: FileRecord, :owned => true
+
       def aspect_ratio
         return 1 unless width && height
         return width if height == 0
