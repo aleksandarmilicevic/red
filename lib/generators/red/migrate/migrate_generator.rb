@@ -199,9 +199,9 @@ module Red
 
           unless updated_cols.empty?
             __print(rec, "\n    # updated columns:\n")
-            updated_cols.each { |col| 
-              remove_col(rec, table_name, col) 
-              add_col(rec, table_name, col) 
+            updated_cols.each { |col|
+              remove_col(rec, table_name, col)
+              add_col(rec, table_name, col)
             }
           end
 
@@ -222,7 +222,7 @@ module Red
             rec.add_column table_name, col.col_name, col.type
           end
           if :ref === col.kind
-            rec.add_index table_name, col.col_name  
+            rec.add_index table_name, col.col_name
           end
         end
 
@@ -252,14 +252,14 @@ module Red
             __print(t, "\n")
             t.timestamps
           end
-        end        
+        end
 
         # @param r [Record]
         def get_columns_for_record(r)
           sigs = [r.red_root] + r.red_root.all_subsigs
           fields = sigs.map {|rr| rr.meta.pfields}.flatten
 
-          inv_fields = sigs.map { |rr| 
+          inv_fields = sigs.map { |rr|
             rr.meta.inv_fields
           }.flatten.find_all { |invf|
             fldinf = Red::Model::TableUtil.fld_table_info(invf.inv)
@@ -269,7 +269,7 @@ module Red
           cols = (fields + inv_fields).map { |f|
             cols_for_field(f)
           }.flatten
-            
+
           unless r.meta.subsigs.empty?
             type_col = ColInfo.new :kind => :attr, :col_name => :type, :type => :string
             cols << type_col
@@ -289,16 +289,16 @@ module Red
             if fld_info.attr?
               ColInfo.new :kind => :attr,
                           :col_name => fld_info.field,
-                          :fld_name => fld_info.field, 
+                          :fld_name => fld_info.field,
                           :type => fld_info.col_type
             elsif fld_info.to_one?
               c1 = ColInfo.new :kind => :ref,
-                               :col_name => fld_info.column, 
+                               :col_name => fld_info.column,
                                :fld_name => fld_info.field,
                                :type => :integer
               if fld_info.polymorphic?
                 c2 = ColInfo.new :kind => :attr,
-                                 :col_name => "#{fld_info.field}_type".to_sym, 
+                                 :col_name => "#{fld_info.field}_type".to_sym,
                                  :type => :string
                 [c1, c2]
               else
@@ -384,7 +384,7 @@ module Red
         def _column_exists?(table, col, type=nil, opts=nil)
           suppress_messages do
             args = [table, col, type, opts].compact
-            column_exists? *args
+            column_exists?(*args)
           end
         end
 

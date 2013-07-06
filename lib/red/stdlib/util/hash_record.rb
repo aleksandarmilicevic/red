@@ -7,12 +7,32 @@ module Util
 
   Red::Dsl.data_model do
     record HashEntryRecord, {
-      key: String, 
+      key: String,
       value: String
     }
 
-    record HashRecord do 
-      field entries: (set HashEntryRecord), :owned => true, :default => []
+    record HashRecord do
+      field entries: (set RedLib::Util::HashEntryRecord), :owned => true
+
+      def entry(key)
+        entries.where("key = ?", key).first
+      end
+
+      def get(key)
+        e = self.entry(key)
+        e ? e.value : nil
+      end
+
+      def put(key, value)
+        e = self.entry(key)
+        unless e
+          e = RedLib::Util::HashEntryRecord.new :key => key
+          self.entries << e
+          self.save!
+        end
+        e.value = value
+        e.save!
+      end
     end
   end
 
@@ -21,6 +41,44 @@ module Util
   #===========================================================
 
   Red::Dsl.event_model do
+    event HashPut do
+      params {{
+          hash: RedLib::Util::HashRecord,
+          key: String,
+          value: String
+        }}
+
+      requires {
+        check_all_present
+      }
+
+      ensures {
+        hash.put(key, value)
+      }
+    end
+
+    event AddToHashField do
+      params {{
+          target: Red::Model::Record,
+          fieldName: String,
+          key: String,
+          value: String
+        }}
+
+      requires {
+        check_all_present
+      }
+
+      ensures {
+        hash = target.read_field(fieldName)
+        unless hash
+          hash = RedLib::Util::HashRecord.new
+          target.write_field(fieldName, hash)
+          target.save!
+        end
+        hash.put(key, value)
+      }
+    end
   end
 
 end
