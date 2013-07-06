@@ -39,7 +39,7 @@ module Crud
     #
     # @param target [Record]    - target record which the newly created
     #                             record instance will be linked to.
-    #     
+    #
     # @param fieldName [String] - field name of the target record to
     #                             which the newly created record
     #                             instance will be assigne.
@@ -51,15 +51,15 @@ module Crud
           fieldName: String
         }}
 
-      requires { 
+      requires {
         super()
         check_all_present
       }
 
       ensures {
         new_record = super()
-        ev = LinkToRecord.new :target => target, 
-                              :fieldName => fieldName, 
+        ev = LinkToRecord.new :target => target,
+                              :fieldName => fieldName,
                               :fieldValue => new_record
         ev.execute
         new_record
@@ -72,18 +72,18 @@ module Crud
     #
     # @param target [Record]    - target record which the given object
     #                             will be linked to.
-    #     
+    #
     # @param fieldName [String] - field name of the target record to
     #                             which the newly created record
     #                             instance will be assigne.
-    #    
-    # @param fieldValue [Object] - value to assign to the target field. 
+    #
+    # @param fieldValue [Object] - value to assign to the target field.
     #
     # ----------------------------------------------------------------
     event LinkToRecord do
       params {{
-          target: Red::Model::Record, 
-          fieldName: String, 
+          target: Red::Model::Record,
+          fieldName: String,
           fieldValue: lambda{|ev| ev.target.meta.field(fieldName).type},
         }}
 
@@ -97,7 +97,7 @@ module Crud
         fld = target.meta.field(fieldName)
         incomplete "Field #{fieldName} not found in class #{target.class}" unless fld
         if fld.scalar?
-          target.write_field(fld, fieldValue) 
+          target.write_field(fld, fieldValue)
         else
           target.read_field(fld) << fieldValue
         end
@@ -119,7 +119,7 @@ module Crud
     # the hash.
     #
     # @param target [Record]    - target record to be updated.
-    #     
+    #
     # @param params [Hash(String, Object)] - fields and updated values.
     #
     # ----------------------------------------------------------------
@@ -136,7 +136,7 @@ module Crud
 
       ensures {
         params.each do |key, value|
-          ev = LinkToRecord.new(:target => target, :fieldName => key, 
+          ev = LinkToRecord.new(:target => target, :fieldName => key,
                                 :fieldValue => value, :saveTarget => false)
           ev.execute
         end

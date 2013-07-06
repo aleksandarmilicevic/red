@@ -23,10 +23,10 @@ class RedAppController < ActionController::Base
     def autotrigger(event, fld_name, hash={})
       event_cls = (Red::Model::Event > event) ? event : event.class
       fail "not an event: #{event.inspect}" unless Red::Model::Event > event
-      
+
       hash = hash.clone
       tag = hash.delete(:tag) || "span"
-      body = hash.delete(:body) || "" 
+      body = hash.delete(:body) || ""
       escape_body = true
       escape_body = !!hash.delete(:escape_body) if hash.has_key?(:escape_body)
       multiline = !!hash.delete(:multiline)

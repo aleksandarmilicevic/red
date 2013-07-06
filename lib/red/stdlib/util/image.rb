@@ -9,8 +9,8 @@ module Util
 
   Red::Dsl.data_model do
     record ImageRecord, {
-      width: Integer, 
-      height: Integer, 
+      width: Integer,
+      height: Integer,
       img_type: String
     } do
       field file: FileRecord, :owned => true

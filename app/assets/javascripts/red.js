@@ -80,8 +80,8 @@ var Red = (function() {
       }
         return null;
     },
-       
-    record : function(name) { return this.search(this.records, name); }, 
+
+    record : function(name) { return this.search(this.records, name); },
     event  : function(name) { return this.search(this.events, name); },
 
     create       : function(constr, args) { return new constr(args); },
@@ -126,7 +126,7 @@ var Red = (function() {
     id : function(id) {
       return (id instanceof jQuery) ? id.attr('data-record-id') : id;
     },
-    
+
     extendProto : function(superFunc) {
       var constr = function() {};
       constr.prototype = superFunc.prototype;
@@ -135,7 +135,7 @@ var Red = (function() {
 
     extendSig : function(name, superConstr, paramsStr, superArgsStr, body) {
       var funcStr = "f=function " + name + "(" + paramsStr + "){\n";
-      if (superConstr) 
+      if (superConstr)
         funcStr += "  superConstr.call(this, " + superArgsStr + ");\n";
       if (body)
         funcStr += "  " + body + "\n";
@@ -161,7 +161,7 @@ var Red = (function() {
         c = Constr.extendSig(name, null, "id", null, body);
       }
       c.recordConstr = true;
-      return c; 
+      return c;
     },
 
     event : function(name, superEventConstr) {
@@ -208,7 +208,7 @@ var Red = (function() {
         ans = obj;
       }
       return ans;
-    }, 
+    },
 
     param : function(obj) {
       return jQuery.param(Serializer.serialize(obj));
@@ -242,11 +242,11 @@ var Red = (function() {
     toggleShow : function($elem, opts) {
       if ($elem.attr('disabled')) return false;
       $elem.attr('disabled', 'disabled');
-      opts = Red.Utils.defaultTo(opts, {});  
+      opts = Red.Utils.defaultTo(opts, {});
       var $target = opts.target || $(Utils.readData($elem, 'toggle-show'));
       var effect = opts.effect || Utils.readData($elem, 'effect') || "blind";
-      var animOpts = opts.animOptions || 
-            Utils.readData($elem, 'anim-opts') || 
+      var animOpts = opts.animOptions ||
+            Utils.readData($elem, 'anim-opts') ||
             {direction: "up"};
        var dur = opts.duration || Utils.readData($elem, 'duration') || 500;
 
@@ -262,39 +262,39 @@ var Red = (function() {
      },
 
      /* ----------------------------------------------------------------
-      * 
-      * Asynchronously fires up a server-side action.  
-      * 
+      *
+      * Asynchronously fires up a server-side action.
+      *
       * Function used for this async call is
-      * 
+      *
       *   - `hash.method'         when hash.method is a function
       *   - jQuery.<hash.method>  when hash.method is a string
       *   - jQuery.get            otherwise
-      * 
+      *
       * If `hash.url' is present, it simply send a request to that URL.
       * Otherwise, it builds the URL from a number of Rails-like
       * parameters:
-      * 
+      *
       *   - controller
       *   - action
-      *   - format 
+      *   - format
       *   - params
-      * 
+      *
       * The URL pattern is
-      * 
+      *
       *   '/${controller}#${action}.#{format}?#{params}'
-      * 
+      *
       * @param requestOpts: {
-      *          url: string, 
+      *          url: string,
       *          controller: string,
       *          format: string,
       *          action: string,
       *          params: object,
       *          method: string || function,
       *        }
-      * 
+      *
       * @return jqXHR
-      * 
+      *
       * ---------------------------------------------------------------- */
      remoteAction : function(requestOpts) {
        if (typeof(requestOpts) === 'undefined') { requestOpts = {}; }
@@ -318,21 +318,21 @@ var Red = (function() {
      },
 
      /* ----------------------------------------------------------------
-      * 
+      *
       * Asynchrounously fires up a request to remotely render a given
       * record and send back the rendered HTML.
-      * 
+      *
       * By default sends a GET request to the "recordRenderer"
       * controller with parameters including the given record and the
       * rendering options.  These request options can be overriden
-      * by the user. 
-      * 
+      * by the user.
+      *
       * @param record [Red.Record]  - record to be rendered
-      * @param renderOpts [object]  - server-side rendering options 
+      * @param renderOpts [object]  - server-side rendering options
       * @param requestOpts [object] - remoteAction request options
-      * 
+      *
       * @return jqXHR
-      * 
+      *
       * ---------------------------------------------------------------- */
      remoteRenderRecord : function(record, renderOpts, requestOpts) {
        if (typeof(renderOpts) === 'undefined')  { renderOpts = {}; }
@@ -352,23 +352,23 @@ var Red = (function() {
      },
 
      /* ----------------------------------------------------------------
-      * 
+      *
       * Reads the attribute value from a jQuery element, with some
       * additional processing.
-      * 
+      *
       *   - returns `undefined' if f no attribute with `paramName' is
       *     defined in `elem'.
-      * 
+      *
       *   - when the attribute value matches /^\$\{.*\}$/, evaluates
-      *     the string inside ${}.  If the result is a jQuery array, 
+      *     the string inside ${}.  If the result is a jQuery array,
       *     it turns it into a regular Javascript array (by calling
-      *     `jQuery.makeArray' on it. 
-      * 
+      *     `jQuery.makeArray' on it.
+      *
       * @param elem [jQuery]       - a jQuery element
       * @param paramName [string]  - name of the attribute to be read from `elem'
-      * 
+      *
       * @return undefined || string || anything (result of `eval')
-      * 
+      *
       * ---------------------------------------------------------------- */
      readParamValue : function(elem, paramName) {
        var $elem = $(elem);
@@ -393,39 +393,39 @@ var Red = (function() {
     },
 
     /* ----------------------------------------------------------------
-     * 
+     *
      * Takes an array of "actions" (`actions') and a hash of callbacks
      * (`cb').  Executes one action at a time, and as soon as one
      * action fails it calls `cb.fail' and stops the process.  Only if
      * all actions succeed, `cb.done' is called.  At the end of the
      * process (regardless of whether it succeeded or failed)
      * `cb.always' is called.
-     * 
+     *
      * An "action" is a no-arg function which return an XHR kind of
      * object (e.g., `jqXHR', `Red.MyXHR' or anything that allows
      * "done", "fail" and "always" callbacks to be assigned).
-     * 
+     *
      * @param actions [array(function)] - a list of actions
      * @param cb : {
      *          done:   function
      *          fail:   function
      *          always: function
      *        }
-     * 
+     *
      * @return undefined
-     * 
+     *
      * ---------------------------------------------------------------- */
     chainActions : function(actions, cb) {
       return function() {
         if (actions.length == 0) throw new Error("0 actions not allowed");
         var action = actions.shift();
-        var doneFunc = null; 
+        var doneFunc = null;
         if (actions.length == 0)
           doneFunc = function(r) {
-            if (cb.done) cb.done(r); 
+            if (cb.done) cb.done(r);
             if (cb.always) cb.always(r);
           };
-        else 
+        else
           doneFunc = function(r) { Utils.chainActions(actions, cb)(); };
         action()
           .done(doneFunc)
@@ -434,10 +434,10 @@ var Red = (function() {
     },
 
     /* ----------------------------------------------------------------
-     * 
+     *
      * Implements a transition protocol for updating a DOM
      * element. This protocol looks something like this.
-     *                        
+     *
      *  -- addClass(updating, upStartDur)
      *    `-- action()
      *       `-- <action done>
@@ -455,8 +455,8 @@ var Red = (function() {
      *       `-- <whatever>
      *          `-- removeClass(updating, upEndDur)
      *             `-- hash.always()
-     *           
-     * 
+     *
+     *
      * This allows animations to be specified via the CSS
      * classes. First "${cls}-updating" is added to the element and is
      * animated for the `upStartDur' number of milliseconds, next the
@@ -466,7 +466,7 @@ var Red = (function() {
      * `opts.duration' number of milliseconds, user callback
      * (`opts.done' or `opts.fail') is called, and finally after a
      * timeout (`opts.timeout') the ok/fail class is removed.
-     * 
+     *
      * @param $elem : jQuery - a jQuery element
      * @param cb : {
      *          action:  function        - action to be performed
@@ -479,9 +479,9 @@ var Red = (function() {
      *          fail:   function         - fail callback
      *          always: function         - always callback
      *        }
-     * 
+     *
      * @return undefined
-     * 
+     *
      * ---------------------------------------------------------------- */
     asyncUpdate : function($elem, cls, opts) {
       var oldHtml = $elem.html();
@@ -533,7 +533,7 @@ var Red = (function() {
     },
 
     /* ----------------------------------------------------------------
-     * 
+     *
      * Goes through all undefined parameters (`undefParams') and asks
      * the user to provide values for them.  Once all values have been
      * provided, it calles the continuation function `triggerFunc'.
@@ -549,16 +549,16 @@ var Red = (function() {
      *
      *   - if the parameter is of a record type, it shows a browse
      *     widget where the user can select an object.
-     * 
+     *
      * @param $elem       : jQuery    - a jQuery element
      * @param ev          : Red.Event - a Red event
      * @param undefParams : array     - list of parameters to prompt the
      *                                  user
      * @param triggerFunc : function  - continuation to run after all
      *                                  parameter values have been collected
-     * 
+     *
      * @return undefined
-     * 
+     *
      * ---------------------------------------------------------------- */
     askParams : function($elem, ev, undefParams, triggerFunc) {
       if (undefParams.length === 0) {
@@ -621,18 +621,18 @@ var Red = (function() {
       }
     },
 
-    /* ---------------------------------------------------------------- 
-     * 
+    /* ----------------------------------------------------------------
+     *
      * Creates event declaratively specified through element's data
      * attributes:
      *
      *  - event name is read from either 'data-trigger-event' or
      *    'data-event-name' attribute
-     * 
+     *
      *  - event parameters are read from 'data-param-*' attributes
-     * 
+     *
      * @param $elem : jQuery    - a jQuery element
-     * 
+     *
      * ---------------------------------------------------------------- */
     declCreateEvent : function($elem) {
       var eventName = $elem.attr("data-trigger-event") ||
@@ -651,22 +651,22 @@ var Red = (function() {
       return { event: ev, undefParams: undefParams };
     },
 
-    /* ---------------------------------------------------------------- 
-     * 
+    /* ----------------------------------------------------------------
+     *
      * Creates event declaratively specified through element's data
      * attributes (via the Utils.declCreateEvent func), and then
      *
      *  - prompts for missing parameters
-     * 
+     *
      *  - fires the event asynchronously (via jQuery.post)
-     * 
+     *
      *  - triggers either ${eventName}Done or ${eventName}Failed
      *    handler (if bound) after the event has been executed
-     * 
+     *
      * @param $elem : jQuery    - a jQuery element
-     * 
+     *
      * @return undefined
-     * 
+     *
      * ---------------------------------------------------------------- */
     declTriggerEvent : function($elem) {
       if ($elem.attr("disabled") === "disabled")
@@ -728,16 +728,16 @@ var Red = (function() {
     this.Field.prototype = {
       isRecord : function() {
         var t = this.type;
-        return typeof(t) === "function" && t.recordConstr; 
-      }, 
+        return typeof(t) === "function" && t.recordConstr;
+      },
       isFile : function() {
         return this.isRecord() && this.type.meta.name === "RedLib::Util::FileRecord";
-      }, 
+      },
       isPrimitive : function() {
         return !this.isRecord();
       }
     };
-    
+
 
     ///////////////////////////////////////////////////////
     this.Record = Constr.record("Record");
@@ -751,7 +751,7 @@ var Red = (function() {
     this.Event = Constr.event("Event");
     jQuery.extend(this.Event.prototype, {
       is_event : true,
-      
+
       cancel : function() { this.canceled = true; },
 
       fire : function(cb) {
@@ -764,17 +764,17 @@ var Red = (function() {
       },
 
       /* ----------------------------------------------------------------
-       * 
-       * Fires this event by submitting a form to this events action URL. 
-       * 
-       * This is used mainly for file uploads, when an event requires 
-       * a file parameter. 
-       * 
+       *
+       * Fires this event by submitting a form to this events action URL.
+       *
+       * This is used mainly for file uploads, when an event requires
+       * a file parameter.
+       *
        * If the form has a 'target' attribute pointing to an iframe,
        * it binds an 'onload' handler to that iframe, which simply
        * emits a 'done' event (through the returned MyXHR object) when
        * the iframe is loaded.
-       * 
+       *
        * ---------------------------------------------------------------- */
       fireViaForm : function(form, cb) {
         cb = Utils.defaultTo(cb, function(response) {});
@@ -799,9 +799,9 @@ var Red = (function() {
       },
 
       /* ----------------------------------------------------------------
-       * Fires an Ajax POST request to this events action URL. 
-       * 
-       * Returns the same XHR object returned by jQuery.post. 
+       * Fires an Ajax POST request to this events action URL.
+       *
+       * Returns the same XHR object returned by jQuery.post.
        * ---------------------------------------------------------------- */
       fireDirectly : function(cb) {
         cb = Utils.defaultTo(cb, function(response) {});
@@ -812,11 +812,11 @@ var Red = (function() {
       },
 
       /* ----------------------------------------------------------------
-       * 
+       *
        * Returns an URL where where a POST request should be sent to
        * trigger this event.  This URL encodes the event name and the
        * values of event parameters.
-       * 
+       *
        * ---------------------------------------------------------------- */
       actionUrl : function() {
         var urlParams = {
@@ -828,16 +828,16 @@ var Red = (function() {
       },
 
       /* ----------------------------------------------------------------
-       * 
-       * Returns the meta object for type of event. 
-       * 
+       *
+       * Returns the meta object for type of event.
+       *
        * ---------------------------------------------------------------- */
-      meta : function() { 
-        return this.constructor.meta; 
+      meta : function() {
+        return this.constructor.meta;
       }
     });
   };
-    
+
 
   // ===============================================================
   //   publish subscribe
@@ -853,7 +853,7 @@ var Red = (function() {
           }
         });
       },
-      
+
       publish_status  : function(msg) { proto.publish_status_kind("status", msg); },
       publish_warning : function(msg) { proto.publish_status_kind("warning", msg); },
       publish_error   : function(msg) { proto.publish_status_kind("error", msg); },
@@ -862,7 +862,7 @@ var Red = (function() {
         Red.subscribe(function(data) {
           if (data.payload && data.payload.kind === kind) func(data, data.payload);
         });
-      }, 
+      },
 
       subscribe_event_completed : function(eventName, func) {
         proto.subscribe_message_kind("event_completed", function(data, payload) {

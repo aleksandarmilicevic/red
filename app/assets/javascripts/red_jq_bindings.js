@@ -30,7 +30,7 @@ $(function() {
     return false;
   });
 
-  /* ---------------------------------------------------------------- 
+  /* ----------------------------------------------------------------
    * Handle the 'click' event for all elements that have
    * the 'data-trigger-event' attribute set.
    * ---------------------------------------------------------------- */
@@ -49,19 +49,19 @@ $(function() {
   var setVal = function($elem, val) { return $elem.attr('data-value', val); };
 
   $(document).on("mouseover", ".truncate-body", function(e) {
-    var $elem = $(this); 
-    if (isEditing($elem)) return; 
+    var $elem = $(this);
+    if (isEditing($elem)) return;
     $elem.html(getVal($elem));
   });
 
   $(document).on("mouseout", ".truncate-body", function(e) {
-    var $elem = $(this); 
-    if (isEditing($elem)) return; 
+    var $elem = $(this);
+    if (isEditing($elem)) return;
     $elem.html(Red.Utils.trunc(getVal($elem), 15));
   });
 
   $(document).on("blur", ".truncate-body", function(e) {
-    var $elem = $(this); 
+    var $elem = $(this);
     setVal($elem, $elem.html());
     $elem.mouseout();
   });

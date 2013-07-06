@@ -7,13 +7,13 @@ module Store
   #===========================================================
   # File stores
   #===========================================================
-  
+
   class FSFileStore < FileStore
     def initialize(conf=nil)
-      @conf = conf || Red.conf.fs_file_store    
+      @conf = conf || Red.conf.fs_file_store
       @initialized = false
     end
-    
+
     def ensure_init
       unless @initialized
         @initialized = true
@@ -27,10 +27,10 @@ module Store
         end
       end
     end
-    
+
     def save(file_record)
       ensure_init
-      
+
       src = File.absolute_path(file_record.filepath)
       raise StoreError, "source file #{src} is not a file" unless File.file?(src)
       salt = Random.rand(1000..9999)
@@ -60,6 +60,6 @@ module Store
       File.open(file_record.filepath, "rb"){|f| f.read}
     end
   end
-  
+
 end
 end

@@ -25,12 +25,12 @@ module View
       # relies on meta.records being top-sorted
       buff << "/* ------------- record signatures ------------- */\n\n"
       @decl_js_classes << Red::Model::Record << Red::Model::Data <<
-                          Red::Model::Machine << Red::Model::Event 
+                          Red::Model::Machine << Red::Model::Event
       (meta.records + meta.machines).each do |r|
         buff << gen_record_signature(r) << "\n"
         @decl_js_classes << r
       end
-      
+
       # relies on meta.events being top-sorted
       buff << "\n/* ------------- event signatures ------------- */\n\n"
       meta.events.each do |e|
@@ -42,7 +42,7 @@ module View
       meta.records.each do |r|
         buff << gen_record_meta(r) << "\n"
       end
-      
+
       buff << "\n/* ------------- event meta ------------- */\n\n"
       meta.events.each do |e|
         buff << gen_event_meta(e) << "\n"
@@ -55,12 +55,12 @@ module View
       buff
     end
 
-    def gen_record_signature(r) 
-      "var #{lit r} = Red.Constr.record(#{lit(r).inspect}, #{lit r.superclass});" 
+    def gen_record_signature(r)
+      "var #{lit r} = Red.Constr.record(#{lit(r).inspect}, #{lit r.superclass});"
     end
 
-    def gen_event_signature(e) 
-      "var #{lit e} = Red.Constr.event(#{lit(e).inspect}, #{lit e.superclass});" 
+    def gen_event_signature(e)
+      "var #{lit e} = Red.Constr.event(#{lit(e).inspect}, #{lit e.superclass});"
     end
 
     def gen_record_meta(r)
@@ -83,7 +83,7 @@ module View
       "Red.Meta.records = #{to_json_string rec_json};\n" +
       "Red.Meta.events = #{to_json_string ev_json};"
     end
-    
+
     def props_for_class(cls)
       props = {:name => cls.name, :relative_name => cls.relative_name}
       props.merge! to_json(cls.meta)
@@ -102,7 +102,7 @@ module View
         "[#{join_content(content, new_indent)}]"
       when Hash
         new_indent = obj.size > 1 ? indent + @@tab : indent
-        content = obj.map{|k,v| 
+        content = obj.map{|k,v|
           "#{to_json_string(k)}: #{to_json_string(v, new_indent)}"
         }
         "{#{join_content(content, new_indent)}}"
@@ -142,7 +142,7 @@ module View
           Ref.new "#{to_json(sig_meta.sig_cls, true)}.meta"
         else
           h1 = instance_variables sig_meta, :except => [:fields, :inv_fields]
-          h1.merge! :fields => to_json(sig_meta.fields), 
+          h1.merge! :fields => to_json(sig_meta.fields),
                     :inv_fields => to_json(sig_meta.inv_fields)
         end
       when Alloy::Ast::FieldMeta
@@ -186,12 +186,12 @@ module View
       end
     end
 
-    protected 
+    protected
 
     def gen_prolog() "" end
     def gen_epilog() "" end
-    
-    def lit(cls) 
+
+    def lit(cls)
       if cls==Red::Model::Data || cls==Red::Model::Machine || cls==Red::Model::Record
         "Red.Model.Record"
       elsif cls == Red::Model::Event
