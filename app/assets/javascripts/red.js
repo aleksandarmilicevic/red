@@ -509,10 +509,20 @@ var Red = (function() {
         Utils.chainActions(actions, {
           done: function(r) {
             myRemoveClass($elem, updatingCls, upEndDur, function() {
-              if (opts.done) { opts.done(r); } else { $elem.html(r); }
-              myAddClass($elem, okCls, duration, function() {
-                setTimeout(function() {myRemoveClass($elem, okCls);}, timeout);
-              });
+              var cont = function() {
+                myAddClass($elem, okCls, duration, function() {
+                  setTimeout(function() {myRemoveClass($elem, okCls);}, timeout);
+                });
+              };
+              cont.cancel = false;
+              if (opts.done) {
+                opts.done(r, cont);
+                if (!cont.cancel)
+                  cont();
+              } else {
+                $elem.html(r);
+                cont();
+              }
             });
           },
           fail: function(r) {

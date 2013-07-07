@@ -71,7 +71,8 @@ $(function() {
   // ===========================================================
 
   var isInput = function(elem) {
-    return !(elem.is("pre") || elem.is("div") || elem.is("span") || elem.is("a"));
+    return elem.is("input") || elem.is("textarea");
+    //return !(elem.is("pre") || elem.is("div") || elem.is("span") || elem.is("a"));
   };
 
   var extractValue = function(elem) {
