@@ -1,5 +1,6 @@
 require 'red/stdlib/web/machine_model'
 require 'red/engine/view_manager'
+require 'red/view/auto_helpers'
 require 'red/model/marshalling'
 require 'red/model/red_model_errors'
 
@@ -8,96 +9,7 @@ class RedAppController < ActionController::Base
 
   include Red::Model::Marshalling
 
-  module RedAppHelper
-    def autosave_fld(record, fld_name, hash={})
-      hash = hash.clone
-      hash[:params] = {
-        :target => record,
-        :fieldName => fld_name,
-        :saveTarget => true
-      }
-      hash[:body] ||= record.read_field(fld_name)
-      autotrigger(RedLib::Crud::LinkToRecord, "fieldValue", hash)
-    end
-
-    def autotrigger(event, fld_name, hash={})
-      event_cls = (Red::Model::Event > event) ? event : event.class
-      fail "not an event: #{event.inspect}" unless Red::Model::Event > event
-
-      hash = hash.clone
-      tag = hash.delete(:tag) || "span"
-      body = hash.delete(:body) || ""
-      escape_body = true
-      escape_body = !!hash.delete(:escape_body) if hash.has_key?(:escape_body)
-      multiline = !!hash.delete(:multiline)
-      event_params = hash.delete(:params) || {}
-
-      blder = SDGUtils::HTML::TagBuilder.new(tag)
-      blder
-        .body(body)
-        .attr("data-event-name", event.relative_name)
-        .attr("data-field-name", fld_name)
-        .attr("contenteditable", true)
-        .attr("class", "red-autotrigger")
-        .when(!multiline, :attr, "class", "singlelineedit")
-
-      event_params.each do |key, value|
-        value_str = value.to_s
-        if value.kind_of? Red::Model::Record
-          value_str = "${Red.Meta.createRecord('#{value.class.name}', #{value.id})}"
-        end
-        blder.attr("data-param-#{key}", value_str)
-      end
-
-      blder
-        .attrs(hash)
-        .build(escape_body).html_safe()
-    end
-
-    def file_location(file_record)
-      file_record
-    end
-
-    # ===============================================================
-    # Renders a specified view using the `ViewManager' so that all
-    # field accesses are detected and the view is automatically
-    # updated when those fields change.
-    #
-    # @param hash [Hash]
-    # ===============================================================
-    def autoview(hash)
-      vm = Red::Engine::ViewManager.new
-
-      opts = {
-        :layout => false,
-      }.merge!(hash)
-
-      locals = {
-        :client => client,
-        :server => server
-      }.merge!(opts[:locals] ||= {})
-
-      opts[:locals] = locals
-      view = vm.render_view(opts)
-      tree = vm.view_tree()
-
-      text = print_with_html_delims(view)
-
-      log = Red.conf.logger
-      log.debug "@@@ View tree: "
-      log.debug tree.print_full_info
-
-      Red.boss.add_client_view client, vm
-      vm.start_collecting_client_updates(client)
-      # changes are pushed explicitly after each event
-
-      text
-    end
-  end
-
-  helper RedAppHelper
-
-  include RedAppHelper
+  helper Red::View::AutoHelpers
 
   before_filter :notify_red_boss
   around_filter :time_it

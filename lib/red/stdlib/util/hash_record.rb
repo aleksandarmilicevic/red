@@ -33,6 +33,9 @@ module Util
         e.value = value
         e.save!
       end
+
+      alias_method :set, :put
+
     end
   end
 

@@ -31,23 +31,17 @@ module Red
         @renderer = renderer
         @parent = parent
         @user_inst_vars = {}
+        @locals = {}
       end
 
       def user_inst_vars() @user_inst_vars ||= {} end
+      def locals()         @locals ||= {} end
 
       def render(*args) @renderer.render(*args) end
       def mk_out()      @renderer end
 
       def engine_divider()
         @renderer.send :_collapseTopNode
-      end
-
-      def widget(name, locals={})
-        @@widget_id = @@widget_id + 1
-        render :partial => "widget",
-               :locals => { :widget_name => name,
-                            :widget_id => @@widget_id,
-                            :locals => locals }
       end
 
       def style(name)          @renderer.tree.styles << name; "" end
@@ -58,7 +52,18 @@ module Red
       def _add_getters(hash)
         singl_cls = (class << self; self end)
         cls = self.class
-        hash.each do |k, v|
+        @locals = {}
+        # copy instance variables from parent
+        if ViewBinding === @parent
+          @locals.merge! @parent.locals
+          # @parent.user_inst_vars.each do |k, v|
+          #   instance_variable_set(k, v)
+          #   @user_inst_vars.merge! k => v
+          #   define_singleton_method(k[1..-1].to_sym, lambda{v})
+          # end
+        end
+        @locals.merge! hash if hash
+        @locals.each do |k, v|
           if k.to_s =~ /^[A-Z]/
             # constant
             cls.send :remove_const, k if cls.const_defined?(k, false)
@@ -72,14 +77,6 @@ module Red
               instance_variable_set(k, v)
               @user_inst_vars.merge! k => v
             end
-          end
-        end
-        # also copy instance variables from parent
-        if ViewBinding === @parent
-          @parent.user_inst_vars.each do |k, v|
-            instance_variable_set(k, v)
-            @user_inst_vars.merge! k => v
-            define_singleton_method(k[1..-1].to_sym, lambda{v})
           end
         end
       end
@@ -782,11 +779,15 @@ module Red
 
       def get_view_binding_obj(hash)
         parent = hash[:view_binding] || (curr_node.parent.view_binding rescue nil)
-        obj = ViewBinding.new(self, parent)
         locals = hash[:locals] || {}
         locals = locals.merge(curr_node.locals_map) if curr_node
-        obj._add_getters(locals)
-        obj
+        # if parent && locals.empty?
+        #   parent
+        # else
+          obj = ViewBinding.new(self, parent)
+          obj._add_getters(locals)
+          obj
+        # end
       end
 
     end
