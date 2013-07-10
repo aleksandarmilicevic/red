@@ -12,6 +12,7 @@ class RedAppController < ActionController::Base
   helper Red::View::AutoHelpers
 
   before_filter :notify_red_boss
+  before_filter :clear_autoviews
   around_filter :time_it
 
   # ---------------------------------------------------------------------
@@ -27,6 +28,9 @@ class RedAppController < ActionController::Base
   end
 
   class << self
+    def async() @async = true end
+    def async?() !!@async end
+
     def try_read_machine_from_conf(prop)
       begin
         machine_cls_name = Red.conf[prop]
@@ -79,8 +83,7 @@ class RedAppController < ActionController::Base
       client.save! #TODO: make sure no other client has the same token?
     end
     unless Red.boss.has_client?(client)
-      pusher = Red::Engine::Pusher.new :client => client, :listen => false
-      Red.boss.fireClientConnected :client => client, :pusher => pusher
+      Red.boss.fireClientConnected :client => client
     end
     session[:client]
   end
@@ -114,13 +117,19 @@ class RedAppController < ActionController::Base
     pusher.push_json(:type => "status_message", :payload => json) if pusher
   end
 
-  def to_bool(str)
-    str == 'true' || str == 'yes'
-  end
-
   def notify_red_boss
     Red.boss.set_thr :request => request, :session => session,
                      :client => client, :server => server, :controller => self
+  end
+
+  def clear_autoviews
+    unless self.class.async?
+      Red.conf.log.debug "[RedAppController] clearing autoviews in controller #{self}"
+      Red.boss.clear_client_views
+    else
+      msg = "[RedAppController] NOT clearing autoviews for ASYNC controller #{self}"
+      Red.conf.log.debug msg
+    end
   end
 
   def time_it

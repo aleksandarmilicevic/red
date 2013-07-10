@@ -97,7 +97,8 @@ module Engine
       end
 
       def client_pusher(client=curr_client)
-        client_pushers[client]
+        client_pushers[client] ||= Red::Engine::Pusher.new :client => client,
+                                                           :listen => false
       end
 
        def fireClientConnected(params)
@@ -110,7 +111,8 @@ module Engine
 
       def push_changes
         time_it("[RedBoss] PushChanges") {
-          client2views.values.flatten.each {|view| view.push}
+          client_pushers.values.each{|pusher| pusher.push}
+          # client2views.values.flatten.each {|view| view.push}
         }
       end
 
@@ -136,14 +138,15 @@ module Engine
     # -------------------------------------------------------
     begin
       protected
-      def after_create(record)  fire(Red::E_RECORD_CREATED, :record => record) end
-      def after_save(record)    fire(Red::E_RECORD_SAVED, :record => record) end
-      def after_destroy(record) fire(Red::E_RECORD_DESTROYED, :record => record) end
-      def after_find(record)    fire(Red::E_RECORD_QUERIED, :record => record) end
-      def after_update(record)  fire(Red::E_RECORD_UPDATED, :record => record) end
+      def after_create(record)  fire(Red::E_RECORD_CREATED, :record => record); true end
+      def after_save(record)    fire(Red::E_RECORD_SAVED, :record => record); true end
+      def after_destroy(record) fire(Red::E_RECORD_DESTROYED,:record => record); true end
+      def after_find(record)    fire(Red::E_RECORD_QUERIED, :record => record); true end
+      def after_update(record)  fire(Red::E_RECORD_UPDATED, :record => record); true end
       def after_query(obj, method, args, result)
         fire(Red::E_QUERY_EXECUTED, :target => obj, :method => method,
                                     :args => args, :result => result)
+        true
       end
 
     end
@@ -153,7 +156,6 @@ module Engine
     def debug(msg)
       Red.conf.logger.debug "[BigBoss] #{msg}"
     end
-
 
     # Disallow arbitrary fire
     def fire(*)

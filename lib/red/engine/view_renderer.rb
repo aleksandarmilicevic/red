@@ -56,11 +56,6 @@ module Red
         # copy instance variables from parent
         if ViewBinding === @parent
           @locals.merge! @parent.locals
-          # @parent.user_inst_vars.each do |k, v|
-          #   instance_variable_set(k, v)
-          #   @user_inst_vars.merge! k => v
-          #   define_singleton_method(k[1..-1].to_sym, lambda{v})
-          # end
         end
         @locals.merge! hash if hash
         @locals.each do |k, v|
@@ -222,6 +217,11 @@ module Red
         ans
       end
 
+      def yield_all_nodes(&block)
+        yield(self)
+        children.each{|ch| ch.yield_all_nodes(&block)}
+      end
+
       def reset_children() @children = [] end
       def reset_output()   @output = "" end
 
@@ -301,7 +301,7 @@ module Red
          "Src: #{src[0..60].inspect}",
          "Output: #{output[0..60].inspect}",
          "Children: #{children.size}",
-         "Deps:",
+         "Deps(#{deps.__id__}):",
          "#{deps_str}".split("\n"),
         ].flatten
       end

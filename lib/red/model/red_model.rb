@@ -49,6 +49,39 @@ module Red
       end
     end
 
+    module ObjCallbacks
+      def get_callbacks_for(sym, obj)
+        inst_var = "@#{sym}_obj_callbacks"
+        type_callbacks = instance_variable_get(inst_var)
+        unless type_callbacks
+          type_callbacks = {}
+          instance_variable_set(inst_var, type_callbacks)
+        end
+        fail "unsaved record used: #{obj}" unless obj.id
+        type_callbacks[obj.id] ||= []
+      end
+
+      def gen_obj_callback(ar_cb_sym)
+        sym = "obj_#{ar_cb_sym}".to_sym
+        rem_sym = "remove_#{sym}".to_sym
+        self.send :define_method, sym do |cb_obj=nil, &block|
+          cb = cb_obj || block
+          fail "no callback given" unless cb
+          self.class.get_callbacks_for(sym, self) << cb
+        end
+
+        self.send :define_method, rem_sym do |cb|
+          self.class.get_callbacks_for(sym, self).delete cb
+        end
+
+        self.send ar_cb_sym do |rec|
+          self.class.get_callbacks_for(sym, self).each{|cb|
+            Proc === cb ? cb.call(rec) : cb.send(sym, rec)
+          }
+        end
+      end
+    end
+
     #-------------------------------------------------------------------
     # == Class +Record+
     #
@@ -56,6 +89,10 @@ module Red
     #-------------------------------------------------------------------
     class Record < ActiveRecord::Base
       include Alloy::Ast::ASig
+      extend Red::Model::ObjCallbacks
+
+      gen_obj_callback :after_save
+      gen_obj_callback :after_destroy
 
       class << self
         def allocate
@@ -567,7 +604,7 @@ module Red
       def check_all_present
         check_present(*meta.params.map{|fld| fld.name})
       end
-      
+
       def error(msg)
         fail msg
       end

@@ -113,7 +113,17 @@ var Red = (function() {
       always: function(alwaysFunc) {
         this.alwaysFuncs.push(alwaysFunc);
         return this;
-      }
+      },
+
+      fireEach: function(funcs, args) {
+        for (var i=0; i < funcs.length; i++) {
+          funcs[i](args);
+        }
+      },
+
+      fireDone: function(args)   { this.fireEach(this.doneFuncs, args); },
+      fireFail: function(args  ) { this.fireEach(this.failFuncs, args); },
+      fireAlways: function(args) { this.fireEach(this.alwaysFuncs, args); }
     };
     jQuery.extend(this, proto);
   };
@@ -337,18 +347,18 @@ var Red = (function() {
      remoteRenderRecord : function(record, renderOpts, requestOpts) {
        if (typeof(renderOpts) === 'undefined')  { renderOpts = {}; }
        if (typeof(requestOpts) === 'undefined') { requestOpts = {}; }
-       var params = {
+       var renderEvent = new RenderRecord({
          record: record,
          options: jQuery.extend({
            autoview: false
          }, renderOpts)
-       };
-       var hash = jQuery.extend({
-           controller: "recordRenderer",
-           params: params,
-           method: "get"
-       }, requestOpts);
-       return Utils.remoteAction(hash);
+       });
+       var xhr = new MyXHR();
+       renderEvent.fire()
+         .done(function(response)   { xhr.fireDone(response.ans); })
+         .fail(function(response)   { xhr.fireFail(response); })
+         .always(function(response) { xhr.fireAlways(response); });
+       return xhr;
      },
 
      /* ----------------------------------------------------------------
@@ -795,12 +805,8 @@ var Red = (function() {
         var iframe = $("#" + form.attr("target"));
         var myXHR = new MyXHR();
         iframe.load(function(){
-          for (var i=0; i < myXHR.doneFuncs.length; i++) {
-            myXHR.doneFuncs[i](iframe);
-          }
-          for (i=0; i < myXHR.alwaysFuncs.length; i++) {
-            myXHR.alwaysFuncs[i](iframe);
-          }
+          myXHR.fireDone(iframe);
+          myXHR.fireAlways(iframe);
           $(iframe).parent().detach();
         });
         form.attr("action", this.actionUrl());
@@ -898,7 +904,8 @@ var Red = (function() {
     // ===============================================================
 
     logMessages : function(data) {
-      console.debug("[RED] update received; type:" + data.type + ", payload: " + JSON.stringify(data.payload));
+      console.debug("[RED] update received; type:" + data.type );
+        // + ", payload: " + JSON.stringify(data.payload));
     },
 
     updateReceived : function(data) {

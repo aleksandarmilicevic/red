@@ -9,6 +9,12 @@ module Red
       class MarshallingError < SDGUtils::Errors::ErrorWithCause
       end
 
+      # Converts string to boolean.  Returns `true' if and only if the
+      # string is equal to "true" or "yes".
+      def to_bool(str)
+        str == 'true' || str == 'yes'
+      end
+
       # Takes an object and tries to unmarshal it to the same type.
       # The only exception is that when the object is a Hash with
       # a key "is_record" set to "true", then it tries to unmarshal
@@ -161,6 +167,8 @@ module Red
       # @param rec_cls [Class < Record]
       def unmarshal_to_record(obj, rec_cls=nil)
         case obj
+        when Red::Model::Record
+          obj
         when Integer
           id = obj
           msg = "Unmarshalling integer to Record without knowing the record class"

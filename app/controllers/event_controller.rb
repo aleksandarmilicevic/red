@@ -4,6 +4,8 @@ require 'red/model/red_model_errors'
 class EventController < RedAppController
   include Red::Model::Marshalling
 
+  async
+
   protected
 
   def event_succeeded(event_name, ans=nil)

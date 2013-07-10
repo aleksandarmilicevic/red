@@ -1,5 +1,6 @@
 require 'red/engine/big_boss'
 require 'red/engine/view_renderer'
+require 'red/engine/access_listener'
 
 module Red
   module Engine
@@ -29,8 +30,10 @@ module Red
       end
 
       def rerender_node(node)
+        disconnect_deps_listeners(node)
         new_node = rerender_only(node)
         swap_nodes(node, new_node)
+        connect_deps_to_pusher(new_node, @pusher)
         new_node
       end
 
@@ -38,7 +41,7 @@ module Red
         curr_view = (view_tree.render_options[:view] rescue nil)
         conf = @renderer_conf.merge :current_view => curr_view
         @renderer = ViewRenderer.new(conf)
-        @renderer.rerender_node(node) #render_to_node node.render_options
+        @renderer.rerender_node(node)
       end
 
       def swap_nodes(node, new_node)
@@ -54,37 +57,78 @@ module Red
 
       # -----------------------------------------
 
-      def start_auto_updating_client(client, hash={})
-        start_listening(client, true, hash)
+      def start_auto_updating_client(client, hash=nil)
+        start_listening(client, to_pusher(client, true, hash))
       end
 
-      def start_collecting_client_updates(client, hash={})
-        start_listening(client, false, hash)
+      def start_collecting_client_updates(client, hash=nil)
+        start_listening(client, to_pusher(client, false, hash))
       end
 
-      def start_listening(client, auto_push, hash={})
+      def start_listening(client, pusher=nil)
         @client = client
-        @pusher = Red::Engine::Pusher.new({
-          :client    => client,
-          :views     => lambda{[view_tree()]},
-          :listen    => true,
-          :auto_push => auto_push,
-          :manager   => self
-        }.merge!(hash))
+        @pusher = pusher || Red.boss.client_pusher(client)
+        unless @pusher
+          fail "no pusher for client #{client}"
+        end
+        connect_deps_to_pusher(view_tree.root, @pusher)
       end
 
-      def push()
+      def push
         fail "Auto-updating has not been started. " +
              "Call `start_auto_updating_first'" unless pusher
         pusher.push
       end
 
-      def finalize()
-        pusher.stop_listening if pusher
+      def finalize
+        pusher.finalize if pusher
+        disconnect_deps_listeners(view_tree.root) if view_tree
       end
 
-      def pusher()
+      def pusher
         @pusher
+      end
+
+      protected
+
+      def to_pusher(client, auto_push, hash)
+        case hash
+        when Pusher; hash
+        when NilClass; nil
+        when Hash
+          Red::Engine::Pusher.new({
+            :client    => client,
+            :listen    => true,
+            :auto_push => auto_push,
+            :manager   => self
+          }.merge!(hash))
+        end
+      end
+
+      def debug(msg)
+        Red.conf.log.debug "[ViewManager] #{msg}"
+      end
+
+      def disconnect_deps_listeners(root_node)
+        root_node.yield_all_nodes do |node|
+          node.deps.finalize
+        end
+      end
+
+      def connect_deps_to_pusher(root_node, pusher)
+        return unless pusher
+        root_node.yield_all_nodes do |node|
+          manager = self
+          node.define_singleton_method :rerender, lambda{manager.rerender_node(self)}
+          unless node.no_deps?
+            ev = [Red::Engine::ViewDependencies::E_DEPS_CHANGED]
+            node.deps.register_listener(ev) {|e, args|
+              event, record = args
+              debug ":deps_changed listener called for #{record}; #{event}"
+              pusher.add_affected_node(node, record)
+            }
+          end
+        end
       end
 
     end

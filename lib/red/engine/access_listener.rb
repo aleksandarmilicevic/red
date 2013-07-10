@@ -1,3 +1,4 @@
+require 'sdg_utils/event/events'
 require 'red/engine/view_renderer'
 
 module Red::Engine
@@ -6,6 +7,10 @@ module Red::Engine
   #  Class +ViewDependencies+
   # ================================================================
   class ViewDependencies
+    include SDGUtils::Events::EventProvider
+
+    E_DEPS_CHANGED = :deps_changed
+
     # Maps record objects to field accesses (represented by an array
     # of (field, value) pairs.
     #
@@ -47,7 +52,7 @@ module Red::Engine
 
     def field_accessed(object, field, value)
       value = value.clone rescue value
-      flds = (objs[object] ||= [])
+      flds = obj!(object)
       unless flds.find {|f, v| f == field && v == value}
         flds << [field, value]
       end
@@ -65,12 +70,74 @@ module Red::Engine
     # end
 
     def to_s
+      to_s_short
+    end
+
+    def to_s_long
       fa = objs.map{ |k, v|
         "  #{k.class.name}(#{k.id})::(#{v.map{|f,fv| f.name}.join(', ')})"
       }.join("\n")
       cq = queries.map{|q| "  " + q.to_s}.join("\n")
       "Field accesses:\n#{fa}\nClasses queried:\n  #{cq}"
     end
+
+    def to_s_short
+      fa = objs.map{ |k, v|
+        "#{k.class.name}(#{k.id})::(#{v.map{|f,fv| f.name}.join(', ')})"
+      }.join(";")
+      cq = queries.map{|q| "  " + q.to_s}.join(";")
+      "F: #{fa}. Q: #{cq}"
+    end
+
+    def finalize
+      debug "finalizing" unless empty?
+      clear_listeners
+      already_listening.each do |rec|
+        rec.remove_obj_after_save self
+        rec.remove_obj_after_destroy self
+      end
+      already_listening.clear
+    end
+
+    protected
+
+    def my_fire(ev, record)
+      cnt = event_listeners.size
+      debug "detected #{ev} for #{record}; firing :deps_changed to #{cnt} listeners"
+      fire E_DEPS_CHANGED, [ev, record]
+    end
+
+    def obj_after_save(record)    my_fire :after_save, record; true end
+    def obj_after_destroy(record) my_fire :after_destroy, record; true end
+
+    # Returns existing, or creates an empty field-access list for a
+    # given object.  If a new list is created, it also registers
+    # itself to listen for record saved events.
+    #
+    # @param obj [RedRecord]
+    # @return Array(FieldMeta, Object)
+    def obj!(obj)
+      if objs.key? obj
+        objs[obj]
+      else
+        ans = objs[obj] ||= []
+        if already_listening.add?(obj)
+          obj.obj_after_save(self)
+          # obj.obj_after_destroy(self)
+          debug "listening for #{obj} save and destroy"
+        end
+        ans
+      end
+    end
+
+    def already_listening
+      @already_listening ||= Set.new
+    end
+
+    def debug(msg)
+      Red.conf.log.debug "[ViewDeps(#{__id__}): #{self.to_s_short}] #{msg}"
+    end
+
   end
 
   # ================================================================
