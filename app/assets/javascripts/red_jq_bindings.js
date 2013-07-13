@@ -16,6 +16,8 @@ $(function() {
     }
   };
 
+  Red.Autoview.processAutoview($("body"));
+
   $(document).on("click", "[data-type='submit-event']", function(e) {
     var formId = $(this).attr("data-event-form");
     var eventName = $(this).attr("data-event-type");

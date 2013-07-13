@@ -8,12 +8,14 @@ class RedAppController < ActionController::Base
   protect_from_forgery
 
   include Red::Model::Marshalling
+  include Red::View::AutoHelpers
 
   helper Red::View::AutoHelpers
 
   before_filter :notify_red_boss
   before_filter :clear_autoviews
   around_filter :time_it
+  after_filter  :push_changes
 
   # ---------------------------------------------------------------------
   #  SERVER INITIALIZATION
@@ -139,6 +141,10 @@ class RedAppController < ActionController::Base
     Red.conf.logger.debug "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-="
     Red.conf.logger.debug Red.boss.print_timings
     Red.conf.logger.debug "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-="
+  end
+
+  def push_changes
+    Red.boss.push_changes
   end
 
 end

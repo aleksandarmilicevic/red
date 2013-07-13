@@ -3,6 +3,12 @@ var Red = (function() {
   // private stuff
   // ============================================================
   var me = {
+    assert : function(cond, msg) {
+      if (!cond) {
+        throw message || "Assertion failed";
+      }
+    },
+
     construct : function(name) {
       eval('var ' + name + ' = function (){};');
       return eval('new ' + name + ';');
@@ -19,49 +25,6 @@ var Red = (function() {
 
     check_defined : function(x, msg) {
       if (x === undefined) throw Error(msg);
-    },
-
-    sweepDom : function(from, to, html) {
-      if (!(from.size() == 1 && to.size() == 1)) {
-        var msg = "inconsistent start/end tags: #startTag = " +
-            from.size() + ", #endTag = " + to.size();
-        console.error(msg);
-        return;
-      }
-      from.nextUntil(to).detach();
-      from.after(html);
-      from.detach();
-      to.detach();
-    },
-
-    searchDom : function(node_id, html) {
-      //TODO: cache this stuff somehow
-      var startTag = "reds_" + node_id;
-      var endTag = "rede_" + node_id;
-      var startTagStr = "<" + startTag + ">";
-      var endTagStr = "</" + endTag + ">";
-      var elements = document.getElementsByTagName("*");
-      for (var i = 0; i < elements.length; i++) {
-        var element = elements[i];
-        if (element.tagName.toLowerCase() === startTag) {
-          me.sweepDom($(element), $("rede_" + node_id), html);
-          return;
-        }
-        var attr = element.attributes;
-        for (var j = 0; j < attr.length; j++) {
-          var attrVal = attr[j].nodeValue;
-          var startIdx = attrVal.indexOf(startTagStr);
-          if (startIdx != -1) {
-            var endIdx = attrVal.indexOf(endTagStr);
-            if (endIdx != -1) {
-              attr[j].nodeValue = attrVal.substring(0, startIdx) + html + attrVal.substring(endIdx + endTagStr.length);
-              return;
-            } else {
-              console.error("start but not end tag found in attribute " + attrVal);
-            }
-          }
-        }
-      }
     }
   };
 
@@ -355,7 +318,13 @@ var Red = (function() {
        });
        var xhr = new MyXHR();
        renderEvent.fire()
-         .done(function(response)   { xhr.fireDone(response.ans); })
+         .done(function(response)   { 
+           var elem = $("<span></span>");
+           elem.html(response.ans);
+           var ret = elem.children().size() === 1 ? $(elem.children()[0]) : elem;
+           Red.Autoview.processAutoview(ret);
+           xhr.fireDone(ret); 
+         })
          .fail(function(response)   { xhr.fireFail(response); })
          .always(function(response) { xhr.fireAlways(response); });
        return xhr;
@@ -889,6 +858,196 @@ var Red = (function() {
     return $.extend(this, proto);
   };
 
+  // ===============================================================
+  //   publish subscribe
+  // ===============================================================
+  var RedAutoview = function() {
+    var thisPrivate = {
+      attrMap : {},
+
+      sweepDom : function($from, $to, html) {
+        if (!($from.size() == 1 && $to.size() == 1)) {
+          var msg = "inconsistent start/end tags: #startTag = " +
+                $from.size() + ", #endTag = " + $to.size();
+          console.error(msg);
+          return;
+        }
+        var current = $from[0];
+        var end = $to[0];
+        if (current.parentNode !== end.parentNode) {
+          console.error("From and to nodes not at the same level");
+          console.debug("From: ");
+          console.debug(current);
+          console.debug("To: ");
+          console.debug(end);
+          return;
+        }
+        //NOTE: from.nextUntil(to).detach() is not good enough since it
+        //      skips over text nodes.
+        var toDetach = [];
+        while (current !== end) {
+          toDetach.push(current);
+          current = current.nextSibling;
+        }
+        $(toDetach.slice(1, toDetach.length)).detach();
+        $from.before(html);
+        $from.detach();
+        $to.detach();
+      },
+
+      searchDom : function(node_id, html) {
+        // check attrMap first
+        var startTag = "reds_" + node_id;
+        var endTag = "rede_" + node_id;
+
+        var attrInfo = thisPrivate.attrMap[node_id];
+        if (attrInfo) {
+          var attr = attrInfo.attr;
+          var attrVal = attrInfo.origAttrVal;
+          var startTagStr = "<" + startTag + ">";
+          var endTagStr = "</" + endTag + ">";
+          var startIdx = attrVal.indexOf(startTagStr);
+          var endIdx = attrVal.indexOf(endTagStr);
+          me.assert(startIdx !== -1 && endIdx !== -1);
+          var newValue  = attrVal.substring(0, startIdx) + html +
+                          attrVal.substring(endIdx + endTagStr.length);
+          // console.debug("updated attribute '" + attr.name + "' from '" + 
+          //               attr.nodeValue + "' to '" + newValue + "'");
+          attr.nodeValue = newValue;
+          proto.processAttribute(attrInfo.node, attr);
+        } else {
+          thisPrivate.sweepDom($(startTag), $(endTag), html);
+        }
+
+        // var elements = document.getElementsByTagName("*");
+        // for (var i = 0; i < elements.length; i++) {
+        //   var element = elements[i];
+        //   if (element.tagName.toLowerCase() === startTag) {
+        //     thisPrivate.sweepDom($(element), $("rede_" + node_id), html);
+        //     return;
+        //   }
+        //   var attr = element.attributes;
+        //   for (var j = 0; j < attr.length; j++) {
+        //     var attrVal = attr[j].nodeValue;
+        //     var startIdx = attrVal.indexOf(startTagStr);
+        //     if (startIdx != -1) {
+        //       var endIdx = attrVal.indexOf(endTagStr);
+        //       if (endIdx != -1) {
+        //         attr[j].nodeValue = attrVal.substring(0, startIdx) + html +
+        //                             attrVal.substring(endIdx + endTagStr.length);
+        //         return;
+        //       } else {
+        //         console.error("start but not end tag found in attribute " + attrVal);
+        //       }
+        //     }
+        //   }
+        // }
+      }, 
+
+      assocTagToAttribute : function(node, attr, tagId, origAttrVal) {
+        console.debug("associated tag " + tagId + " with " + 
+                       node.tagName + "." + attr.name);
+        thisPrivate.attrMap[tagId] = {
+          node: node, 
+          attrName: attr.name, 
+          attr: attr,
+          origAttrVal: origAttrVal
+        };
+      }
+    }; 
+
+    var proto = {
+
+     /* ----------------------------------------------------------------
+      *
+      * Searches for elements with attributes containing <reds_?> and
+      * <rede_?> tags, removes those tags from the attribute value but
+      * remembers the association between the two.
+      * 
+      * @return undefined
+      *
+      * ---------------------------------------------------------------- */
+      processAttribute : function(node, attr) {
+        var attrVal = attr.nodeValue;
+        var currVal = attrVal;
+        while (true) {
+          var startTagMatch = currVal.match(/<reds_(\d+)><\/reds_(\d+)>/);
+          if (startTagMatch) {
+            me.assert(startTagMatch.length === 3);
+            var tagId = startTagMatch[1];
+            me.assert(tagId === startTagMatch[2]);
+            var startTag = startTagMatch[0];
+            var endTag = '<rede_' + tagId + '></rede_' + tagId + '>';
+            var endTagIdx = currVal.indexOf(endTag);
+            me.assert(endTagIdx !== -1);
+            thisPrivate.assocTagToAttribute(node, attr, tagId, currVal);
+            currVal = currVal.replace(startTag, "").replace(endTag, "");
+          } else {
+            break;
+          }
+        }
+        if (currVal !== attrVal) {
+          console.debug("changed attribute value from '" + 
+                        attrVal + "' to '" + currVal + "'");
+          attr.nodeValue = currVal;
+        }
+      },
+
+     /* ----------------------------------------------------------------
+      *
+      * Searches for elements with attributes containing <reds_?> and
+      * <rede_?> tags, removes those tags from the attribute value but
+      * remembers the association between the two.
+      * 
+      * @return undefined
+      *
+      * ---------------------------------------------------------------- */
+      processAutoview : function($elem) {
+        var elements = $elem.find("*");
+        for (var i = 0; i < elements.length; i++) {
+          var element = elements[i];
+          var attr = element.attributes;
+          for (var j = 0; j < attr.length; j++) {
+            proto.processAttribute(element, attr[j]);
+          }
+        }
+      }, 
+
+      updateReceived : function(data) {
+        var updateStart = new Date().getTime();
+        me.check_defined(data.type, "malformed JSON update: field 'type' not found");
+
+        if (data.type === "node_update") {
+
+          me.check_defined(data.payload, 
+              "field 'payload' not found in a 'node_update' message");
+          me.check_defined(data.payload.node_id, 
+              "field 'payload.node_id' not found in a 'node_update' message");
+          me.check_defined(data.payload.inner_html, 
+              "field 'payload.inner_html' not found in a 'node_update' message");
+
+          thisPrivate.searchDom(data.payload.node_id, data.payload.inner_html);
+
+        } else if (data.type === "body_update") {
+ 
+          me.check_defined(data.payload, 
+              "field 'payload' not found in a 'body_update' message");
+          me.check_defined(data.payload.html, 
+              "field 'payload.html' not found in a 'body_update' message");
+          $('body').html(data.payload.html);
+
+        } else {
+          //throw Error("unknown update message type: " + data.type)
+        }
+
+        var updateEnd = new Date().getTime();
+        var time = updateEnd - updateStart;
+        console.debug('Total update execution time: ' + time + "ms");
+      }
+    };
+    return $.extend(this, proto);
+  };
+
   var Red = {
 
     Events : new RedEvents(),
@@ -899,47 +1058,19 @@ var Red = (function() {
     Utils : jQuery.extend({}, Utils),
     Serializer : jQuery.extend({}, Serializer),
 
+    Autoview : new RedAutoview(),
+
     // ===============================================================
     //   handlers
     // ===============================================================
 
     logMessages : function(data) {
-      console.debug("[RED] update received; type:" + data.type );
-        // + ", payload: " + JSON.stringify(data.payload));
+      console.debug("[RED] update received; type:" + data.type);  
+                    // + ", payload: " + JSON.stringify(data.payload));
     },
 
     updateReceived : function(data) {
-      var updateStart = new Date().getTime();
-      me.check_defined(data.type, "malformed JSON update: field 'type' not found");
-      if (data.type === "node_update") {
-        me.check_defined(data.payload, "field 'payload' not found in a 'node_update' message");
-        me.check_defined(data.payload.node_id, "field 'payload.node_id' not found in a 'node_update' message");
-        me.check_defined(data.payload.inner_html, "field 'payload.inner_html' not found in a 'node_update' message");
-        me.searchDom(data.payload.node_id, data.payload.inner_html);
-
-        // var reds = $('reds_'+data.payload.node_id);
-        // var rede = $('rede_'+data.payload.node_id);
-        // if (reds.size() > 0) {
-        // me.sweepDom(reds, rede, data.payload.inner_html);
-        // } else {
-        // var start = new Date().getTime();
-        // me.searchAttributes(data.payload.node_id, data.payload.inner_html);
-        // var end = new Date().getTime();
-        // var time = end - start;
-        // console.debug('Start time: ' + start);
-        // console.debug('End time: ' + end);
-        // console.debug('Execution time: ' + time);
-        // }
-      } else if (data.type === "body_update") {
-        me.check_defined(data.payload, "field 'payload' not found in a 'body_update' message");
-        me.check_defined(data.payload.html, "field 'payload.html' not found in a 'body_update' message");
-        $('body').html(data.payload.html);
-      } else {
-        //throw Error("unknown update message type: " + data.type)
-      }
-      var updateEnd = new Date().getTime();
-      var time = updateEnd - updateStart;
-      console.debug('Total update execution time: ' + time + "ms");
+      return Red.Autoview.updateReceived(data);
     }
   };
 

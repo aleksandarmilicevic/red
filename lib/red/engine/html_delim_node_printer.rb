@@ -1,3 +1,5 @@
+require 'cgi'
+
 module Red
   module Engine
 
@@ -15,6 +17,7 @@ module Red
       end
 
       def enclose_result(str, node)
+        # str = CGI::escapeHTML(str) if node.expr? && !str.html_safe?
         if node.no_deps?
           str
         else

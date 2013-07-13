@@ -22,16 +22,23 @@ module Red
     # ================================================================
     class ViewBinding
       include Red::View::ViewHelpers
+      include ActionView::Helpers if defined? ActionView::Helpers
+      include ActionView::Context if defined? ActionView::Context
 
       @@widget_id = 0
 
       def parent() @parent end
 
-      def initialize(renderer, parent=nil)
+      def initialize(renderer, parent=nil, helpers)
         @renderer = renderer
         @parent = parent
         @user_inst_vars = {}
         @locals = {}
+        singleton_cls = class << self; self end
+        [helpers].flatten.compact.each do |mod|
+          singleton_cls.send :include, mod
+        end
+        _prepare_context if defined? ActionView::Context
       end
 
       def user_inst_vars() @user_inst_vars ||= {} end
@@ -81,7 +88,12 @@ module Red
         when NilClass
           super
         when Binding
-          @parent.eval "#{sym.to_s}(#{args.map{|a|a.to_s}.join(',')})"
+          if args.empty?
+            @parent.eval sym.to_s
+          else  
+            mth = @parent.eval "method :#{sym}"
+            mth ? mth.call(*args) : super
+          end            
         else
           @parent.send sym, *args
         end
@@ -368,7 +380,7 @@ module Red
       def default_opts
         @@default_opts ||= SDGUtils::Config.new(nil, {
           :event_server => Red.boss,
-          :view_finder => ViewFinder.new,
+          :view_finder => lambda{ViewFinder.new},
           :access_listener => Red.boss.access_listener,
           :current_view => nil,
         })
@@ -424,7 +436,10 @@ module Red
       end
 
       def concat(str)
-        curr_node.output.concat(str)
+        require 'cgi'
+        cn = curr_node
+        (str = CGI::escapeHTML(str) if cn.expr? && !str.html_safe?) rescue nil
+        cn.output.concat(str)
       end
 
       def force_encoding(enc)
@@ -554,8 +569,16 @@ module Red
 
         # === inline template (default format .erb)
         when content = hash.delete(:inline)
-          tpl = _compile_content(content, hash[:formats] || [".erb"])
-          _render_template tpl, hash
+          case content
+          when String
+            tpl = _compile_content(content, hash[:formats] || [".erb"])
+            _render_template tpl, hash
+          when Proc
+            text = content.call
+            curr_node.output = text
+          else 
+            fail "unknown content kind #{content}:#{content.class}"
+          end
 
         # === Pathname pointing to file template
         when path = hash.delete(:pathname)
@@ -575,13 +598,13 @@ module Red
           parent_dir = curr_node.parent.extras[:pathname].dirname rescue nil
           path = nil
           ([template] + hash[:hierarchy]).each do |tmpl|
-            path = view_finder.find_in_folder(dir, tmpl) rescue nil
+            path = view_finder.find_in_folder(parent_dir, tmpl) rescue nil
             break if path
             path = view_finder.find_view(view, tmpl, hash[:partial])
             break if path
           end
           if path.nil?
-            raise_not_found_error(view, template, @conf.view_finder)
+            raise_not_found_error(view, template, view_finder)
           else
             _process hash.merge(path)
           end
@@ -781,13 +804,9 @@ module Red
         parent = hash[:view_binding] || (curr_node.parent.view_binding rescue nil)
         locals = hash[:locals] || {}
         locals = locals.merge(curr_node.locals_map) if curr_node
-        # if parent && locals.empty?
-        #   parent
-        # else
-          obj = ViewBinding.new(self, parent)
-          obj._add_getters(locals)
-          obj
-        # end
+        obj = ViewBinding.new(self, parent, hash[:helpers])
+        obj._add_getters(locals)
+        obj
       end
 
     end
@@ -798,10 +817,15 @@ module Red
     class ViewFinder
       def candidates() @candidates ||= [] end
 
+      def partialize(template)
+        path = template.split("/")
+        path.last.insert(0, "_")
+        File.join(path)
+      end
+       
       def find_view(view, template, is_partial)
-        @candidates = []
         views = [view, ""]
-        templates = is_partial ? ["_#{template}", template]
+        templates = is_partial ? [partialize(template), template]
                                : [template, view]
         file = find_view_file views, templates
         if !file.nil?
@@ -812,7 +836,7 @@ module Red
       end
 
       def find_in_folder(dir, template, is_partial)
-        templates = is_partial ? ["_#{template}", template]
+        templates = is_partial ? [partialize(template), template]
                                : [template]
         templates.each do |t|
           file = check_file(dir, t)
@@ -829,7 +853,6 @@ module Red
       def find_view_file(prefixes, template_names)
         root = Red.conf.root
         root = Pathname.new(root) if String === root
-        @candidates = []
         view_paths = Red.conf.view_paths
         view_paths.each do |view|
           prefixes.each do |prefix|
@@ -850,17 +873,17 @@ module Red
         return nil unless dir.directory?
 
         no_ext = dir.join(template_name)
-        @candidates << no_ext.to_s
+        candidates << no_ext.to_s
         no_ext.file? and return no_ext
 
         any_ext = dir.join(template_name + ".*")
-        @candidates << any_ext.to_s
-        candidates = Dir[any_ext]
+        candidates << any_ext.to_s
+        cands = Dir[any_ext]
 
-        if candidates.empty?
+        if cands.empty?
           return nil
         else
-          return Pathname.new(candidates.first)
+          return Pathname.new(cands.first)
         end
       end
     end

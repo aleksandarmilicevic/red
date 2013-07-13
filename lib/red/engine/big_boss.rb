@@ -111,7 +111,10 @@ module Engine
 
       def push_changes
         time_it("[RedBoss] PushChanges") {
-          client_pushers.values.each{|pusher| pusher.push}
+          clients.each do |c|
+            client_pusher(c).push
+          end
+          # client_pushers.values.each{|pusher| pusher.push}
           # client2views.values.flatten.each {|view| view.push}
         }
       end

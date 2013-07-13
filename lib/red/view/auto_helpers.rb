@@ -81,32 +81,23 @@ module View
     # @param hash [Hash]
     # ===============================================================
     def autoview(hash)
-      vm = Red::Engine::ViewManager.new
+      vm = render_autoview(hash)
+      print_autoview(vm)
+    end
 
-      opts = {
-        :layout => false,
-      }.merge!(hash)
-
-      locals = {
-        :client => client,
-        :server => server
-      }.merge!(opts[:locals] ||= {})
-
-      opts[:locals] = locals
-      view = vm.render_view(opts)
-      tree = vm.view_tree()
-
-      text = Red::Engine::HtmlDelimNodePrinter.print_with_html_delims(view)
-
-      log = Red.conf.logger
-      log.debug "@@@ View tree: "
-      log.debug tree.print_full_info
-
-      Red.boss.add_client_view client, vm
-      vm.start_collecting_client_updates(client)
-      # changes are pushed explicitly after each event
-
-      text.html_safe
+    # ===============================================================
+    # @param expr [String, NilClass]
+    # @param block [Proc]
+    # ===============================================================
+    def autoexpr(expr=nil, &block)
+      case expr
+      when Symbol, String
+        autoview :inline => "<%=#{expr}%>"
+      when NilClass, Proc
+        proc = expr || block
+        fail "no expression given" unless proc
+        autoview :inline => proc
+      end
     end
 
     def widget(name, locals={})
@@ -115,6 +106,55 @@ module View
              :locals => { :widget_name => name,
                           :widget_id => @@widget_id,
                           :locals => locals }
+    end
+
+    private
+
+    # ===============================================================
+    # @param hash [Hash]
+    # @return [ViewManager]
+    # ===============================================================
+    def render_autoview(hash)
+      vm = Red::Engine::ViewManager.new
+
+      ctrl = Red.boss.thr(:controller)
+      helpers = ctrl.class.send :_helpers
+
+      opts = {
+        :layout => false,
+        :view_binding => ctrl.send(:binding),
+        :helpers => helpers
+      }.merge!(hash)
+
+      locals = {
+        :client => client,
+        :server => server
+      }.merge!(opts[:locals] ||= {})
+
+      opts[:locals] = locals
+      vm.render_view(opts)
+      vm
+    end
+
+    # ===============================================================
+    # @param view_manager [Red::Engine::ViewManager]
+    # @return [String]
+    # ===============================================================
+    def print_autoview(view_manager)
+      tree = view_manager.tree
+
+      text = Red::Engine::HtmlDelimNodePrinter.print_with_html_delims(tree.root)
+
+      log = Red.conf.logger
+      # log.debug "Rendered text:\n#{text}"
+      log.debug "@@@ View tree: "
+      log.debug tree.print_full_info
+
+      Red.boss.add_client_view client, view_manager
+      view_manager.start_collecting_client_updates(client)
+      # changes are pushed explicitly after each event
+
+      text.html_safe
     end
 
   end

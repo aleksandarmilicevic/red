@@ -76,8 +76,6 @@ class EventController < RedAppController
           end
         end
       }
-
-      Red.boss.push_changes
     end
   end
 
