@@ -90,10 +90,10 @@ module Red
         when Binding
           if args.empty?
             @parent.eval sym.to_s
-          else  
+          else
             mth = @parent.eval "method :#{sym}"
             mth ? mth.call(*args) : super
-          end            
+          end
         else
           @parent.send sym, *args
         end
@@ -178,7 +178,7 @@ module Red
       def retype_to_tree() @type = :tree end
 
       def view_binding()
-        render_options[:view_binding] if render_options
+        render_options[:view_binding] if Hash === render_options
       end
 
       def template
@@ -311,6 +311,8 @@ module Red
          "File: #{extras[:pathname]}",
          "Object: #{extras[:object]}",
          "Src: #{src[0..60].inspect}",
+         "Compiled template: #{compiled_tpl.inspect}",
+         "Render option keys: #{render_options.class}",
          "Output: #{output[0..60].inspect}",
          "Children: #{children.size}",
          "Deps(#{deps.__id__}):",
@@ -383,6 +385,9 @@ module Red
           :view_finder => lambda{ViewFinder.new},
           :access_listener => Red.boss.access_listener,
           :current_view => nil,
+          :no_template_cache? => false,
+          :no_file_cache? => false,
+          :no_content_cache? => true
         })
       end
 
@@ -399,24 +404,6 @@ module Red
       def tree
         @tree  # _render_view sets this attribute
       end
-
-      # # ------------------------------------------------------------
-      # #  Event handling methods
-      # # ------------------------------------------------------------
-
-      # def call(event, par)
-      #   case event
-      #   when Red::E_FIELD_READ
-      #     curr_node.deps.field_accessed(par[:object], par[:field], par[:return])
-      #   when Red::E_FIELD_WRITTEN
-      #     curr_node.deps.field_accessed(par[:object], par[:field], par[:value])
-      #   when Red::E_QUERY_EXECUTED
-      #     curr_node.deps.handle_query_executed(par[:target], par[:method],
-      #                                          par[:args], par[:result])
-      #   else
-      #     fail "unexpected event type: #{event}"
-      #   end
-      # end
 
       # ------------------------------------------------------------
       #  buffer methods (called by the template engine)
@@ -494,7 +481,7 @@ module Red
       end
 
       def my_render(hash)
-        hash = _normalize(hash)
+        hash = time_it("Normalizing") { _normalize(hash) }
         case
         when !@rendering
           _around_root(hash) { _render(hash) }
@@ -529,10 +516,11 @@ module Red
       def _render(hash)
         cn = curr_node
         cn.retype_to_tree
-        cn.render_options = hash.clone
+        cn.render_options = hash.clone unless Proc === cn.render_options
         if hash[:nothing]
         elsif proc = hash[:recurse]
-          my_render(proc.call())
+          cn.render_options = proc
+          my_render(proc.call)
         elsif hash[:collection]
           _process_collection(hash.delete(:collection), hash)
         else
@@ -576,7 +564,7 @@ module Red
           when Proc
             text = content.call
             curr_node.output = text
-          else 
+          else
             fail "unknown content kind #{content}:#{content.class}"
           end
 
@@ -592,22 +580,15 @@ module Red
 
         # === template name, uses a convention to look up the actual file
         when hash.key?(:template)
-          view = hash[:view]
-          template = hash[:template]
-          view_finder = @conf.view_finder
-          parent_dir = curr_node.parent.extras[:pathname].dirname rescue nil
-          path = nil
-          ([template] + hash[:hierarchy]).each do |tmpl|
-            path = view_finder.find_in_folder(parent_dir, tmpl) rescue nil
-            break if path
-            path = view_finder.find_view(view, tmpl, hash[:partial])
-            break if path
-          end
+          path = time_it("Finding template: #{hash[:template]}") {
+            find_template_file(hash)
+          }
           if path.nil?
             raise_not_found_error(view, template, view_finder)
           else
             _process hash.merge(path)
           end
+
         # === Unknown
         else
           raise ViewError "Nothing specified" # OR render :nothing ?
@@ -631,24 +612,24 @@ module Red
       end
 
       def _render_template(tpl, hash)
-        top_node = curr_node
-        b = read_binding_from(hash)
-        top_node.compiled_tpl = tpl unless top_node.compiled_tpl
-        text = tpl.execute(b)
-        if top_node.children.empty?
-          top_node.output = text
-        end
+        time_it("Rendering") {
+          top_node = curr_node
+          b = read_binding_from(hash)
+          top_node.compiled_tpl = tpl unless top_node.compiled_tpl
+          text = time_it("executing template #{tpl.name}"){tpl.execute(b)}
+          if top_node.children.empty?
+            top_node.output = text
+          end
+        }
       end
 
-      @@content_tpl_cache = SDGUtils::Caching::Cache.new("content", :fake => true)
+      @@content_tpl_cache = SDGUtils::Caching::Cache.new("content")
 
       def _compile_content(content, formats)
-        @@content_tpl_cache.on_hit { |cache|
-          trace_hit(cache)
-        }.on_miss { |cache|
-          trace_miss(cache)
-        }.fetch(formats.join("") + content) {
-          TemplateEngine.compile(content, formats)
+        time_it("Compiling") {
+          @@content_tpl_cache.fetch(formats.join("")+content, @conf.no_content_cache?) {
+            TemplateEngine.compile(content, formats)
+          }
         }
       end
 
@@ -659,13 +640,12 @@ module Red
         curr_node.extras[:pathname] = path
         ext = hash[:object] ? " for obj: #{hash[:object]}:#{hash[:object].class}" : ""
         formats = hash[:formats] || path_formats(path)
-        @@file_tpl_cache.on_hit { |cache|
-          trace_hit(cache)
-        }.on_miss { |cache|
-          trace_miss(cache)
-          trace "### #{_indent}Rendering file #{path}#{ext}"
-        }.fetch(path.realpath.to_s + formats.join("")) {
-          _compile_content(path.read, formats)
+        @@file_tpl_cache.fetch(path.realpath.to_s + formats.join(""),
+                               @conf.no_file_cache?) {
+          time_it("Reading file: #{path}") {
+            trace "### #{_indent}Rendering file #{path}#{ext}"
+            _compile_content(path.read, formats)
+          }
         }
       end
 
@@ -678,6 +658,27 @@ module Red
 
       def current_view()
         @conf.current_view || (@tree.render_options[:view] rescue nil)
+      end
+
+      @@template_cache = SDGUtils::Caching::Cache.new("template")
+
+      def find_template_file(hash)
+        view = hash[:view]
+        template = hash[:template]
+        view_cannon = "#{view}/#{template}"
+        trace "finding #{view_cannon}"
+        @@template_cache.fetch(view_cannon, @conf.no_template_cache?) {
+          view_finder = @conf.view_finder
+          parent_dir = curr_node.parent.extras[:pathname].dirname rescue nil
+          path = nil
+          ([template] + hash[:hierarchy]).each do |tmpl|
+            path = view_finder.find_in_folder(parent_dir, tmpl) rescue nil
+            break if path
+            path = view_finder.find_view(view, tmpl, hash[:partial])
+            break if path
+          end
+          path
+        }
       end
 
       def raise_not_found_error(view, template, view_finder)
@@ -809,6 +810,10 @@ module Red
         obj
       end
 
+      def time_it(task, &block)
+        Red.boss.time_it("[ViewRenderer] #{task}", &block)
+      end
+
     end
 
     # ----------------------------------------------------------
@@ -822,7 +827,7 @@ module Red
         path.last.insert(0, "_")
         File.join(path)
       end
-       
+
       def find_view(view, template, is_partial)
         views = [view, ""]
         templates = is_partial ? [partialize(template), template]

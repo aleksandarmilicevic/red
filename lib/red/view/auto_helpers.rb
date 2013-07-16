@@ -124,16 +124,30 @@ module View
         :layout => false,
         :view_binding => ctrl.send(:binding),
         :helpers => helpers
-      }.merge!(hash)
+      } #.merge!(hash)
 
       locals = {
         :client => client,
         :server => server
-      }.merge!(opts[:locals] ||= {})
+      } #.merge!(opts[:locals] ||= {})
 
       opts[:locals] = locals
-      vm.render_view(opts)
+
+      render_opts = case hash
+                    when Hash
+                      merge_opts(opts, locals, hash)
+                    when Proc
+                      lambda{ merge_opts(opts, locals, hash.call) }
+                    end
+      vm.render_view(render_opts)
       vm
+    end
+
+    def merge_opts(default_opts, default_locals, user_opts)
+      ans = {}.merge! default_opts
+      ans.merge! user_opts
+      ans[:locals] = default_locals.merge(user_opts[:locals] || {})
+      ans
     end
 
     # ===============================================================
@@ -145,10 +159,11 @@ module View
 
       text = Red::Engine::HtmlDelimNodePrinter.print_with_html_delims(tree.root)
 
-      log = Red.conf.logger
-      # log.debug "Rendered text:\n#{text}"
-      log.debug "@@@ View tree: "
-      log.debug tree.print_full_info
+      Red.boss.time_it("[Autoview] Flushing full info tree") {
+        log = Red.conf.logger
+        log.debug "@@@ View tree: "
+        log.debug tree.print_full_info
+      }
 
       Red.boss.add_client_view client, view_manager
       view_manager.start_collecting_client_updates(client)

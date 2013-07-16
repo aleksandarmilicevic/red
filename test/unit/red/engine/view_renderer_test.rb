@@ -10,7 +10,7 @@ module R_E_VRT
       name: String,
       slacker: Boolean
     }
-    
+
     record Room, {
       name: String,
       users: (set User)
@@ -20,12 +20,12 @@ end
 
 class TestViewRendererSimple < MigrationTest::TestBase
   include R_E_VRT
-  
+
   attr_reader :room1, :user1, :user2, :user3
   attr_reader :widget_id, :widget_color
 
   def setup_pre
-    Red.meta.restrict_to(R_E_VRT)  
+    Red.meta.restrict_to(R_E_VRT)
     Red.boss.start
   end
 
@@ -44,7 +44,7 @@ class TestViewRendererSimple < MigrationTest::TestBase
     @widget_id = 42
     @widget_color = 'green'
   end
-  
+
   def teardown
     @objs.each {|r| r.destroy}
     # @pusher.finalize if @pusher
@@ -52,7 +52,7 @@ class TestViewRendererSimple < MigrationTest::TestBase
   end
 
   def locals
-    @locals ||= 
+    @locals ||=
       begin
         methods = {:render => method(:render).to_proc}
         vars = instance_variables.reduce({}) do |acc, v|
@@ -64,9 +64,10 @@ class TestViewRendererSimple < MigrationTest::TestBase
         methods.merge!(vars).merge!(consts)
       end
   end
-  
+
   def my_render(hash)
-    @manager = Red::Engine::ViewManager.new :view_finder => hash.delete(:view_finder)
+    @manager = Red::Engine::ViewManager.new :view_finder => hash.delete(:view_finder),
+                                            :no_template_cache? => true
     @manager.render_view({:formats => %w(.txt .erb)}.merge!(hash)).result
   end
 
@@ -79,22 +80,22 @@ class TestViewRendererSimple < MigrationTest::TestBase
   end
 
   def save_all
-    @objs.each {|r| r.save!} 
+    @objs.each {|r| r.save!}
   end
 
   def get_finder(str=nil, expected_view=@@test_view, &block)
-    proc = if str 
-             lambda{ |view, template, p| 
+    proc = if str
+             lambda{ |view, template, p|
                view == expected_view ? {:inline => str} : nil
-             } 
-           else 
+             }
+           else
              block
            end
     obj = Object.new
     obj.define_singleton_method :find_view, proc
     obj
   end
-  
+
   def get_finder2(tpls, expected_view=@@test_view)
     obj = Object.new
     obj.define_singleton_method :find_view, lambda { |view, template, p|
@@ -124,12 +125,12 @@ class TestViewRendererSimple < MigrationTest::TestBase
     assert node.deps.objs.empty?, msg
     assert node.deps.classes.empty?, msg
   end
-  
+
   def assert_const(node, result)
-    assert_no_deps(node)    
+    assert_no_deps(node)
     assert_expr(node, result)
   end
-  
+
   def assert_expr(node, result, src=nil)
     assert node.children.empty?, "didn't expect any children in an expr node, found #{node.children.size}"
     assert_matches result, node.output, "output doesn't match expected result"
@@ -166,9 +167,9 @@ class TestViewRendererSimple < MigrationTest::TestBase
     tpl = <<-TPL
 hi there <%= render :text => "bro" %>
     TPL
-    
+
     result = my_render :view => @@test_view, :inline => tpl.strip
-    
+
     assert_stuff = lambda{
       root = @manager.tree.root
       assert_equal "hi there bro", result
@@ -186,50 +187,50 @@ hi there <%= render :text => "bro" %>
     tpl = <<-TPL
 hi there
     TPL
-    
+
     result = my_render :view => @@test_view, :inline => tpl
-    
+
     assert_stuff = lambda{
       root = @manager.tree.root
 
-      assert_equal tpl, result    
+      assert_equal tpl, result
       assert_no_deps root
       assert_equal 1, root.children.size
-    
+
       assert_const root.children[0], tpl
     }
 
     assert_stuff.call
     assert_rerender(assert_stuff)
-        
+
     # pusher test
 
     p = get_pusher_for_current_view
     @user1.name = "asdf"
     @room1.users = []
     save_all
-    
+
     assert_arry_equal [], p._affected_nodes
     assert_arry_equal [], p._updated_nodes
   end
-  
+
   def test2
     tpl = <<-TPL
-hi there in <%= room1.name %>   
+hi there in <%= room1.name %>
     TPL
-    
+
     result = my_render :view => @@test_view, :inline => tpl.strip, :locals => locals()
-    
+
     assert_stuff = lambda{
       tree = @manager.tree
       root = tree.root
 
       assert_equal "hi there in g708", result.strip
       assert_no_deps root
-      assert_equal 2, root.children.size 
-    
+      assert_equal 2, root.children.size
+
       assert_const root.children[0], "hi there in "
-    
+
       ch1 = root.children[1]
       assert_expr ch1, "g708", 'room1.name'
       assert_objs_equal ch1.deps.objs, room1 => [["name", "g708"]]
@@ -250,51 +251,51 @@ hi there in <%= room1.name %>
       p.stop_listening
     end
   end
-  
+
   def pusher_test21(p, tree)
     p.__reset_saved_fields
     @room1.users = []
     save_all
-    
+
     assert_arry_equal [], p._affected_nodes
-    assert_arry_equal [], p._updated_nodes    
+    assert_arry_equal [], p._updated_nodes
   end
 
   def pusher_test22(p, tree)
     p.__reset_saved_fields
     @user1.name = ""
     @user1.save!
-    
+
     assert_arry_equal [], p._affected_nodes
-    assert_arry_equal [], p._updated_nodes    
+    assert_arry_equal [], p._updated_nodes
   end
 
   def pusher_test23(p, tree)
     p.__reset_saved_fields
     root = tree.root
     ch1old = root.children[1]
-    
+
     @room1.name = "xxx"
     @room1.save!
-       
+
     ch1 = root.children[1]
-       
+
     assert_equal "hi there in xxx", tree.root.result.strip
     assert_not_equal ch1, ch1old
     assert_arry_equal [ch1old], p._affected_nodes
     assert_arry_equal [[ch1old, ch1]], p._updated_nodes
   end
-  
+
   def pusher_test24(p, tree)
     p.__reset_saved_fields
     root = tree.root
     ch1old = root.children[1]
-    
+
     @room1.name = "aaa"
     @room1.save!
-       
+
     ch1 = root.children[1]
-       
+
     assert_equal "hi there in aaa", tree.root.result.strip
     assert_not_equal ch1, ch1old
     assert_arry_equal [ch1old], p._affected_nodes
@@ -303,47 +304,47 @@ hi there in <%= room1.name %>
 
   def test3
     tpl = <<-TPL
-hi there <%= room1.users.map{|u| u.name}.join(", ") %>   
+hi there <%= room1.users.map{|u| u.name}.join(", ") %>
     TPL
-    
+
     result = my_render :view => @@test_view, :inline => tpl.strip, :locals => locals()
-    
+
     assert_stuff = lambda{
       root = @manager.tree.root
 
       assert_equal "hi there eskang, jnear, singh", result.strip
       assert_no_deps root
-      assert_equal 2, root.children.size 
+      assert_equal 2, root.children.size
 
       assert_const root.children[0], "hi there "
-      assert_expr root.children[1], 
-                  'eskang, jnear, singh', 
+      assert_expr root.children[1],
+                  'eskang, jnear, singh',
                   'room1.users.map{|u| u.name}.join(", ")'
-      exp = { @room1 => [["users", @room1.users]], 
+      exp = { @room1 => [["users", @room1.users]],
               @user1 => [["name", "eskang"]],
-              @user2 => [["name", "jnear"]], 
+              @user2 => [["name", "jnear"]],
               @user3 => [["name", "singh"]] }
       assert_objs_equal root.children[1].deps.objs, exp
       assert root.children[1].deps.classes.empty?
     }
 
     assert_stuff.call
-    assert_rerender(assert_stuff)    
+    assert_rerender(assert_stuff)
   end
 
   def assert_eskang(n)
     assert_no_deps n
     assert_const n.children[0], " "
     assert_expr n.children[1], "eskang", '(!user.slacker?) ? user.name : "***"'
-    assert_objs_equal n.children[1].deps.objs, 
+    assert_objs_equal n.children[1].deps.objs,
                       { @user1 => [["slacker", false], ["name", "eskang"]] }
   end
 
   def assert_jnear(n)
     assert_no_deps n
     assert_const n.children[0], " "
-    assert_expr n.children[1], "jnear", '(!user.slacker?) ? user.name : "***"'           
-    assert_objs_equal n.children[1].deps.objs, 
+    assert_expr n.children[1], "jnear", '(!user.slacker?) ? user.name : "***"'
+    assert_objs_equal n.children[1].deps.objs,
                       { @user2 => [["slacker", false], ["name", "jnear"]] }
   end
 
@@ -351,7 +352,7 @@ hi there <%= room1.users.map{|u| u.name}.join(", ") %>
     assert_no_deps n
     assert_const n.children[0], " "
     assert_expr n.children[1], "***", '(!user.slacker?) ? user.name : "***"'
-    assert_objs_equal n.children[1].deps.objs, 
+    assert_objs_equal n.children[1].deps.objs,
                       { @user3 => [["slacker", true]] }
   end
 
@@ -360,22 +361,22 @@ hi there <%= room1.users.map{|u| u.name}.join(", ") %>
     assert_equal "hi there eskang jnear *** bros", result.strip
     assert_no_deps root
     assert_equal 3, root.children.size
-    
+
     assert_const root.children[0], "hi there"
     assert_const root.children[2], /^ bros/
-    
-    ch1 = root.children[1]      
+
+    ch1 = root.children[1]
     assert_objs_equal ch1.deps.objs, { @room1 => [["users", @room1.users]] }
-    
+
     assert_eskang  ch1.children[0]
     assert_jnear   ch1.children[1]
     assert_rishabh ch1.children[2]
   } end
 
   def do_test4(tpl, user_tpl)
-    result = my_render :view => @@test_view, 
-                       :inline => tpl.strip, 
-                       :locals => locals(), 
+    result = my_render :view => @@test_view,
+                       :inline => tpl.strip,
+                       :locals => locals(),
                        :view_finder => get_finder(" " + user_tpl.strip)
 
     assert_stuff = assert_stuff4(result)
@@ -385,9 +386,9 @@ hi there <%= room1.users.map{|u| u.name}.join(", ") %>
 
   def test4
     tpl = <<-TPL
-hi there<%= render room1.users %> bros  
+hi there<%= render room1.users %> bros
     TPL
-    
+
     user_tpl = <<-UTPL
 <%= (!user.slacker?) ? user.name : "***" %>
     UTPL
@@ -399,7 +400,7 @@ hi there<%= render room1.users %> bros
     tpl = <<-TPL
 hi there<%= render lambda{room1.users} %> bros
     TPL
-    
+
     user_tpl = <<-UTPL
  <%= (!user.slacker?) ? user.name : "***" %>
     UTPL
@@ -411,11 +412,11 @@ hi there<%= render lambda{room1.users} %> bros
     tpl = <<-TPL
 hi there<%= render user1 %> bro
     TPL
-    
+
     user_tpl = <<-UTPL
  <%= (!user.slacker?) ? user.name : "***" %>
     UTPL
-    result = my_render :view => @@test_view, :inline => tpl, :locals => locals(), 
+    result = my_render :view => @@test_view, :inline => tpl, :locals => locals(),
                        :view_finder => get_finder(" " + user_tpl.strip)
 
     assert_stuff = lambda {
@@ -423,10 +424,10 @@ hi there<%= render user1 %> bro
       assert_equal "hi there eskang bro", result.strip
       assert_no_deps root
       assert_equal 3, root.children.size
-      
+
       assert_const root.children[0], "hi there"
       assert_const root.children[2], /^ bro/
-      
+
       assert_eskang root.children[1]
     }
     assert_stuff.call
@@ -437,11 +438,11 @@ hi there<%= render user1 %> bro
     tpl = <<-TPL
 hi there<%= render user1 %> bro <%= user1.slacker ? 'slacker' : 'worker' %>
     TPL
-    
+
     user_tpl = <<-UTPL
  <%= (!user.slacker?) ? user.name : "***" %>
     UTPL
-    result = my_render :view => @@test_view, :inline => tpl.strip, :locals => locals(), 
+    result = my_render :view => @@test_view, :inline => tpl.strip, :locals => locals(),
                        :view_finder => get_finder(" " + user_tpl.strip)
 
     assert_stuff = lambda {
@@ -449,16 +450,16 @@ hi there<%= render user1 %> bro <%= user1.slacker ? 'slacker' : 'worker' %>
       assert_equal "hi there eskang bro worker", result.strip
       assert_no_deps root
       assert_equal 4, root.children.size
-      
+
       assert_const root.children[0], "hi there"
       assert_const root.children[2], " bro "
-      
-      n = root.children[1]      
+
+      n = root.children[1]
       assert_eskang n
 
-      n = root.children[3]      
+      n = root.children[3]
       assert_expr n, "worker", "user1.slacker ? 'slacker' : 'worker'"
-      assert_objs_equal n.deps.objs, 
+      assert_objs_equal n.deps.objs,
                          { @user1 => [["slacker", false]] }
     }
 
@@ -467,9 +468,9 @@ hi there<%= render user1 %> bro <%= user1.slacker ? 'slacker' : 'worker' %>
   end
 
   def do_test5(tpl, user_tpl)
-    result = my_render :view => @@test_view, 
-                       :inline => tpl.strip, 
-                       :locals => locals(), 
+    result = my_render :view => @@test_view,
+                       :inline => tpl.strip,
+                       :locals => locals(),
                        :view_finder => get_finder(" " + user_tpl.strip)
 
     assert_stuff = lambda {
@@ -477,13 +478,13 @@ hi there<%= render user1 %> bro <%= user1.slacker ? 'slacker' : 'worker' %>
       assert_equal "hi there eskang jnear ***", result.strip
       assert_no_deps root
       assert_equal 2, root.children.size
-      
+
       assert_const root.children[0], "hi there"
-    
-      ch1 = root.children[1]      
+
+      ch1 = root.children[1]
       assert_arry_equal [User], ch1.deps.classes
       assert_objs_equal ch1.deps.objs, {}
-    
+
       assert_eskang  ch1.children[0]
       assert_jnear   ch1.children[1]
       assert_rishabh ch1.children[2]
@@ -494,9 +495,9 @@ hi there<%= render user1 %> bro <%= user1.slacker ? 'slacker' : 'worker' %>
 
   def test5
     tpl = <<-TPL
-hi there<%= render User.all %> 
+hi there<%= render User.all %>
     TPL
-    
+
     user_tpl = <<-UTPL
  <%= (!user.slacker?) ? user.name : "***" %>
     UTPL
@@ -506,28 +507,28 @@ hi there<%= render User.all %>
 
   def test5b
     tpl = <<-TPL
-hi there<%= render lambda{User.all} %>   
+hi there<%= render lambda{User.all} %>
     TPL
-    
+
     user_tpl = <<-UTPL
  <%= (!user.slacker?) ? user.name : "***" %>
     UTPL
 
     do_test5(tpl, user_tpl)
   end
-  
+
   def do_test6(tpl, user_tpl, room_tpl)
-    result = my_render :view => @@test_view, :inline => tpl.strip, 
-                    :locals => locals(), 
-                    :view_finder => get_finder2({:user => user_tpl.strip, 
+    result = my_render :view => @@test_view, :inline => tpl.strip,
+                    :locals => locals(),
+                    :view_finder => get_finder2({:user => user_tpl.strip,
                                                  :room => room_tpl.strip})
 
     assert_stuff = lambda {
       root = @manager.tree.root
       assert_equal "hi there slackers: singh\nrooms: g708", result.strip
       assert_no_deps root
-      
-      assert_equal 4, root.children.size 
+
+      assert_equal 4, root.children.size
       assert_const root.children[0], "hi there slackers: "
       assert_const root.children[2], "\nrooms: "
 
@@ -538,13 +539,13 @@ hi there<%= render lambda{User.all} %>
 
       un = ch1.children[0]
       assert_expr un, "singh", "user.name"
-      assert_objs_equal un.deps.objs, 
+      assert_objs_equal un.deps.objs,
                         { @user3 => [["name", "singh"]] }
 
 
       rn = ch3.children[0]
       assert_expr rn, "g708", "room.name"
-      assert_objs_equal rn.deps.objs, 
+      assert_objs_equal rn.deps.objs,
                         { @room1 => [["name", "g708"]] }
     }
 
@@ -557,11 +558,11 @@ hi there<%= render lambda{User.all} %>
 hi there slackers: <%= render User.where(:slacker => true) %>
 rooms: <%= render Room.find(@room1_id) %>
     TPL
-    
+
     user_tpl = <<-UTPL
 <%= user.name %>
     UTPL
-    
+
     room_tpl = <<-RTPL
 <%= room.name %>
     RTPL
@@ -572,27 +573,27 @@ rooms: <%= render Room.find(@room1_id) %>
   def test6b
     tpl = <<-TPL
 hi there slackers: <%= render lambda{User.where(:slacker => true)} %>
-rooms: <%= render lambda{Room.find(@room1_id)} %>     
+rooms: <%= render lambda{Room.find(@room1_id)} %>
     TPL
-    
+
     user_tpl = <<-UTPL
 <%= user.name %>
     UTPL
-    
+
     room_tpl = <<-RTPL
 <%= room.name %>
     RTPL
-    
+
     do_test6(tpl, user_tpl, room_tpl)
   end
 
-  def do_test7(tpl, mycss)    
-    result = my_render :view => @@test_view, :inline => tpl.strip, 
-                    :formats => %w(.css .scss .erb), 
-                    :locals => locals(), 
+  def do_test7(tpl, mycss)
+    result = my_render :view => @@test_view, :inline => tpl.strip,
+                    :formats => %w(.css .scss .erb),
+                    :locals => locals(),
                     :view_finder => get_finder2({:mycss => mycss.strip})
-   
-    assert_stuff = lambda{       
+
+    assert_stuff = lambda{
       root = @manager.tree.root
       expected = "#widget-g708 .cl1 { color: green; } #widget-g708 .cl2 { color: red; }"
       assert_equal_ignore_whitespace expected, result
@@ -600,48 +601,48 @@ rooms: <%= render lambda{Room.find(@room1_id)} %>
       assert_objs_equal root.deps.objs, { @room1 => [["name", "g708"]] }
     }
     assert_stuff.call
-    
+
     # re-render
     assert_rerender(assert_stuff)
   end
-  
+
   def test7
     tpl = <<-TPL
 #widget-<%= room1.name %> {
   <%= render :partial => 'mycss' %>
 }
     TPL
-    
+
     mycss = <<-CSSTPL
 .cl1 { color: <%= widget_color %>; }
 .cl2 { color: red; }
     CSSTPL
-  
+
     do_test7(tpl, mycss)
   end
-  
+
   def test7b
     tpl = <<-TPL
 #widget-<%= room1.name %> {
   <%= render lambda{{:partial => 'mycss'}} %>
 }
     TPL
-    
+
     mycss = <<-CSSTPL
 .cl1 { color: <%= widget_color %>; }
 .cl2 { color: red; }
     CSSTPL
-  
+
     do_test7(tpl, mycss)
   end
-  
-  def do_test8(tpl, room_tpl, ch1_check)    
-    result = my_render :view => @@test_view, :inline => tpl.strip, 
+
+  def do_test8(tpl, room_tpl, ch1_check)
+    result = my_render :view => @@test_view, :inline => tpl.strip,
                     :formats => %w(.css .erb .scss),
                     :locals => locals(),
                     :view_finder => get_finder2({:room => room_tpl.strip})
-   
-    assert_stuff = lambda{       
+
+    assert_stuff = lambda{
       root = @manager.tree.root
       expected = '#widget-xxx .cl1 { color: "g708"; } #widget-xxx .cl2 { color: red; }'
       assert_equal_ignore_whitespace expected, result
@@ -654,7 +655,7 @@ rooms: <%= render lambda{Room.find(@room1_id)} %>
     assert_stuff.call
     assert_rerender(assert_stuff)
   end
-  
+
   def test8
     tpl = <<-TPL
 #widget-xxx {
@@ -662,7 +663,7 @@ rooms: <%= render lambda{Room.find(@room1_id)} %>
   .cl2 { color: red; }
 }
     TPL
-  
+
     do_test8(tpl, "", lambda {|ch1|
       assert_expr ch1, 'g708', 'room1.name'
       assert_objs_equal ch1.deps.objs, { @room1 => [["name", "g708"]] }
@@ -676,11 +677,11 @@ rooms: <%= render lambda{Room.find(@room1_id)} %>
   .cl2 { color: red; }
 }
     TPL
-    
+
     room_tpl = <<-RTPL
 <%= room.name %>
     RTPL
-      
+
     do_test8(tpl, room_tpl, lambda {|ch1|
       assert_no_deps ch1
       assert_equal 1, ch1.children.size
@@ -688,22 +689,22 @@ rooms: <%= render lambda{Room.find(@room1_id)} %>
       assert_objs_equal ch1.children[0].deps.objs, { @room1 => [["name", "g708"]] }
     })
   end
-  
+
   def test9
     tpl = <<-TPL
 pre <%= render :partial => "\#{room1.name}" %> post
     TPL
-    
+
     g708 = <<-XXX
 ***
     XXX
-    
-    result = my_render :view => @@test_view, :inline => tpl.strip, 
-                    :formats => %w(.txt .erb), 
+
+    result = my_render :view => @@test_view, :inline => tpl.strip,
+                    :formats => %w(.txt .erb),
                     :locals => locals(),
                     :view_finder => get_finder2({:g708 => g708.strip})
-   
-    assert_stuff = lambda{       
+
+    assert_stuff = lambda{
       root = @manager.tree.root
       expected = 'pre *** post'
       assert_equal expected, result
@@ -713,31 +714,31 @@ pre <%= render :partial => "\#{room1.name}" %> post
       assert_const root.children[2], " post"
       assert_objs_equal root.children[1].deps.objs, { @room1 => [["name", "g708"]] }
     }
-   
+
     assert_stuff.call
     assert_rerender(assert_stuff)
   end
-  
+
   def do_test10(tpl, expected)
-    result = my_render :view => @@test_view, :inline => tpl.strip, 
-                    :formats => %w(.txt .erb), 
+    result = my_render :view => @@test_view, :inline => tpl.strip,
+                    :formats => %w(.txt .erb),
                     :locals => locals()
     check_test10_stuff(expected, result, "g708")
   end
 
   def check_test10_stuff(expected, result, room_name)
-    assert_stuff = lambda{       
+    assert_stuff = lambda{
       root = @manager.tree.root
       assert_matches expected, result
       assert_objs_equal root.deps.objs, { @room1 => [["name", room_name]] }
       assert_equal 1, root.children.size
       assert_const root.children[0], expected
     }
-   
+
     assert_stuff.call
     assert_rerender(assert_stuff)
   end
-  
+
   def test10
     tpl = <<-TPL
 % if room1.name.size > 3
@@ -795,39 +796,39 @@ pre <%= render :partial => "\#{room1.name}" %> post
   end
 
   def do_test11(tpl, user_tpl, room_tpl)
-    result = my_render :view => @@test_view, :inline => tpl.strip, 
-                       :formats => %w(.txt .erb), 
+    result = my_render :view => @@test_view, :inline => tpl.strip,
+                       :formats => %w(.txt .erb),
                        :locals => locals(),
-                       :view_finder => get_finder2({:user => user_tpl.strip, 
+                       :view_finder => get_finder2({:user => user_tpl.strip,
                                                     :room => room_tpl.strip})
 
-    assert_stuff = lambda{       
+    assert_stuff = lambda{
       root = @manager.tree.root
       assert_matches(/\s*_eskang_\s*_jnear_\s*_\*\*\*_\s*/, result)
       # assert_objs_equal root.deps.objs, { @room1 => [["name", "g708"]] }
       # assert_equal 1, root.children.size
       # assert_const root.children[0], expected
     }
-   
+
     assert_stuff.call
     assert_rerender(assert_stuff)
   end
-  
+
   def do_test11(tpl, user_tpl, room_tpl)
-    result = my_render :view => @@test_view, :inline => tpl.strip, 
-                       :formats => %w(.txt .erb), 
+    result = my_render :view => @@test_view, :inline => tpl.strip,
+                       :formats => %w(.txt .erb),
                        :locals => locals(),
-                       :view_finder => get_finder2({:user => user_tpl.strip, 
+                       :view_finder => get_finder2({:user => user_tpl.strip,
                                                     :room => room_tpl.strip})
 
-    assert_stuff = lambda{       
+    assert_stuff = lambda{
       root = @manager.tree.root
       assert_matches(/\s*_eskang_\s*_jnear_\s*_\*\*\*_\s*/, result)
       # assert_objs_equal root.deps.objs, { @room1 => [["name", "g708"]] }
       # assert_equal 1, root.children.size
       # assert_const root.children[0], expected
     }
-   
+
     assert_stuff.call
     assert_rerender(assert_stuff)
   end
@@ -851,11 +852,11 @@ pre <%= render :partial => "\#{room1.name}" %> post
   end
 
   def do_test12(tpl, branch_result, branch_check)
-    result = my_render :view => @@test_view, :inline => tpl.strip, 
-                    :formats => %w(.txt .erb), 
+    result = my_render :view => @@test_view, :inline => tpl.strip,
+                    :formats => %w(.txt .erb),
                     :locals => locals()
-   
-    assert_stuff = lambda{       
+
+    assert_stuff = lambda{
       root = @manager.tree.root
       assert_matches(/pre\s*#{branch_result}\s*post/, result)
       assert_objs_equal root.deps.objs, { @room1 => [["name", "g708"]] }
@@ -864,11 +865,11 @@ pre <%= render :partial => "\#{room1.name}" %> post
       branch_check.call(root)
       assert_const root.children[4], "post"
     }
-   
+
     assert_stuff.call
     assert_rerender(assert_stuff)
   end
-  
+
   def test12
     tpl = <<-TPL
 pre
@@ -879,11 +880,11 @@ pre
 % end
 post
     TPL
-    
+
     branch_check = lambda{ |root|
       assert_const root.children[1], /\s*room name is /
       assert_expr root.children[2], "g708", 'room1.name'
-      assert_objs_equal root.children[2].deps.objs, { @room1 => [["name", "g708"]] }      
+      assert_objs_equal root.children[2].deps.objs, { @room1 => [["name", "g708"]] }
       assert_const root.children[3], /.\s*/
     }
 
@@ -900,11 +901,11 @@ pre
 % end
 post
     TPL
-    
+
     branch_check = lambda{ |root|
       assert_const root.children[1], /\s*room has /
       assert_expr root.children[2], "3", 'room1.users.size'
-      assert_objs_equal root.children[2].deps.objs, { @room1 => [["users", room1.users]] }      
+      assert_objs_equal root.children[2].deps.objs, { @room1 => [["users", room1.users]] }
       assert_const root.children[3], / users.\s*/
     }
 

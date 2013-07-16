@@ -16,7 +16,9 @@ module Red::Engine
         instrumented = instrument_erb(erb.src, erb_out_var)
         erb.src.clear
         erb.src.concat(instrumented)
-        CompiledTemplate.new("ERB", lambda{|bndg| erb.result(bndg)})
+        CompiledTemplate.new("ERB", lambda{|bndg|
+          Red.boss.time_it("Rendering ERB:\n#{instrumented}"){erb.result(bndg)}
+        })
       }
     end
 
@@ -41,8 +43,8 @@ module Red::Engine
           end
           concat_nodes << cn
         else
-          # node.children.each{ |ch| worklist << [ch,node] if Parser::AST::Node === ch }
-          worklist = node.children.map{ |ch| [ch, node] if Parser::AST::Node === ch }.compact + worklist
+          chldrn = node.children.map{|ch| [ch, node] if Parser::AST::Node===ch}.compact
+          worklist.unshift(*chldrn)
         end
       end
 
@@ -67,7 +69,7 @@ module Red::Engine
     def as_node_code(var, type, source, template, original)
       varsym = var.to_sym.inspect
       locals_code = """
-(local_variables - [#{varsym}]).reduce({}){|acc, v| acc.merge v => eval(v.to_s)}
+(local_variables - [#{varsym}]).reduce({}){|acc, v| acc[v] = eval(v.to_s); acc}
         """.strip
       """
 #{var}.as_node(#{type.inspect}, #{locals_code}, #{source.inspect}){

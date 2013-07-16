@@ -124,7 +124,6 @@ module Red
             ev = [Red::Engine::ViewDependencies::E_DEPS_CHANGED]
             node.deps.register_listener(ev) {|e, args|
               event, record = args
-              debug ":deps_changed listener called for #{record}; #{event}"
               pusher.add_affected_node(node, record)
             }
           end
