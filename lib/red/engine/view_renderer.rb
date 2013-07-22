@@ -263,6 +263,16 @@ module Red
         hash[:__binding__] || hash[:view_binding].get_binding()
       end
 
+      def _render_template(tpl, hash)
+        top_node = curr_node
+        b = read_binding_from(hash)
+        top_node.compiled_tpl = tpl unless top_node.compiled_tpl
+        text = tpl.execute(b)
+        if top_node.children.empty?
+          top_node.output = text
+        end
+      end
+
       @@content_tpl_cache = SDGUtils::Caching::Cache.new("content")
       def _compile_content(content, formats)
         tpl = time_it("Compiling") {
