@@ -11,6 +11,10 @@ module Red::Engine
 
     E_DEPS_CHANGED = :deps_changed
 
+    def initialize(conf={})
+      @conf = Red.conf.view_deps.extend(conf)
+    end
+
     # Maps record objects to field accesses (represented by an array
     # of (field, value) pairs.
     #
@@ -135,7 +139,7 @@ module Red::Engine
     end
 
     def debug(msg)
-      Red.conf.log.debug "[ViewDeps(#{__id__}): #{self.to_s_short}] #{msg}"
+      @conf.log.debug "[ViewDeps(#{__id__}): #{self.to_s_short}] #{msg}"
     end
 
   end
@@ -146,9 +150,9 @@ module Red::Engine
   class AccessListener
     EVENTS = [Red::E_FIELD_READ, Red::E_FIELD_WRITTEN, Red::E_QUERY_EXECUTED]
 
-    def initialize(hash={})
+    def initialize(conf={})
       @deps_list = Set.new
-      @conf = Red.conf.access_listener.extend(hash)
+      @conf = Red.conf.access_listener.extend(conf)
     end
 
     def start_listening

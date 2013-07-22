@@ -8,6 +8,12 @@ require 'logger'
 
 module Red
 
+  def self.default_view_deps_conf
+    SDGUtils::Config.new do |c|
+      c.log            = lambda{Red.conf.logger} # Logger.new(NilIO.instance) #
+    end
+  end
+
   def self.default_access_listener_conf
     SDGUtils::Config.new do |c|
       c.event_server   = lambda{Red.boss}
@@ -74,6 +80,7 @@ module Red
       c.alloy = default_alloy_conf
       c.pusher = default_pusher_conf
       c.access_listener = default_access_listener_conf
+      c.view_deps = default_view_deps_conf
       c.fs_file_store = default_fs_file_store_conf
       c.file_store = Red::Store::FSFileStore.new(c.fs_file_store)
       c.logger = lambda{c.alloy.logger}

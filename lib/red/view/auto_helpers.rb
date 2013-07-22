@@ -81,8 +81,12 @@ module View
     # @param hash [Hash]
     # ===============================================================
     def autoview(hash)
-      vm = render_autoview(hash)
-      print_autoview(vm)
+      h1 = (Proc === hash) ? hash.call : hash.clone
+      hi = h1[:inline]; h1[:inline] = hi.call if Proc === hi
+      t1 = time_it("Rails render"){controller.render_to_string(h1).html_safe}
+      vm = time_it("Red render"){render_autoview(hash)}
+      time_it("Red print"){print_autoview(vm)}
+
     end
 
     # ===============================================================
@@ -159,11 +163,11 @@ module View
 
       text = Red::Engine::HtmlDelimNodePrinter.print_with_html_delims(tree.root)
 
-      Red.boss.time_it("[Autoview] Flushing full info tree") {
-        log = Red.conf.logger
-        log.debug "@@@ View tree: "
-        log.debug tree.print_full_info
-      }
+      # time_it("Flushing full info tree") {
+      #   log = Red.conf.logger
+      #   log.debug "@@@ View tree: "
+      #   log.debug tree.print_full_info
+      # }
 
       Red.boss.add_client_view client, view_manager
       view_manager.start_collecting_client_updates(client)
@@ -172,6 +176,9 @@ module View
       text.html_safe
     end
 
+    def time_it(task, &block)
+      Red.boss.time_it("[Autoview] #{task}", &block)
+    end
   end
 
 end

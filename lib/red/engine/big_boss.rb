@@ -52,7 +52,7 @@ module Engine
 
       def print_timings
         return "" unless @timer
-        @timer.print
+        @timer.print + "\n\n" + @timer.summary.map{|k,v| "#{k} = #{v*1000}ms"}.join("\n")
       end
     end
 

@@ -45,6 +45,7 @@ module Red
       end
 
       def swap_nodes(node, new_node)
+        return if node.const?
         new_node.id = node.id
         if node.parent
           node.parent.set_child(node.index_in_parent, new_node)
@@ -119,8 +120,8 @@ module Red
         return unless pusher
         root_node.yield_all_nodes do |node|
           manager = self
-          node.define_singleton_method :rerender, lambda{manager.rerender_node(self)}
           unless node.no_deps?
+            node.define_singleton_method :rerender, lambda{manager.rerender_node(self)}
             ev = [Red::Engine::ViewDependencies::E_DEPS_CHANGED]
             node.deps.register_listener(ev) {|e, args|
               event, record = args
