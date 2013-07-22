@@ -81,12 +81,13 @@ module View
     # @param hash [Hash]
     # ===============================================================
     def autoview(hash)
-      h1 = (Proc === hash) ? hash.call : hash.clone
-      hi = h1[:inline]; h1[:inline] = hi.call if Proc === hi
-      t1 = time_it("Rails render"){controller.render_to_string(h1).html_safe}
-      vm = time_it("Red render"){render_autoview(hash)}
-      time_it("Red print"){print_autoview(vm)}
-
+      vm = render_autoview(hash)
+      print_autoview(vm)
+      # h1 = (Proc === hash) ? hash.call : hash.clone
+      # hi = h1[:inline]; h1[:inline] = hi.call if Proc === hi
+      # t1 = time_it("Rails render"){controller.render_to_string(h1).html_safe}
+      # vm = time_it("Red render"){render_autoview(hash)}
+      # time_it("Red print"){print_autoview(vm)}
     end
 
     # ===============================================================

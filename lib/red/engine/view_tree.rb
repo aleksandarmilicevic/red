@@ -98,43 +98,6 @@ module Red
     end
 
     # ================================================================
-    #  Class +PartEvalViewBinding+
-    # ---------------------------------------------------------------
-    #
-    # ================================================================
-    class PartEvalViewBinding
-      attr_reader :root
-
-      def initialize
-        @root = ViewInfoNode.create_tree()
-      end
-
-      def get_binding() @last_binding ||= binding() end
-
-      # methods used in erb templates
-      def mk_out() self end
-
-      # 'out_var' methods
-      def as_node(type, locals_map, source)
-        node = ViewInfoNode.create(type)
-        node.src = source
-        @root.add_child(node)
-        case
-        when node.const?
-          node.output = eval "#{source}"
-          node.freeze
-        when node.expr?
-          node.locals_map = locals_map
-        end
-      end
-
-      def force_encoding(enc)
-      end
-
-    end
-
-
-    # ================================================================
     #  Class +Query+
     # ================================================================
     class Query

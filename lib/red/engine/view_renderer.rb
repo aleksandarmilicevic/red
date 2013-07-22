@@ -263,56 +263,6 @@ module Red
         hash[:__binding__] || hash[:view_binding].get_binding()
       end
 
-      def _render_template(tpl, binding_or_hash)
-        b = case binding_or_hash
-            when Binding
-              binding_or_hash
-            when Hash
-              read_binding_from(binding_or_hash)
-            else
-              arg = "#{binding_or_hash}:#{binding_or_hash.class}"
-              fail "illegal argument: #{arg} is neither Binding nor Hash"
-            end
-        time_it("Rendering") {
-          top_node = curr_node
-          top_node.compiled_tpl = tpl unless top_node.compiled_tpl
-          ans = time_it("executing template #{tpl.name}"){tpl.execute(b, self)}
-          case ans
-          when String
-            top_node.output = ans # if top_node.children.empty?
-          when NilClass
-            # nothing (the execution created a view tree using the `as_node' function
-          else
-            fail "unknown template execution result"
-          end
-        }
-      end
-
-      def _partially_render_template(tpl)
-        pevb = PartEvalViewBinding.new
-        b = pevb.get_binding
-        ans = tpl.execute(b, self)
-        pevb.as_node :const, {}, ans.inspect if String === ans
-
-        puts "============================"
-        CTE.new("CompiledTree", lambda { |bndg, renderer|
-                  puts "--------------------------------"
-                  pevb.root.children.each do |n|
-                    if n.const?
-                      renderer.add_node(n)
-                    else
-                      n.compiled_tpl = TemplateEngine.compile(n.to_erb_template, ".erb")
-                      renderer.as_node(n.type, n.locals_map, n.src) {
-                        ans = bndg.eval n.src
-                        renderer.concat(ans) if String === ans
-                      }
-                    end
-                  end
-                  nil
-                }) do
-        end
-      end
-
       @@content_tpl_cache = SDGUtils::Caching::Cache.new("content")
       def _compile_content(content, formats)
         tpl = time_it("Compiling") {
@@ -320,11 +270,6 @@ module Red
             TemplateEngine.compile(content, formats)
           }
         }
-
-        # try run the compiler with an empty binding to obtain a partial tree
-        # tpl2 = _partially_render_template(tpl) # rescue nil
-
-        # tpl2 || tpl
       end
 
       @@file_tpl_cache = SDGUtils::Caching::Cache.new("file")

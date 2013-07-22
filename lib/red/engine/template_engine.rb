@@ -1,4 +1,4 @@
- require 'sass'
+require 'sass'
 require 'red/engine/erb_compiler'
 
 module Red::Engine
