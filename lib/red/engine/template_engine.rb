@@ -30,15 +30,7 @@ module Red::Engine
             rest
           else
             fst_name = fst.call("").name rescue "?"
-            CTE.new("#{fst_name}.#{rest.name}", lambda{|meth, *env|
-              rest_src = rest.render(*env)
-              fst_compiler = fst.call(rest_src)
-              env.first.eval "engine_divider()" #rescue nil
-              fst_compiler.send meth, *env
-            }) do
-              def execute(*env) @engine.call(:execute, *env) end
-              def render(*env) @engine.call(:render, *env) end
-            end
+            CompositeTemplate.new("#{fst_name}.#{rest.name}", fst, rest)
           end
         end
       end
@@ -99,6 +91,26 @@ module Red::Engine
 
     def execute(*env) @text end
     def render(*env) @text end
+  end
+
+  # =================================================================
+
+  class CompositeTemplate < CompiledTemplate
+    def initialize(name, fst, rest)
+      super(name, true)
+      @fst = fst
+      @rest = rest
+    end
+
+    def exe(meth, *env)
+      rest_out = @rest.render(*env)
+      fst_compiler = @fst.call(rest_out)
+      env.first.eval "engine_divider()" #rescue nil
+      fst_compiler.send meth, *env
+    end
+
+    def render(*env) exe(:render, *env); end
+    def execute(*env) exe(:execute, *env); end
   end
 
   # =================================================================
