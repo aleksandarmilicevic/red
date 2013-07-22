@@ -80,6 +80,10 @@ module Red
         end
       end
 
+      def ViewBinding.const_missing(sym)
+        puts "konstanta nedostaje: #{sym}"
+      end
+
       def method_missing(sym, *args)
         case @parent
         when NilClass

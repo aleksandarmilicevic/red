@@ -56,10 +56,10 @@ class TestViewRendererSimple < MigrationTest::TestBase
       begin
         methods = {:render => method(:render).to_proc}
         vars = instance_variables.reduce({}) do |acc, v|
-          acc.merge v => instance_variable_get(v)
+          acc.merge! v => instance_variable_get(v)
         end
         consts = self.class.constants(true).reduce({}) do |acc, c|
-          acc.merge c => self.class.const_get(c)
+          acc.merge! c => self.class.const_get(c)
         end
         methods.merge!(vars).merge!(consts)
       end
@@ -495,7 +495,7 @@ hi there<%= render user1 %> bro <%= user1.slacker ? 'slacker' : 'worker' %>
 
   def test5
     tpl = <<-TPL
-hi there<%= render User.all %>
+hi there<%= render R_E_VRT::User.all %>
     TPL
 
     user_tpl = <<-UTPL
@@ -507,7 +507,7 @@ hi there<%= render User.all %>
 
   def test5b
     tpl = <<-TPL
-hi there<%= render lambda{User.all} %>
+hi there<%= render lambda{R_E_VRT::User.all} %>
     TPL
 
     user_tpl = <<-UTPL
@@ -555,8 +555,8 @@ hi there<%= render lambda{User.all} %>
 
   def test6
     tpl = <<-TPL
-hi there slackers: <%= render User.where(:slacker => true) %>
-rooms: <%= render Room.find(@room1_id) %>
+hi there slackers: <%= render R_E_VRT::User.where(:slacker => true) %>
+rooms: <%= render R_E_VRT::Room.find(@room1_id) %>
     TPL
 
     user_tpl = <<-UTPL
@@ -572,8 +572,8 @@ rooms: <%= render Room.find(@room1_id) %>
 
   def test6b
     tpl = <<-TPL
-hi there slackers: <%= render lambda{User.where(:slacker => true)} %>
-rooms: <%= render lambda{Room.find(@room1_id)} %>
+hi there slackers: <%= render lambda{R_E_VRT::User.where(:slacker => true)} %>
+rooms: <%= render lambda{R_E_VRT::Room.find(@room1_id)} %>
     TPL
 
     user_tpl = <<-UTPL

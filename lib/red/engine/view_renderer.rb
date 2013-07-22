@@ -23,7 +23,7 @@ module Red
           :current_view => nil,
           :no_template_cache? => false,
           :no_file_cache? => false,
-          :no_content_cache? => true
+          :no_content_cache? => true,
         })
       end
 
@@ -51,7 +51,7 @@ module Red
         node = start_node(type, source)
         node.locals_map = locals_map
         begin
-          node.compiled_tpl = tpl ||
+          node.compiled_tpl = tpl || 
             lambda{_compile_content(node.to_erb_template, [".erb"])}
           yield
         ensure
@@ -99,7 +99,7 @@ module Red
 
         root = case
                when tpl=node.compiled_tpl
-                 tpl = (Proc === tpl ? tpl.call : tpl)
+                 tpl = tpl.call if Proc === tpl
                  opts = { :compiled_tpl => tpl,
                           :view_binding => vb }
                  ans = render_to_node opts
@@ -259,26 +259,30 @@ module Red
         path.basename.to_s.split(".")[1..-1].map{|e| ".#{e}"}
       end
 
-      def read_binding_from(hash)
-        hash[:__binding__] || hash[:view_binding].get_binding()
-      end
-
       def _render_template(tpl, hash)
         top_node = curr_node
-        b = read_binding_from(hash)
         top_node.compiled_tpl = tpl unless top_node.compiled_tpl
-        text = tpl.execute(b)
-        if top_node.children.empty?
+        text = tpl.execute(hash[:view_binding])
+        if text && top_node.children.empty?
           top_node.output = text
         end
       end
 
       @@content_tpl_cache = SDGUtils::Caching::Cache.new("content")
       def _compile_content(content, formats)
-        tpl = time_it("Compiling") {
-          @@content_tpl_cache.fetch(formats.join("")+content, @conf.no_content_cache?) {
+        @@content_tpl_cache.fetch(formats.join("")+content, @conf.no_content_cache?) {
+          tpl = time_it("Compiling") {
             TemplateEngine.compile(content, formats)
           }
+          if tpl.needs_env?
+            tpl.props[:filename] = curr_node.extras[:pathname] if curr_node
+            tpl = time_it("Generating template engine code") {
+              mod, method_name = TemplateEngine.code_gen(tpl)
+              ViewBinding.send :include, mod
+              CompiledClassTemplate.new(method_name)
+            }
+          end
+          tpl
         }
       end
 

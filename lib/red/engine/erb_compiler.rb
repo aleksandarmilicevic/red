@@ -18,11 +18,11 @@ module Engine
         instrumented = instrument_erb(erb.src, erb_out_var)
         erb.src.clear
         erb.src.concat(instrumented)
-        CTE.new("ERB", Proc.new {|bndg|
+        CTE.new("ERB", Proc.new {|view_binding|
           Red.boss.time_it("Rendering ERB:\n#{erb.src}"){ 
-            erb.result(bndg) 
-            }
-        }, :erb_src => instrumented)
+            erb.result(view_binding.get_binding) 
+          }
+        }, :ruby_code => instrumented)
       }
     end
 
