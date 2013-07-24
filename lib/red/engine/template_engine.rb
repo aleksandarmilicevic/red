@@ -1,5 +1,6 @@
 require 'sass'
 require 'red/engine/erb_compiler'
+require 'sdg_utils/meta_utils'
 
 module Red::Engine
 
@@ -19,23 +20,38 @@ module Red::Engine
       # --------------------------------------------------------
       def compile(source, formats=[])
         formats = [formats].flatten.compact
-        if formats.nil? || formats.empty?
+        if Proc === source
+          fst_compiler = get_compiler(formats)
+          rest_compiled = CompiledProcTemplate.new(source)
+          join(fst_compiler, rest_compiled)
+        elsif formats.nil? || formats.empty?
           CompiledTextTemplate.new(source)
         elsif formats.size == 1
           get_compiler(formats.first).call(source)
         else
-          rest = compile(source, formats[1..-1])
-          fst = get_compiler(formats.first)
-          if !rest.needs_env?
-            # can precompile
-            rest_src = rest.execute
-            fst.call(rest_src)
-          elsif fst == IDEN
-            rest
-          else
-            fst_name = fst.call("").name rescue "?"
-            CompiledCompositeTemplate.new("#{fst_name}.#{rest.name}", fst, rest)
-          end
+          rest_compiled = compile(source, formats[1..-1])
+          fst_compiler = get_compiler(formats.first)
+          join(fst_compiler, rest_compiled)
+        end
+      end
+
+      # --------------------------------------------------------
+      #
+      # @param fst_compiler [Proc]
+      # @param rest_compiled [CompiledTemplate]
+      #
+      # --------------------------------------------------------
+      def join(fst_compiler, rest_compiled)
+        if !rest_compiled.needs_env?
+          # can precompile
+          rest_src = rest_compiled.execute
+          fst_compiler.call(rest_src)
+        elsif fst_compiler == IDEN
+          rest_compiled
+        else
+          fst_name = fst_compiler.call("").name rescue "?"
+          name = "#{fst_name}.#{rest_compiled.name}"
+          CompiledCompositeTemplate.new(name, fst_compiler, rest_compiled)
         end
       end
 
@@ -51,12 +67,14 @@ module Red::Engine
       # (corresponding to the given compiled template). 
       #
       # The input parameter must be an instance of either
-      # `CompiledTextTemplate' or `CompiledCompositeTemplate', or any
-      # instance of `CompiledTemplate' returning a string value for
-      # the `ruby_code' property.
+      # `CompiledTextTemplate' `CompiledProcTemplate', or
+      # `CompiledCompositeTemplate', or any instance of
+      # `CompiledTemplate' returning a string value for the
+      # `ruby_code' property.
       #
-      # @param compiled_template [CompiledTextTemplate,
-      #   CompiledCompositeTemplate, CompiledTemplate#props[:ruby_code]]
+      # @param compiled_template [String, CompiledTextTemplate,
+      #   CompiledProcTemplate, CompiledCompositeTemplate,
+      #   CompiledTemplate#props[:ruby_code]]
       #
       # @return [Array(Module, String)] - a module containing all the
       #   code (generated methods) and the name of the root method
@@ -66,15 +84,24 @@ module Red::Engine
       def code_gen(compiled_tpl, prefix=nil, mod=Module.new)
         time = "#{Time.now.utc.strftime("%s_%L")}"
         salt = Random.rand(1000..9999)
-        prefix = 
-          (prefix or 
-          (fn = compiled_tpl.props[:filename] and fn.to_s.underscore rescue nil) or
-          "tpl")
-        method_name = "#{prefix}_#{time}_#{salt}"
+        tpl_id = compiled_tpl.props[:id] rescue nil
+        tpl_fmt = compiled_tpl.name.downcase.gsub(/\./, "_") rescue nil
+        prefix = prefix || SDGUtils::MetaUtils.check_identifier(tpl_id) 
+        fmt = SDGUtils::MetaUtils.check_identifier(tpl_fmt) || "tpl"
+
+        method_name = "#{prefix}_#{fmt}_#{time}_#{salt}"
         method_body = 
           case compiled_tpl
+          when String
+            compiled_tpl.to_s
           when CompiledTextTemplate
             compiled_tpl.render.inspect       
+          when CompiledProcTemplate
+            proc_method_name = "#{method_name}_proc"
+            mod.send :define_method, "#{proc_method_name}", compiled_tpl.proc
+"""
+  #{proc_method_name}()
+"""
           when CompiledCompositeTemplate
             fst_method_name = "#{method_name}_fst_compiler"
             mod.send :define_method, "#{fst_method_name}", compiled_tpl.fst
@@ -98,7 +125,6 @@ end
 RUBY
         puts "-------------------------"
         puts "def #{method_name}\n  #{method_body}\nend"
-        puts "-------------------------\n"
         [mod, method_name]
       end
       
@@ -114,6 +140,16 @@ RUBY
       # --------------------------------------------------------
       def get_compiler(format)
         case format
+        when Array
+          formats = format
+          fail "Zero-elem array" unless formats.size > 0
+          fst_compiler = get_compiler(formats[0])
+          if formats.size == 1
+            fst_compiler
+          else
+            rest_compiler = get_compiler(formats[1..-1])
+            lambda{|source| fst_compiler.call(rest_compiler.call(source))}
+          end          
         when ".erb"
           ERBCompiler.get
         when ".scss", ".sass"
@@ -166,11 +202,25 @@ RUBY
 
   # =================================================================
 
+  class CompiledProcTemplate < CompiledTemplate
+    attr_reader :proc
+    def initialize(proc, name="PROC")
+      super(name, true)
+      fail "not a no-arg proc" unless Proc === proc && proc.arity == 0
+      @proc = proc
+    end
+
+    def execute(*env) @proc.call end
+    def render(*env) execute(*env).to_s end
+  end
+
+  # =================================================================
+
   class CompiledCompositeTemplate < CompiledTemplate
     attr_reader :fst, :rest
 
-    # @param fst [Proc]
-    # @param fst [CompiledTemplate]
+    # @param fst [Proc] - compiler
+    # @param rest [CompiledTemplate] - compiled
     def initialize(name, fst, rest)
       super(name, true)
       @fst = fst
@@ -179,10 +229,10 @@ RUBY
 
     def exe(meth, *env)
       rest_out = @rest.render(*env)
-      fst_compiler = @fst.call(rest_out)
+      fst_compiled = @fst.call(rest_out)
       #TODO: don't hardcode this call to engine_divider
       env.first.engine_divider() #rescue nil 
-      fst_compiler.send meth, *env
+      fst_compiled.send meth, *env
     end
 
     def render(*env) exe(:render, *env); end

@@ -1,5 +1,6 @@
 require 'erb'
 require 'parser/current'
+require 'red/engine/compiled_template_repo'
 
 module Red
 module Engine
@@ -80,8 +81,9 @@ module Engine
         locals_code = """
 (local_variables - [#{varsym}]).reduce({}){|acc, v| acc[v] = eval(v.to_s); acc}
         """.strip
+        tpl_id = Red::Engine::CompiledTemplateRepo.for_expr(source)
         """
-#{var}.as_node(#{type.inspect}, #{locals_code}, #{source.inspect}){
+#{var}.as_node(#{type.inspect}, #{locals_code}, #{source.inspect}, #{tpl_id}){
   #{original}
 };"""
       end

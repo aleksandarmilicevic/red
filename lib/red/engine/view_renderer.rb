@@ -1,15 +1,17 @@
 require 'red/engine/access_listener'
 require 'red/engine/view_tree'
+require 'red/engine/rendering_cache'
 require 'red/engine/template_engine'
+require 'red/engine/compiled_template_repo'
 require 'sdg_utils/config'
-require 'sdg_utils/caching/cache.rb'
+require 'sdg_utils/meta_utils'
 
 module Red
   module Engine
 
     class ViewError < StandardError
     end
-
+    
     # ================================================================
     #  Class +ViewRenderer+
     # ================================================================
@@ -47,12 +49,14 @@ module Red
 
       # @param type [String]
       # @param source [String]
-      def as_node(type, locals_map, source, tpl=nil)
+      def as_node(type, locals_map, source, tpl_id=nil)
         node = start_node(type, source)
         node.locals_map = locals_map
         begin
-          node.compiled_tpl = tpl || 
-            lambda{_compile_content(node.to_erb_template, [".erb"])}
+          node.compiled_tpl = 
+            CompiledTemplateRepo.find(tpl_id) if tpl_id
+            # tpl || _to_compiled_class_template(source, "expr")
+            # lambda{_compile_content(node.to_erb_template, [".erb"])}
           yield
         ensure
           end_node(node)
@@ -74,7 +78,7 @@ module Red
       def concat(str)
         require 'cgi'
         cn = curr_node
-        (str = CGI::escapeHTML(str) if cn.expr? && !str.html_safe?) rescue nil
+        (str = CGI::escapeHTML(str) unless cn.const? || str.html_safe?) rescue nil
         cn.output.concat(str)
       end
 
@@ -114,12 +118,13 @@ module Red
                end
 
         root.src = node.src
-        if node.parent.nil?
-          root
-        else
-          fail "Expected exactly 1 child" unless root.children.size == 1
-          root.children[0]
-        end
+        root
+        # if node.parent.nil?
+        #   root
+        # else
+        #   fail "Expected exactly 1 child" unless root.children.size == 1
+        #   root.children[0]
+        # end
       end
 
       def render_to_node(*args)
@@ -192,58 +197,42 @@ module Red
       end
 
       def _process(hash)
+        tpl = _compile_template(hash)
+        raise_not_found_error(hash[:view], hash[:template], view_finder) unless tpl
+        _render_template tpl, hash
+      end
+
+      # @return [CompiledTemplate]
+      def _compile_template(hash)
         case
         when hash.key?(:compiled_tpl)
         # === compiled template
-          _render_template hash[:compiled_tpl], hash
+          hash[:compiled_tpl]
 
         # === nothing
         when hash.key?(:nothing)
-          tpl = _compile_content("", [".txt"])
-          _render_template tpl, hash
+          _compile_content("", [".txt"])
 
         # === plain text
         when text = hash.delete(:text)
-          tpl = _compile_content(text, hash[:formats] || [".txt"])
-          _render_template tpl, hash
+          _compile_content(text, hash[:formats] || [".txt"])
 
         # === inline template (default format .erb)
         when content = hash.delete(:inline)
-          case content
-          when String
-            tpl = _compile_content(content, hash[:formats] || [".erb"])
-            _render_template tpl, hash
-          when Proc
-            text = content.call
-            curr_node.output = text
-          else
-            fail "unknown content kind #{content}:#{content.class}"
-          end
+          _compile_content(content, hash[:formats] || [".erb"])
 
         # === Pathname pointing to file template
         when path = hash.delete(:pathname)
-          tpl = _compile_file(path, hash)
-          _render_template tpl, hash
+          _compile_file(path, hash)
 
         # === String pointing to file template
         when file = hash.delete(:file)
-          opts = {:pathname => Pathname.new(file)}.merge(hash)
-          _process opts
+          opts = {:pathname => Pathname.new(file)}.merge!(hash)
+          _compile_template opts
 
         # === template name, uses a convention to look up the actual file
-        when hash.key?(:template)
-          path = time_it("Finding template: #{hash[:template]}") {
-            find_template_file(hash)
-          }
-          if path.nil?
-            raise_not_found_error(view, template, view_finder)
-          else
-            _process hash.merge(path)
-          end
-
-        # === Unknown
         else
-          raise ViewError "Nothing specified" # OR render :nothing ?
+          search_and_compile_template(hash)
         end
       end
 
@@ -268,32 +257,35 @@ module Red
         end
       end
 
-      @@content_tpl_cache = SDGUtils::Caching::Cache.new("content")
       def _compile_content(content, formats)
-        @@content_tpl_cache.fetch(formats.join("")+content, @conf.no_content_cache?) {
-          tpl = time_it("Compiling") {
-            TemplateEngine.compile(content, formats)
+        key = (@conf.no_content_cache?) ? "" : "#{formats.join('')}:#{content}"
+        RenderingCache.content.fetch(key, @conf.no_content_cache?) {
+          time_it("Compiling") {
+            tpl = TemplateEngine.compile(content, formats)
+            if tpl.needs_env?
+              cn = curr_node
+              if curr_node && path=cn.extras[:pathname] 
+                x = File.join(cn.extras[:view], cn.extras[:template])
+                tpl.props[:id] = x.gsub /[\/\\\.]/, "_" 
+              end
+              tpl = time_it("Generating template engine code") {
+                CompiledTemplateRepo.create(tpl)
+              }
+            end
+            tpl
           }
-          if tpl.needs_env?
-            tpl.props[:filename] = curr_node.extras[:pathname] if curr_node
-            tpl = time_it("Generating template engine code") {
-              mod, method_name = TemplateEngine.code_gen(tpl)
-              ViewBinding.send :include, mod
-              CompiledClassTemplate.new(method_name)
-            }
-          end
-          tpl
         }
       end
 
-      @@file_tpl_cache = SDGUtils::Caching::Cache.new("file")
       def _compile_file(path, hash)
         raise ViewError, "Not a file: #{file}" unless path.file?
         curr_node.extras[:pathname] = path
+        curr_node.extras[:view] = hash[:view]
+        curr_node.extras[:template] = hash[:template]
         ext = hash[:object] ? " for obj: #{hash[:object]}:#{hash[:object].class}" : ""
         formats = hash[:formats] || path_formats(path)
-        @@file_tpl_cache.fetch(path.realpath.to_s + formats.join(""),
-                               @conf.no_file_cache?) {
+        RenderingCache.file.fetch(path.realpath.to_s + formats.join(""),
+                                  @conf.no_file_cache?) {
           time_it("Reading file: #{path}") {
             trace "### #{_indent}Rendering file #{path}#{ext}"
             _compile_content(path.read, formats)
@@ -312,29 +304,35 @@ module Red
         @conf.current_view || (@tree.render_options[:view] rescue nil)
       end
 
-      @@template_cache = SDGUtils::Caching::Cache.new("template")
-      def find_template_file(hash)
+      def search_and_compile_template(hash)
         view = hash[:view]
-        template = hash[:template]
-        view_cannon = "#{view}/#{template}"
-        @@template_cache.fetch(view_cannon, @conf.no_template_cache?) {
-          view_finder = @conf.view_finder
-          parent_dir = curr_node.parent.extras[:pathname].dirname rescue nil
-          path = nil
-          ([template] + hash[:hierarchy]).each do |tmpl|
-            path = view_finder.find_in_folder(parent_dir, tmpl) rescue nil
-            break if path
-            path = view_finder.find_view(view, tmpl, hash[:partial])
-            break if path
-          end
-          path
+        tpl_candidates = hash[:hierarchy]
+        view_cannon = "#{view}/[#{tpl_candidates.join(';')}]"
+        RenderingCache.template.fetch(view_cannon, @conf.no_template_cache?) {
+          opts = time_it("Finding templated: #{view_cannon}") {
+            search_template_file(view, tpl_candidates, !!hash[:partial])
+          }
+          opts and _compile_template(hash.merge(opts))
         }
       end
 
-      def raise_not_found_error(view, template, view_finder)
+      def search_template_file(view, tpl_candidates, is_partial)
+        @view_finder = @conf.view_finder
+        parent_dir = curr_node.parent.extras[:pathname].dirname rescue nil
+        path = nil
+        tpl_candidates.each do |tmpl|
+          path = @view_finder.find_in_folder(parent_dir, tmpl) rescue nil
+          break if path
+          path = @view_finder.find_view(view, tmpl, is_partial)
+          break if path
+        end
+        path
+      end
+
+      def raise_not_found_error(view, template)
         err_msg = "Template `#{template}' for view `#{view}' not found.\n"
-        if view_finder.respond_to? :candidates
-          cand = view_finder.candidates.join("\n  ")
+        if @view_finder && @view_finder.respond_to?(:candidates)
+          cand = @view_finder.candidates.join("\n  ")
           err_msg += "Candidates checked:\n  #{cand}"
         end
         raise ViewError, err_msg
@@ -386,7 +384,7 @@ module Red
                               :view_binding => get_view_binding_obj(hash)
           end
           view = hash[:view] || current_view() || "application"
-          tmpl = hash[:template] || "main"
+          tmpl = hash[:template]
           partial = hash[:partial]
           is_partial = !!partial
 
@@ -399,12 +397,14 @@ module Red
           #  extract type hierarchy if an object is given
           # -------------------------------------------------------------------
           obj = hash[:object]
-          hier = if Red::Model::Record === obj
+          hier = if tmpl
+                   [tmpl]
+                 elsif Red::Model::Record === obj
                    record_cls = obj.class
                    types = [record_cls] + record_cls.all_supersigs
                    types.map{|r| r.relative_name.underscore}
                  else
-                   []
+                   ["index", "main"]
                  end
 
           locals = {}.merge!(hash[:locals] || {})
@@ -413,13 +413,8 @@ module Red
           #  if object is specified, add local variables pointing to it
           # -------------------------------------------------------------------
           if obj
-            to_var = lambda{|str|
-              return nil unless str
-              str = str.to_sym
-              ok = Object.new.send(:define_singleton_method, str, lambda{}) rescue false
-              ok ? str : nil
-            }
-            var_name = hash[:as] || to_var.call(hash[:template]) || "it"
+            tpl_identifier = SDGUtils::MetaUtils.check_identifier(hash[:template])
+            var_name = hash[:as] || tpl_identifier || "it"
             ([var_name] + hier).each do |hname|
               locals.merge! hname => obj
             end
@@ -482,12 +477,7 @@ module Red
         views = [view, ""]
         templates = is_partial ? [partialize(template), template]
                                : [template, view]
-        file = find_view_file views, templates
-        if !file.nil?
-          {:pathname => file}
-        else
-          nil
-        end
+        find_view_file views, templates
       end
 
       def find_in_folder(dir, template, is_partial)
@@ -495,7 +485,7 @@ module Red
                                : [template]
         templates.each do |t|
           file = check_file(dir, t)
-          return file unless file.nil?
+          file and return file
         end
         nil
       end
@@ -504,7 +494,7 @@ module Red
 
       # @param prefixes [Array(String)]
       # @param template_names [Array(String)]
-      # @return [Pathname]
+      # @return [Hash, nil]
       def find_view_file(prefixes, template_names)
         root = Red.conf.root
         root = Pathname.new(root) if String === root
@@ -514,7 +504,7 @@ module Red
             dir = root.join(view, prefix)
             template_names.each do |template_name|
               file = check_file(dir, template_name)
-              return file unless file.nil?
+              file and return file.merge!({:view => prefix, :template => template_name})
             end
           end
         end
@@ -523,7 +513,7 @@ module Red
 
       # @param dir [Pathname]
       # @param template_name [String]
-      # @return [Pathname, nil]
+      # @return [Hash, nil]
       def check_file(dir, template_name)
         return nil unless dir.directory?
 
@@ -538,7 +528,7 @@ module Red
         if cands.empty?
           return nil
         else
-          return Pathname.new(cands.first)
+          {:pathname => Pathname.new(cands.first)}
         end
       end
     end

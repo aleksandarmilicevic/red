@@ -101,7 +101,7 @@ module View
       when NilClass, Proc
         proc = expr || block
         fail "no expression given" unless proc
-        autoview :inline => proc
+        autoview :text => proc
       end
     end
 

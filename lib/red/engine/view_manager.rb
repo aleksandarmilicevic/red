@@ -1,6 +1,7 @@
 require 'red/engine/big_boss'
 require 'red/engine/view_renderer'
 require 'red/engine/access_listener'
+require 'red/engine/rendering_cache'
 
 module Red
   module Engine
@@ -88,6 +89,10 @@ module Red
 
       def pusher
         @pusher
+      end
+
+      def clear_renderer_cache
+        RenderingCache.clear_all
       end
 
       protected

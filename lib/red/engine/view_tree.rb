@@ -34,10 +34,6 @@ module Red
         _prepare_context if defined? ActionView::Context
       end
 
-      def gravatar_for(user, hash={})
-        '<img src="https://secure.gravatar.com/avatar/52263f4f0ad7eefd3464de854f4828f2?s=32" alt="aleksandar milicevic"></img>'
-      end
-
       def user_inst_vars() @user_inst_vars ||= {} end
       def locals()         @locals ||= {} end
 
@@ -78,10 +74,6 @@ module Red
             end
           end
         end
-      end
-
-      def ViewBinding.const_missing(sym)
-        puts "konstanta nedostaje: #{sym}"
       end
 
       def method_missing(sym, *args)
@@ -150,21 +142,21 @@ module Red
     #  Class +ConstNodeRepo+
     # ================================================================
     class ConstNodeRepo
+
+      # TODO: all methods must be SYNCHRONIZED
+
       @@repo = {}
-      class << self
-        def create(source)
-          node = ViewInfoNode.create_const()
-          node.src = source
-          node.output = eval "#{source}"
-          node.freeze
-          @@repo[node.id] = node
-          node
-        end
-
-        def find(id) @@repo[id] end
-        def find!(id) find(id) || fail("const node(#{id}) not found") end
-
+      def self.create(source)
+        node = ViewInfoNode.create_const()
+        node.src = source
+        node.output = eval "#{source}"
+        node.freeze
+        @@repo[node.id] = node
+        node
       end
+
+      def self.find(id) @@repo[id] end
+      def self.find!(id) find(id) || fail("const node(#{id}) not found") end
     end
 
     # ================================================================
