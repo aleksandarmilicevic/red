@@ -11,7 +11,7 @@ module Red
 
     class ViewError < StandardError
     end
-    
+
     # ================================================================
     #  Class +ViewRenderer+
     # ================================================================
@@ -53,7 +53,7 @@ module Red
         node = start_node(type, source)
         node.locals_map = locals_map
         begin
-          node.compiled_tpl = 
+          node.compiled_tpl =
             CompiledTemplateRepo.find(tpl_id) if tpl_id
             # tpl || _to_compiled_class_template(source, "expr")
             # lambda{_compile_content(node.to_erb_template, [".erb"])}
@@ -267,7 +267,7 @@ module Red
           time_it("compiling and generating code") {
             tpl = TemplateEngine.compile(content, formats)
             if tpl.needs_env?
-              tpl = CompiledTemplateRepo.create(tpl)            
+              tpl = CompiledTemplateRepo.create(tpl)
             end
             tpl
           }

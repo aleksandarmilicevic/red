@@ -67,7 +67,7 @@ class TestViewRendererSimple < MigrationTest::TestBase
 
   def my_render(hash)
     @manager = Red::Engine::ViewManager.new :view_finder => hash.delete(:view_finder),
-                                            :no_template_cache? => false, 
+                                            :no_template_cache? => false,
                                             :no_content_cache? => true
     @manager.clear_renderer_cache
     @manager.render_view({:formats => %w(.txt .erb)}.merge!(hash)).result

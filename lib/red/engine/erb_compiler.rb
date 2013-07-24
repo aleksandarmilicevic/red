@@ -20,8 +20,8 @@ module Engine
         erb.src.clear
         erb.src.concat(instrumented)
         CTE.new("ERB", Proc.new {|view_binding|
-          Red.boss.time_it("Rendering ERB:\n#{erb.src}"){ 
-            erb.result(view_binding.get_binding) 
+          Red.boss.time_it("Rendering ERB:\n#{erb.src}"){
+            erb.result(view_binding.get_binding)
           }
         }, :ruby_code => instrumented)
       }

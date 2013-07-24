@@ -20,7 +20,7 @@ module Red
 
       @@widget_id = 0
 
-      # def gravatar_for(user, size) 
+      # def gravatar_for(user, size)
       #   "<img src='https://secure.gravatar.com/avatar/52263f4f0ad7eefd3464de854f4828f2?s=32' alt='lfksdlf'></img>".html_safe
       # end
 
@@ -346,10 +346,10 @@ module Red
              Src: src,
              Template: compiled_tpl,
              Output: output,
-             Children: children.size,           
-           }.map{ |k,v| 
+             Children: children.size,
+           }.map{ |k,v|
              (v.nil? || v == "") ? nil : "#{k}: #{v.inspect[0..100]}"
-           }, 
+           },
           "Deps(#{deps.__id__}):",
            "#{deps_str}".split("\n")
           ].flatten.compact

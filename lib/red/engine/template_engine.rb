@@ -64,7 +64,7 @@ module Red::Engine
       # this call is an array containing at its first position (index
       # 0) a module (where all those methods are generated) and at its
       # second position (index 1) name of the root method
-      # (corresponding to the given compiled template). 
+      # (corresponding to the given compiled template).
       #
       # The input parameter must be an instance of either
       # `CompiledTextTemplate' `CompiledProcTemplate', or
@@ -86,16 +86,16 @@ module Red::Engine
         salt = Random.rand(1000..9999)
         tpl_id = compiled_tpl.gen_method_name rescue nil
         tpl_fmt = compiled_tpl.name.downcase.gsub(/\./, "_") rescue nil
-        prefix = prefix || SDGUtils::MetaUtils.check_identifier(tpl_id) 
+        prefix = prefix || SDGUtils::MetaUtils.check_identifier(tpl_id)
         fmt = SDGUtils::MetaUtils.check_identifier(tpl_fmt) || "tpl"
 
         method_name = "#{prefix}_#{fmt}_#{time}_#{salt}"
-        method_body = 
+        method_body =
           case compiled_tpl
           when String
             compiled_tpl.to_s
           when CompiledTextTemplate
-            compiled_tpl.render.inspect       
+            compiled_tpl.render.inspect
           when CompiledProcTemplate
             proc_method_name = "#{method_name}_proc"
             mod.send :define_method, "#{proc_method_name}", compiled_tpl.proc
@@ -113,7 +113,7 @@ module Red::Engine
   fst_compiler.render(self)
 """
           else
-            ruby_code = (compiled_tpl.props[:ruby_code] || 
+            ruby_code = (compiled_tpl.props[:ruby_code] ||
                          compiled_tpl.ruby_code) rescue nil
             fail "No ':ruby_code' property found in #{compiled_tpl}" unless ruby_code
             ruby_code
@@ -127,7 +127,7 @@ RUBY
         puts "def #{method_name}\n  #{method_body}\nend"
         [mod, method_name]
       end
-      
+
       IDEN = lambda{|source| CompiledTextTemplate.new(source)}
 
       # --------------------------------------------------------
@@ -149,7 +149,7 @@ RUBY
           else
             rest_compiler = get_compiler(formats[1..-1])
             lambda{|source| fst_compiler.call(rest_compiler.call(source))}
-          end          
+          end
         when ".erb"
           ERBCompiler.get
         when ".scss", ".sass"
@@ -191,7 +191,7 @@ RUBY
       if arr.empty?
         nil
       else
-        File.join(arr).gsub /[\/\\\.]/, "_" 
+        File.join(arr).gsub /[\/\\\.]/, "_"
       end
     end
 
@@ -243,7 +243,7 @@ RUBY
       rest_out = @rest.render(*env)
       fst_compiled = @fst.call(rest_out)
       #TODO: don't hardcode this call to engine_divider
-      env.first.engine_divider() #rescue nil 
+      env.first.engine_divider() #rescue nil
       fst_compiled.send meth, *env
     end
 
