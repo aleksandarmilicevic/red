@@ -84,7 +84,7 @@ module Red::Engine
       def code_gen(compiled_tpl, prefix=nil, mod=Module.new)
         time = "#{Time.now.utc.strftime("%s_%L")}"
         salt = Random.rand(1000..9999)
-        tpl_id = compiled_tpl.props[:id] rescue nil
+        tpl_id = compiled_tpl.gen_method_name rescue nil
         tpl_fmt = compiled_tpl.name.downcase.gsub(/\./, "_") rescue nil
         prefix = prefix || SDGUtils::MetaUtils.check_identifier(tpl_id) 
         fmt = SDGUtils::MetaUtils.check_identifier(tpl_fmt) || "tpl"
@@ -186,6 +186,18 @@ RUBY
     # @return [String]
     def render(*env) fail "" end
 
+    def gen_method_name
+      arr = [props[:view], props[:template]].compact
+      if arr.empty?
+        nil
+      else
+        File.join(arr).gsub /[\/\\\.]/, "_" 
+      end
+    end
+
+    def inspect
+      "#{self.class.relative_name}"
+    end
   end
 
   # =================================================================

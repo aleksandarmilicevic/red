@@ -16,7 +16,7 @@ module Engine
       lambda { |source|
         erb_out_var = "out"
         erb = ERB.new(source, nil, "%<>", erb_out_var)
-        instrumented = instrument_erb(erb.src, erb_out_var)
+        instrumented = Red::Engine::ERBCompiler.instrument_erb(erb.src, erb_out_var)
         erb.src.clear
         erb.src.concat(instrumented)
         CTE.new("ERB", Proc.new {|view_binding|
@@ -26,8 +26,6 @@ module Engine
         }, :ruby_code => instrumented)
       }
     end
-
-    private
 
     def instrument_erb(src, var)
       src = src.gsub(/#{var}\ =\ ''/, "#{var}=mk_out")

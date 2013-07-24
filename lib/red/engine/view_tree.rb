@@ -20,6 +20,10 @@ module Red
 
       @@widget_id = 0
 
+      # def gravatar_for(user, size) 
+      #   "<img src='https://secure.gravatar.com/avatar/52263f4f0ad7eefd3464de854f4828f2?s=32' alt='lfksdlf'></img>".html_safe
+      # end
+
       def parent() @parent end
 
       def initialize(renderer, parent=nil, helpers=[])
@@ -311,6 +315,10 @@ module Red
         !!extras[:synth]
       end
 
+      def prop(key)
+        extras[key] || (compiled_tpl.props[key] if compiled_tpl)
+      end
+
       def no_deps?
         deps.empty?
       end
@@ -326,20 +334,26 @@ module Red
       end
 
       def short_info()
-        deps_str = @deps.to_s.split("\n").map{|e| "  " + e}.join("\n")
-        [
-         "Id: #{id}",
-         "Type: #{type}",
-         "File: #{extras[:pathname]}",
-         "Object: #{extras[:object]}",
-         "Src: #{src[0..60].inspect}",
-         # "Compiled template: #{compiled_tpl.props if compiled_tpl}",
-         "Compiled template: #{compiled_tpl.class}",
-         "Output: #{output[0..60].inspect}",
-         "Children: #{children.size}",
-         "Deps(#{deps.__id__}):",
-         "#{deps_str}".split("\n"),
-        ].flatten
+        if const?
+          ["Const(#{id}): #{output[0..60].inspect}"]
+        else
+          deps_str = @deps.to_s.split("\n").map{|e| "  " + e}.join("\n")
+          [{
+             Id: id,
+             Type: type,
+             File: prop(:pathname).to_s,
+             Object: prop(:object),
+             Src: src,
+             Template: compiled_tpl,
+             Output: output,
+             Children: children.size,           
+           }.map{ |k,v| 
+             (v.nil? || v == "") ? nil : "#{k}: #{v.inspect[0..100]}"
+           }, 
+          "Deps(#{deps.__id__}):",
+           "#{deps_str}".split("\n")
+          ].flatten.compact
+        end
       end
 
       def print_short_info()

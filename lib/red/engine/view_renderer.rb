@@ -197,9 +197,13 @@ module Red
       end
 
       def _process(hash)
-        tpl = _compile_template(hash)
+        tpl = time_it("fetching template") {
+          _compile_template(hash)
+        }
         raise_not_found_error(hash[:view], hash[:template], view_finder) unless tpl
-        _render_template tpl, hash
+        time_it("rendering template") {
+          _render_template tpl, hash
+        }
       end
 
       # @return [CompiledTemplate]
@@ -260,17 +264,10 @@ module Red
       def _compile_content(content, formats)
         key = (@conf.no_content_cache?) ? "" : "#{formats.join('')}:#{content}"
         RenderingCache.content.fetch(key, @conf.no_content_cache?) {
-          time_it("Compiling") {
+          time_it("compiling and generating code") {
             tpl = TemplateEngine.compile(content, formats)
             if tpl.needs_env?
-              cn = curr_node
-              if curr_node && path=cn.extras[:pathname] 
-                x = File.join(cn.extras[:view], cn.extras[:template])
-                tpl.props[:id] = x.gsub /[\/\\\.]/, "_" 
-              end
-              tpl = time_it("Generating template engine code") {
-                CompiledTemplateRepo.create(tpl)
-              }
+              tpl = CompiledTemplateRepo.create(tpl)            
             end
             tpl
           }
@@ -279,16 +276,15 @@ module Red
 
       def _compile_file(path, hash)
         raise ViewError, "Not a file: #{file}" unless path.file?
-        curr_node.extras[:pathname] = path
-        curr_node.extras[:view] = hash[:view]
-        curr_node.extras[:template] = hash[:template]
-        ext = hash[:object] ? " for obj: #{hash[:object]}:#{hash[:object].class}" : ""
         formats = hash[:formats] || path_formats(path)
-        RenderingCache.file.fetch(path.realpath.to_s + formats.join(""),
-                                  @conf.no_file_cache?) {
+        RenderingCache.file.fetch("#{path}#{formats.join('')}", @conf.no_file_cache?) {
           time_it("Reading file: #{path}") {
+            obj = hash[:object]
+            ext = obj ? " for obj: #{obj}:#{obj.class}" : ""
             trace "### #{_indent}Rendering file #{path}#{ext}"
-            _compile_content(path.read, formats)
+            tpl = _compile_content(path.read, formats)
+            tpl.props.merge! pathname: path, view: hash[:view], template: hash[:template]
+            tpl
           }
         }
       end
@@ -318,7 +314,7 @@ module Red
 
       def search_template_file(view, tpl_candidates, is_partial)
         @view_finder = @conf.view_finder
-        parent_dir = curr_node.parent.extras[:pathname].dirname rescue nil
+        parent_dir = curr_node.compiled_tpl.props[:pathname].dirname rescue nil
         path = nil
         tpl_candidates.each do |tmpl|
           path = @view_finder.find_in_folder(parent_dir, tmpl) rescue nil
