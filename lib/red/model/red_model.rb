@@ -211,36 +211,11 @@ RUBY
           end
         end
 
+        def _fld_reader_code(fld)      (fld.persistent?) ? "super" : super end
+        def _fld_writer_code(fld, val) (fld.persistent?) ? "super" : super end
+
         def after_query_listeners
           @@after_query_listeners ||= []
-        end
-
-        def _fld_getter_proc(fld)
-          if fld.transient?
-            super
-          else
-            # defining associations will take care that super exists
-            lambda {
-              _fld_pre_read(fld)
-              val = super()
-              wrapped = Red::Model::RelationWrapper.wrap(self, fld, val)
-              _fld_post_read(fld, wrapped)
-              wrapped
-            }
-          end
-        end
-
-        def _fld_setter_proc(fld)
-          if fld.transient?
-            super
-          else
-            # defining associations will take care that super exists
-            lambda { |val|
-              _fld_pre_write(fld, val)
-              super(val)
-              _fld_post_write(fld, val)
-            }
-          end
         end
 
         def _set_placeholder
@@ -285,25 +260,25 @@ RUBY
         hash = save_transient_values
         yield
         hash.each { |fld, val| self.write_field(fld, val) }
-      end
+      end      
 
-      def _read_fld_value(fld)
-        fail "not supposed to be used for persistent fields" if fld.persistent?
-        if (self.id rescue false)
-          red_meta.get_transient_value(self, fld)
-        else
-          super(fld)
-        end
-      end
-
-      def _write_fld_value(fld, val)
-        fail "not supposed to be used for persistent fields" if fld.persistent?
-        if (self.id rescue false)
-          red_meta.set_transient_value(self, fld, val)
-        else
-          super(fld, val)
-        end
-      end
+      #TODO: REM and move transient
+      # def _read_fld_value(fld)
+      #   fail "not supposed to be used for persistent fields" if fld.persistent?
+      #   if (self.id rescue false)
+      #     red_meta.get_transient_value(self, fld)
+      #   else
+      #     super(fld)
+      #   end
+      # end
+      # def _write_fld_value(fld, val)
+      #   fail "not supposed to be used for persistent fields" if fld.persistent?
+      #   if (self.id rescue false)
+      #     red_meta.set_transient_value(self, fld, val)
+      #   else
+      #     super(fld, val)
+      #   end
+      # end
 
       def save_transient_values
         meta.tfields.reduce({}) do |acc, tf|

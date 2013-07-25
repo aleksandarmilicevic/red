@@ -42,7 +42,7 @@ class EventController < RedAppController
     # rescue
     # end
 
-    Red.boss.time_it("[EventController] Unmarhsalling") {
+    Red.boss.time_it("[EventController] Unmarshalling") {
       unmarshal_and_set_event_params(event)
     }
 
@@ -103,7 +103,6 @@ class EventController < RedAppController
         else
           value = to_record_hash(params[name]) if fld.type.isFile?
           val = unmarshal(value, fld.type)
-          # val = (fld.type.isFile?) ? params[name] : unmarshal(value, fld.type)
           event.set_param(name, val)
         end
       rescue Red::Model::Marshalling::MarshallingError => e
