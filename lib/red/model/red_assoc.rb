@@ -1,6 +1,7 @@
 require 'sdg_utils/recorder'
 
 require 'red/red_conf'
+require 'red/model/relations'
 require 'red/model/red_table_util'
 require 'red/model/red_meta_model'
 

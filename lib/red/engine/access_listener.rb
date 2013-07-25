@@ -112,6 +112,9 @@ module Red::Engine
     end
 
     def obj_after_save(record)    my_fire :after_save, record; true end
+    def obj_after_elem_appended(obj, fld, value)
+
+    end
     def obj_after_destroy(record) my_fire :after_destroy, record; true end
 
     # Returns existing, or creates an empty field-access list for a
@@ -127,6 +130,7 @@ module Red::Engine
         ans = objs[obj] ||= []
         if already_listening.add?(obj)
           obj.obj_after_save(self)
+          # obj.obj_after_elem_appended(self)
           # obj.obj_after_destroy(self)
           debug "listening for #{obj} save and destroy"
         end

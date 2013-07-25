@@ -1,8 +1,8 @@
 require 'active_record'
 require 'alloy/alloy_ast'
 require 'alloy/alloy_ast_errors'
-require 'alloy/relations/all'
 require 'sdg_utils/recorder'
+require 'sdg_utils/proxy'
 require 'red/red'
 
 require_relative 'red_meta_model'
@@ -61,25 +61,76 @@ module Red
         type_callbacks[obj.id] ||= []
       end
 
-      def gen_obj_callback(ar_cb_sym)
+      # ---------------------------------------------------------------------
+      #
+      # Example:
+      #   ar_cb_sym = :after_save
+      #
+      # Defines the following instance methods:
+      #   def obj_after_save(callback=nil, &block) ... end
+      #   def remove_after_save(callback) ... end
+      #
+      # Defines the following class methods:
+      #   def self.trigger_after_save(*args) <notify all aliases of `self'> end
+      #
+      # Invokes (unless opts[:not_activerecord_cb]):
+      #   self.class.after_save do |*args| <notify all aliases of `self'> end
+      #
+      # ---------------------------------------------------------------------
+      def gen_obj_callback(ar_cb_sym, opts={})
         sym = "obj_#{ar_cb_sym}".to_sym
         rem_sym = "remove_#{sym}".to_sym
-        self.send :define_method, sym do |cb_obj=nil, &block|
-          cb = cb_obj || block
-          fail "no callback given" unless cb
-          self.class.get_callbacks_for(sym, self) << cb
-        end
+        trigger_sym = "trigger_#{ar_cb_sym}".to_sym
 
-        self.send :define_method, rem_sym do |cb|
-          self.class.get_callbacks_for(sym, self).delete cb
-        end
+        self.class_eval <<-RUBY, __FILE__, __LINE__+1
+def #{sym}(callback=nil, &block)
+  cb = callback || block
+  fail 'no callback given' unless cb
+  self.class.get_callbacks_for(#{sym.inspect}, self) << cb
+end
 
-        self.send ar_cb_sym do |rec|
-          self.class.get_callbacks_for(sym, self).each{|cb|
-            Proc === cb ? cb.call(rec) : cb.send(sym, rec)
-          }
+def #{rem_sym}(callback)
+  self.class.get_callbacks_for(#{sym.inspect}, self).delete callback
+end
+
+def self.#{trigger_sym}(record, *args)
+  record.class.get_callbacks_for(#{sym.inspect}, record).each do |cb|
+    Proc === cb ? cb.call(record, *args) : cb.send(#{sym.inspect}, record, *args)
+  end
+end
+RUBY
+        unless opts[:not_activerecord_cb]
+          self.send ar_cb_sym, lambda{|*args| self.class.send trigger_sym, self, *args}
         end
       end
+
+    #   def gen_obj_callback(ar_cb_sym, opts={})
+    #     sym = "obj_#{ar_cb_sym}".to_sym
+    #     rem_sym = "remove_#{sym}".to_sym
+    #     trigger_sym = "trigger_#{ar_cb_sym}".to_sym
+    #     self.send :define_method, sym do |cb_obj=nil, &block|
+    #       cb = cb_obj || block
+    #       fail "no callback given" unless cb
+    #       self.class.get_callbacks_for(sym, self) << cb
+    #     end
+
+    #     self.send :define_method, rem_sym do |cb|
+    #       self.class.get_callbacks_for(sym, self).delete cb
+    #     end
+
+    #     proc = Proc.new{|*args|
+    #       args = [self] if args.size == 0
+    #       rec = args[0]
+    #       rec.class.get_callbacks_for(sym, rec).each do |cb|
+    #         Proc === cb ? cb.call(*args) : cb.send(sym, *args)
+    #       end
+    #     }
+    #     if opts[:not_activerecord_cb]
+    #       self.class.send :define_method, trigger_sym, proc
+    #     else
+    #       self.send ar_cb_sym, proc
+    #     end
+    #   end
     end
 
     #-------------------------------------------------------------------
@@ -93,6 +144,7 @@ module Red
 
       gen_obj_callback :after_save
       gen_obj_callback :after_destroy
+      gen_obj_callback :after_elem_appended, :not_activerecord_cb => true
 
       class << self
         def allocate
@@ -171,8 +223,9 @@ module Red
             lambda {
               _fld_pre_read(fld)
               val = super()
-              _fld_post_read(fld, val)
-              val
+              wrapped = Red::Model::RelationWrapper.wrap(self, fld, val)
+              _fld_post_read(fld, wrapped)
+              wrapped
             }
           end
         end
@@ -288,7 +341,6 @@ module Red
       end
     end
 
-
     #-------------------------------------------------------------------
     # == Class +RedJoinModel+
     #
@@ -297,243 +349,6 @@ module Red
     #-------------------------------------------------------------------
     class RedJoinModel < Record
       placeholder
-    end
-
-    #-------------------------------------------------------------------
-    # == Class +RedRel+
-    #
-    #
-    #-------------------------------------------------------------------
-    class RedRel < Alloy::Relations::Relation
-      def initialize(tuple_cls, *args)
-        @tuple_cls = tuple_cls
-        super(*args)
-      end
-
-      def [](idx)
-        t = tuple_at(idx)
-        if t.respond_to? :default_cast
-          t.default_cast
-        elsif t.arity == 1
-          t.atom_at 0
-        else
-          t
-        end
-      end
-
-      def []=(idx, val)
-        t = tuple_at(idx)
-        t.update_from(val)
-        t.save!
-      end
-
-    end
-
-    #-------------------------------------------------------------------
-    # == Class +RedTuple+
-    #
-    # Note: It's ok to use +meta.fields+ instead of +meta.pfields+ since
-    #       we know +RedTuple+ doesn't contain any transient fields.
-    #-------------------------------------------------------------------
-    class RedTuple < Record
-      placeholder
-
-      include Alloy::Relations::MTuple
-
-      module Instance
-        def arity
-          self.class.arity
-        end
-
-        def values
-          meta.fields.drop(1).map {|f| read_field(f) }
-        end
-
-        def tuple_at(idx)
-          case idx
-          when Integer
-            read_field(meta.fields[idx+1])
-          when Symbol, String
-            fld = meta.field(idx.to_s)
-            read_field(fld)
-          when Range
-            values[idx]
-          else
-            values[idx]
-          end
-        end
-
-        def update_from(val)
-          tuple = val.as_tuple
-          raise Alloy::Ast::TypeError, "Arity mismatch" if tuple.arity != arity
-
-          tuple.values.each_with_index do |obj, idx|
-            write_field(meta.fields[idx+1], obj)
-          end
-        end
-
-        def default_cast
-          self
-        end
-      end
-
-      include Instance
-
-      # =========================================================================
-      #  static stuff
-      # =========================================================================
-
-      class << self
-
-        def for_field=(fld) meta.extra[:for_field] = fld end
-        def for_field()     meta.extra[:for_field] end
-
-        def arity
-          meta.fields.size - 1
-        end
-
-        # ----------------------------------------------------
-        # Assumes a cast from a relation, and returns a relation
-        #
-        # @return [Alloy::Relations::MRelation]
-        # ----------------------------------------------------
-        def cast_from_rel(val)
-          return val if val.kind_of? self
-
-          #TODO: or raise error?
-          #unlikely that they will be tuples with 0 arity
-          return self.new(0, []) if arity == 0
-
-          rel = val.as_rel
-          raise Alloy::Ast::TypeError, "Arity mismatch" if rel.arity != arity
-
-          tuple_set = rel.tuples.map do |t|
-            cast_from(t)
-          end
-
-          RedRel.new(self, arity, tuple_set)
-        end
-
-        # ----------------------------------------------------
-        # Assumes a cast from a tuple
-        #
-        # @return [self]
-        # ----------------------------------------------------
-        def cast_from(val)
-          return val if val.kind_of? self
-
-          me = self.new
-          me.update_from(val)
-          me
-        end
-
-        def default_cast_rel(val)
-          RedRel.new(self, arity, val.map { |e| e.as_tuple })
-        end
-      end
-    end
-
-    #-------------------------------------------------------------------
-    # == Class +RedSeqTuple+
-    #
-    # Note: It's ok to use +meta.fields+ instead of +meta.pfields+ since
-    #       we know +RedSeqTuple+ doesn't contain any transient fields.
-    #-------------------------------------------------------------------
-    class RedSeqTuple < RedTuple
-      placeholder
-
-      # -----------------------------------------------------------------
-      # Assumes a cast from a relation.  Handles a special case when
-      # `val' is array, in which case instead of +as_rel+,
-      # +Array#as_rel_with_index+ is used.
-      #
-      # @return [Alloy::Relations::Relation]
-      # -----------------------------------------------------------------
-      def self.cast_from_rel(val)
-        return val if val.kind_of? self
-        case val
-        when Array
-          super(val.as_rel_with_index)
-        else
-          super(val)
-        end
-      end
-
-      # ----------------------------------------------------------------
-      # Assumes a cast from a tuple.  Handles a special case when
-      # `val' unary only assignes the range field to it.
-      #
-      # @return [self]
-      # ----------------------------------------------------------------
-      def update_from(val)
-        tuple = val.as_tuple
-        if tuple.arity == 1
-          write_field(meta.fields[2], tuple.atom_at(0))
-        else
-          super(val)
-        end
-      end
-
-      def self.cast_from(val)
-        return val if val.kind_of? self
-        case val
-        when Array
-          super(0.as_tuple.tuple_product(val.as_tuple))
-        else
-          super(val)
-        end
-      end
-
-      # ----------------------------------------------------------------
-      #
-      # @return [Array]
-      # ----------------------------------------------------------------
-      def default_cast
-        #TODO what if there are more than 1 field (beside the index field)?
-        read_field(meta.fields[2])
-      end
-
-    end
-
-    #-------------------------------------------------------------------
-    # == Class +Relation+
-    #
-    #
-    #-------------------------------------------------------------------
-    class Relation < Alloy::Relations::Relation
-      def initialize(arity, tuples)
-        super
-      end
-
-      def self.default_cast_to(val)
-        #TODO
-        val
-      end
-
-      #TODO remove
-      # assumes a cast from a relation
-      def self.cast_from(val, tuple_cls)
-        return val if val.kind_of? self
-        arity = tuple_cls.arity
-
-        #TODO: or raise error?
-        #unlikely that they will be tuples with 0 arity
-        return self.new(0, []) if arity == 0
-
-        rel = val.as_rel
-        fld0 = tuple_cls.meta.fields[0]
-        if (rel.arity == arity - 1) &&
-            (val.kind_of? Array) &&
-            (fld0.type.arity == 1) &&
-            (fld0.type.domain.klass == Integer)
-          rel = val.as_rel_with_index
-        end
-
-        raise Alloy::Ast::TypeError if rel.arity != arity
-
-        tuple_set = rel.tuples.map { |t| tuple_cls.cast_from(t) }
-        self.new(arity, tuple_set)
-      end
     end
 
     #-------------------------------------------------------------------

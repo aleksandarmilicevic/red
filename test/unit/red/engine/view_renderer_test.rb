@@ -143,7 +143,7 @@ class TestViewRendererSimple < MigrationTest::TestBase
   end
 
   def assert_rerender(assert_stuff)
-    puts "***************** RERENDERING **********************"
+    # puts "***************** RERENDERING **********************"
     root = @manager.tree.root
     rroot = rerender root
     assert_stuff.call
@@ -283,7 +283,7 @@ hi there in <%= room1.name %>
     TPL
 
     result = my_render :view => @@test_view, :inline => tpl.strip, :locals => locals()
-    puts @manager.tree.root.print_full_info
+
     assert_stuff = lambda{
       tree = @manager.tree
       root = tree.root

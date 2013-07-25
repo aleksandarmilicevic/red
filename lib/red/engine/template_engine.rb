@@ -123,8 +123,8 @@ def #{method_name}
   #{method_body}
 end
 RUBY
-        puts "-------------------------"
-        puts "def #{method_name}\n  #{method_body}\nend"
+        Red.conf.log.debug "-------------------------"
+        Red.conf.log.debug "def #{method_name}\n  #{method_body}\nend"
         [mod, method_name]
       end
 
