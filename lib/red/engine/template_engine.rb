@@ -2,13 +2,10 @@ require 'sass'
 require 'alloy/utils/codegen_repo'
 require 'red/engine/erb_compiler'
 require 'sdg_utils/meta_utils'
-require 'sdg_utils/obj/uninstantiable'
 
 module Red::Engine
 
-  class TemplateEngine
-    include SDGUtils::Obj::Uninstantiable
-
+  module TemplateEngine
     class << self
 
       # --------------------------------------------------------

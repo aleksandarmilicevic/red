@@ -170,8 +170,14 @@ module Red
       private
 
       def wrap(obj)
-        lrec = SDGUtils::LoggerRecorder.new(Red.conf.logger, :var => obj.to_s)
-        SDGUtils::RecorderDelegator.new(obj, :recorder => lrec)
+        buff = Object.new
+        buff.instance_variable_set "@target", obj
+        def buff.<<(str)
+          Alloy::Utils::CodegenRepo.record_code(str, @target, :kind => :assoc)
+          SDGUtils::IO::LoggerIO.new(Red.conf.logger).debug str
+        end
+        rec = SDGUtils::Recorder.new(:var => obj.to_s, :buffer => buff)
+        SDGUtils::RecorderDelegator.new(obj, :recorder => rec)
       end
 
       def log(str)
