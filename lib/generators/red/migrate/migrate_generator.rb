@@ -23,7 +23,7 @@ module Red
     end
 
     #----------------------------------------
-    # Class +MigrationRecorder+
+    # Class +MigrationGenerator+
     #----------------------------------------
     class MigrateGenerator < Rails::Generators::Base
 
@@ -77,6 +77,7 @@ module Red
           @change_migration = nil
           @up_down_migration = nil
           @exe = !!hash[:exe]
+          @from_scratch = !!hash[:from_scratch]
           @logger = hash[:logger]
         end
 
@@ -132,10 +133,10 @@ module Red
         def check_record(r)
           if anc=r.oldest_ancestor
             log "Skipping class #{r}, will use #{anc} instead."
-          elsif _table_exists? r.red_table_name
-            gen_update_table r
-          else
+          elsif @from_scratch || !_table_exists?(r.red_table_name)
             gen_create_table r
+          else
+            gen_update_table r
           end
         end
 
