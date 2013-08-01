@@ -88,15 +88,10 @@ module Engine
       updated_nodes = []
       dirty_nodes.each do |dn|
         begin
-          #TODO not the most efficient thing to do
-          Red.boss.time_it("[Pusher] Reloading all"){
-            dn.reload_all
-          }
           new_node = Red.boss.time_it("[Pusher] rerendering node"){
-            # @conf.manager.rerender_node(dn)
             dn.rerender
           }
-          if dn.result != new_node.result
+          unless new_node.equal?(dn)
             updated_nodes << [dn, new_node]
           else
             info = dn.print_short_info

@@ -151,7 +151,7 @@ class TestViewRendererSimple < MigrationTest::TestBase
       n = root.children[idx]
       new_node = rerender n
       assert_equal n.type, new_node.type if n.const?
-      assert_not_equal new_node, n unless n.const?
+      # assert_not_equal new_node, n unless n.const?
       assert_equal new_node, root.children[idx]
       assert_stuff.call
     end
@@ -825,13 +825,13 @@ pre <%= render :partial => "\#{room1.name}" %> post
   def pusher_test_10_1(p)
     p.__reset_saved_fields
     old_root = @manager.tree.root
+    oldname = @room1.name
     @room1.name = "abdsdfj"
     save_all
 
     assert_arry_equal [old_root], p._affected_nodes
-    assert_arry_equal [], p._updated_nodes
-    # assert_not_equal old_root, @manager.tree.root
-    check_test10_stuff(/room name is greater than 3/, @manager.tree.root.result, "abdsdfj")
+    assert_arry_equal [[old_root, @manager.tree.root]], p._updated_nodes
+    check_test10_stuff(/room name is greater than 3/, @manager.tree.root.result, @room1.name)
   end
 
   def pusher_test_10_2(p)

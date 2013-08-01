@@ -142,7 +142,7 @@ var Red = (function() {
       if (superEventConstr) {
         c = Constr.extendSig(name, superEventConstr, "params", "params");
       } else {
-        var body = "this.params=params; this.canceled=false;";
+        var body = "this.params=params || {}; this.canceled=false;";
         c = Constr.extendSig(name, null, "params", null, body);
       }
       c.eventConstr = true;
@@ -318,12 +318,12 @@ var Red = (function() {
        });
        var xhr = new MyXHR();
        renderEvent.fire()
-         .done(function(response)   { 
+         .done(function(response)   {
            var elem = $("<span></span>");
            elem.html(response.ans);
            var ret = elem.children().size() === 1 ? $(elem.children()[0]) : elem;
            Red.Autoview.processAutoview(ret);
-           xhr.fireDone(ret); 
+           xhr.fireDone(ret);
          })
          .fail(function(response)   { xhr.fireFail(response); })
          .always(function(response) { xhr.fireAlways(response); });
@@ -599,8 +599,13 @@ var Red = (function() {
         });
         fileInput.trigger("click");
       } else if (param.isPrimitive()) {
-        ev.params[param.name] =  window.prompt(param.name, "");
-        Utils.askParams($elem, ev, undefParams, triggerFunc);
+        var ans = window.prompt("Enter value for '" + param.name + "'", "");
+        if (ans !== null) {
+          ev.params[param.name] = ans;
+          Utils.askParams($elem, ev, undefParams, triggerFunc);
+        } else {
+          ev.cancel();
+        }
       } else if (param.isRecord()) {
         alert("Missing Record parameters (" + param.name + ") not implemented");
       } else {
@@ -626,7 +631,8 @@ var Red = (function() {
     declCreateEvent : function($elem) {
       var eventName = $elem.attr("data-trigger-event") ||
             $elem.attr("data-event-name");
-      var ev = eval('new ' + eventName + '({})');
+      //var ev = eval('new ' + eventName + '({})'); //TODO: don't use eval
+      var ev = new Red.Meta.events[eventName]();
       var undefParams = [];
       for (var paramIdx in ev.meta().params()) {
         var param = ev.meta().params()[paramIdx];
@@ -911,7 +917,7 @@ var Red = (function() {
           me.assert(startIdx !== -1 && endIdx !== -1);
           var newValue  = attrVal.substring(0, startIdx) + html +
                           attrVal.substring(endIdx + endTagStr.length);
-          // console.debug("updated attribute '" + attr.name + "' from '" + 
+          // console.debug("updated attribute '" + attr.name + "' from '" +
           //               attr.nodeValue + "' to '" + newValue + "'");
           attr.nodeValue = newValue;
           proto.processAttribute(attrInfo.node, attr);
@@ -942,19 +948,19 @@ var Red = (function() {
         //     }
         //   }
         // }
-      }, 
+      },
 
       assocTagToAttribute : function(node, attr, tagId, origAttrVal) {
-        console.debug("associated tag " + tagId + " with " + 
+        console.debug("associated tag " + tagId + " with " +
                        node.tagName + "." + attr.name);
         thisPrivate.attrMap[tagId] = {
-          node: node, 
-          attrName: attr.name, 
+          node: node,
+          attrName: attr.name,
           attr: attr,
           origAttrVal: origAttrVal
         };
       }
-    }; 
+    };
 
     var proto = {
 
@@ -963,7 +969,7 @@ var Red = (function() {
       * Searches for elements with attributes containing <reds_?> and
       * <rede_?> tags, removes those tags from the attribute value but
       * remembers the association between the two.
-      * 
+      *
       * @return undefined
       *
       * ---------------------------------------------------------------- */
@@ -987,7 +993,7 @@ var Red = (function() {
           }
         }
         if (currVal !== attrVal) {
-          console.debug("changed attribute value from '" + 
+          console.debug("changed attribute value from '" +
                         attrVal + "' to '" + currVal + "'");
           attr.nodeValue = currVal;
         }
@@ -998,7 +1004,7 @@ var Red = (function() {
       * Searches for elements with attributes containing <reds_?> and
       * <rede_?> tags, removes those tags from the attribute value but
       * remembers the association between the two.
-      * 
+      *
       * @return undefined
       *
       * ---------------------------------------------------------------- */
@@ -1011,7 +1017,7 @@ var Red = (function() {
             proto.processAttribute(element, attr[j]);
           }
         }
-      }, 
+      },
 
       updateReceived : function(data) {
         var updateStart = new Date().getTime();
@@ -1019,20 +1025,20 @@ var Red = (function() {
 
         if (data.type === "node_update") {
 
-          me.check_defined(data.payload, 
+          me.check_defined(data.payload,
               "field 'payload' not found in a 'node_update' message");
-          me.check_defined(data.payload.node_id, 
+          me.check_defined(data.payload.node_id,
               "field 'payload.node_id' not found in a 'node_update' message");
-          me.check_defined(data.payload.inner_html, 
+          me.check_defined(data.payload.inner_html,
               "field 'payload.inner_html' not found in a 'node_update' message");
 
           thisPrivate.searchDom(data.payload.node_id, data.payload.inner_html);
 
         } else if (data.type === "body_update") {
- 
-          me.check_defined(data.payload, 
+
+          me.check_defined(data.payload,
               "field 'payload' not found in a 'body_update' message");
-          me.check_defined(data.payload.html, 
+          me.check_defined(data.payload.html,
               "field 'payload.html' not found in a 'body_update' message");
           $('body').html(data.payload.html);
 
@@ -1065,8 +1071,8 @@ var Red = (function() {
     // ===============================================================
 
     logMessages : function(data) {
-      console.debug("[RED] update received; type:" + data.type);  
-                    // + ", payload: " + JSON.stringify(data.payload));
+      console.debug("[RED] update received; type:" + data.type
+                    + ", payload: " + JSON.stringify(data.payload));
     },
 
     updateReceived : function(data) {

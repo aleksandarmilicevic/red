@@ -21,14 +21,17 @@ $(function() {
   $(document).on("click", "[data-type='submit-event']", function(e) {
     var formId = $(this).attr("data-event-form");
     var eventName = $(this).attr("data-event-type");
-    var ev = Red.event(eventName, {});
-    ev.fireViaForm('#' + formId);
-    // var params = {};
-    // var ser = $('#'+formId).serializeArray();
+    var form = $('#' + formId);
+    var params = {};
+    form.serializeArray().map(function(e){
+      params[e.name] = e.value;
+    });
     // for (var i = 0; i < ser.length; i++) {
     //   params[ser[i].name] = ser[i].value;
     // }
-    // Red.event(eventName, params).fire();
+    var ev = new Red.Meta.events[eventName](params);
+    //TODO: Utils.askParams if any params are missing
+    ev.fire();
     return false;
   });
 

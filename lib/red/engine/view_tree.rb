@@ -5,6 +5,12 @@ require 'sdg_utils/print_utils/tree_printer'
 module Red
   module Engine
 
+    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    # TODO: it is wrong to execute user code in the context of
+    #       ViewBinding, since a lot of the framework stuff is exposed
+    #       via that class.
+    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
     # ================================================================
     #  Class +ViewBinding+
     # ---------------------------------------------------------------
@@ -19,10 +25,6 @@ module Red
       include ActionView::Context if defined? ActionView::Context
 
       @@widget_id = 0
-
-      # def gravatar_for(user, size)
-      #   "<img src='https://secure.gravatar.com/avatar/52263f4f0ad7eefd3464de854f4828f2?s=32' alt='lfksdlf'></img>".html_safe
-      # end
 
       def parent() @parent end
 
@@ -43,6 +45,7 @@ module Red
 
       def render(*args) @renderer.render(*args) end
       def mk_out()      @renderer end
+      def out()         @renderer end
 
       def engine_divider()
         @renderer.send :_collapseTopNode
@@ -196,7 +199,11 @@ module Red
       def retype_to_tree() @type = :tree end
 
       def view_binding()
-        render_options[:view_binding] if Hash === render_options
+        @view_binding || (render_options[:view_binding] if Hash === render_options)
+      end
+
+      def view_binding=(vb)
+        @view_binding = vb
       end
 
       def to_erb_template
@@ -222,6 +229,7 @@ module Red
         @parent = nil
         @index_in_parent = -1
         @id = (@@id += 1)
+        @no_output = true
         if const?
           [:parent, :parent_tree, :index_in_parent].each do |sym|
             self.define_singleton_method sym do
@@ -240,8 +248,13 @@ module Red
 
       public
 
+      def no_output?
+        @no_output && children.empty?
+      end
+
       def output=(str)
         fail "can't set output to a non-leaf node" unless @children.empty? || str.empty?
+        @no_output = false
         @output = str
       end
 

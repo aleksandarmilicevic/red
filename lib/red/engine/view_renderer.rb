@@ -57,7 +57,8 @@ module Red
             CompiledTemplateRepo.find(tpl_id) if tpl_id
             # tpl || _to_compiled_class_template(source, "expr")
             # lambda{_compile_content(node.to_erb_template, [".erb"])}
-          yield
+          result = yield
+          _concat result
         ensure
           end_node(node)
         end
@@ -75,11 +76,15 @@ module Red
         _render_template(compiled_template, bndg)
       end
 
-      def concat(str)
+      def concat(str) str end
+
+      def _concat(str)
         require 'cgi'
         cn = curr_node
-        (str = CGI::escapeHTML(str) unless cn.const? || str.html_safe?) rescue nil
-        cn.output.concat(str)
+        if str && cn.no_output?
+          (str = CGI::escapeHTML(str) unless cn.const? || str.html_safe?) rescue nil
+          cn.output = str.to_s
+        end
       end
 
       def force_encoding(enc)
@@ -134,7 +139,6 @@ module Red
 
       def render(*args)
         my_render(*args)
-        ""
       end
 
       def my_render(hash)
@@ -145,7 +149,6 @@ module Red
         else
           _render(hash)
         end
-        ""
       end
 
       protected
@@ -215,15 +218,15 @@ module Red
 
         # === nothing
         when hash.key?(:nothing)
-          _compile_content("", [".txt"])
+          _compile_content_with_view_props("", [".txt"], hash)
 
         # === plain text
         when text = hash.delete(:text)
-          _compile_content(text, hash[:formats] || [".txt"])
+          _compile_content_with_view_props(text, hash[:formats] || [".txt"], hash)
 
         # === inline template (default format .erb)
         when content = hash.delete(:inline)
-          _compile_content(content, hash[:formats] || [".erb"])
+          _compile_content_with_view_props(content, hash[:formats] || [".erb"], hash)
 
         # === Pathname pointing to file template
         when path = hash.delete(:pathname)
@@ -255,17 +258,26 @@ module Red
       def _render_template(tpl, hash)
         top_node = curr_node
         top_node.compiled_tpl = tpl unless top_node.compiled_tpl
-        text = tpl.execute(hash[:view_binding])
-        if text && top_node.children.empty?
-          top_node.output = text
-        end
+        top_node.view_binding = hash[:view_binding]
+        text = tpl.execute(top_node.view_binding)
+        _concat text if text
+        # if text && top_node.children.empty?
+        #   binding.pry
+        #   top_node.output = text
+        # end
       end
 
-      def _compile_content(content, formats)
+      def _compile_content_with_view_props(content, formats, hash, props={})
+        props = {:view => hash[:view], :template => hash[:template]}.merge!(props)
+        _compile_content(content, formats, props)
+      end
+
+      def _compile_content(content, formats, props={})
         key = (@conf.no_content_cache?) ? "" : "#{formats.join('')}:#{content}"
         RenderingCache.content.fetch(key, @conf.no_content_cache?) {
           time_it("compiling and generating code") {
             tpl = TemplateEngine.compile(content, formats)
+            tpl.merge_props props
             if tpl.needs_env?
               tpl = CompiledTemplateRepo.create(tpl)
             end
@@ -282,9 +294,7 @@ module Red
             obj = hash[:object]
             ext = obj ? " for obj: #{obj}:#{obj.class}" : ""
             trace "### #{_indent}Rendering file #{path}#{ext}"
-            tpl = _compile_content(path.read, formats)
-            tpl.props.merge! pathname: path, view: hash[:view], template: hash[:template]
-            tpl
+            _compile_content_with_view_props path.read, formats, hash, :pathname => path
           }
         }
       end
@@ -443,9 +453,10 @@ module Red
       end
 
       def get_view_binding_obj(hash)
-        parent = hash[:view_binding] || (curr_node.parent.view_binding rescue nil)
+        cn = curr_node
+        parent = hash[:view_binding] || (cn.view_binding if cn) || (cn.parent.view_binding rescue nil)
         locals = hash[:locals] || {}
-        locals = locals.merge(curr_node.locals_map) if curr_node
+        locals = locals.merge(cn.locals_map) if cn
         obj = ViewBinding.new(self, parent, hash[:helpers])
         obj._add_getters(locals)
         obj

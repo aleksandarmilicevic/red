@@ -118,14 +118,22 @@ module Red::Engine
             fail "No ':ruby_code' property found in #{compiled_tpl}" unless ruby_code
             ruby_code
           end
-        mod.class_eval <<-RUBY, __FILE__, __LINE__
+        my_class_eval mod, method_name, <<-RUBY, __FILE__, __LINE__
 def #{method_name}
   #{method_body}
 end
 RUBY
-        Red.conf.log.debug "-------------------------"
-        Red.conf.log.debug "def #{method_name}\n  #{method_body}\nend"
         [mod, method_name]
+      end
+
+      @@gen_methods = {}
+      def gen_methods() @@gen_methods end
+
+      def my_class_eval(mod, method_name, src, file, line)
+        # Red.conf.log.debug "------------------------- in #{mod}"
+        # Red.conf.log.debug src
+        @@gen_methods[method_name] = src
+        mod.class_eval src, file, line
       end
 
       IDEN = lambda{|source| CompiledTextTemplate.new(source)}
@@ -176,9 +184,10 @@ RUBY
       @props = props.clone
       self.instance_eval &block if block
     end
-    def needs_env?() @needs_env end
-    def name()       @name end
-    def props()      @props end
+    def needs_env?()       @needs_env end
+    def name()             @name end
+    def props()            @props end
+    def merge_props(props) @props.merge! props end
 
     # @return [Object]
     def execute(*env) fail "" end

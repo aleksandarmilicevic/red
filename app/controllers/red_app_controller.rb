@@ -14,7 +14,7 @@ class RedAppController < ActionController::Base
 
   before_filter :notify_red_boss
   before_filter :clear_autoviews
-  around_filter :time_it
+  around_filter :time_request
   after_filter  :push_changes
 
   # ---------------------------------------------------------------------
@@ -134,17 +134,19 @@ class RedAppController < ActionController::Base
     end
   end
 
-  def time_it
+  def push_changes
+    Red.boss.push_changes
+  end
+
+  private
+
+  def time_request
     task = "[RedAppController] #{request.method} #{self.class.name}.#{params[:action]}"
     Red.boss.reset_timer
     Red.boss.time_it(task){yield}
     Red.conf.logger.debug "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-="
     Red.conf.logger.debug Red.boss.print_timings
     Red.conf.logger.debug "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-="
-  end
-
-  def push_changes
-    Red.boss.push_changes
   end
 
 end

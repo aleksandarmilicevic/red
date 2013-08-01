@@ -31,11 +31,18 @@ module Red
       end
 
       def rerender_node(node)
-        disconnect_deps_listeners(node)
         new_node = rerender_only(node)
-        swap_nodes(node, new_node)
-        connect_deps_to_pusher(new_node, @pusher)
-        new_node
+        if new_node.equal?(node)
+          node
+        # elsif node.result == new_node.result
+        #   disconnect_deps_listeners(new_node)
+        #   node
+        else
+          disconnect_deps_listeners(node)
+          swap_nodes(node, new_node)
+          connect_deps_to_pusher(new_node, @pusher)
+          new_node
+        end
       end
 
       def rerender_only(node)
@@ -117,17 +124,25 @@ module Red
 
       def disconnect_deps_listeners(root_node)
         root_node.yield_all_nodes do |node|
+          # puts "\n **************************************** "
+          # puts "       FINALIZING #{node.id}                "
+          # puts " **************************************** \n"
           node.deps.finalize
         end
       end
 
       def connect_deps_to_pusher(root_node, pusher)
         return unless pusher
+        manager = self
+        rerender_lambda = lambda{
+          #TODO see if it speeds things up if this is compiled
+          self.reload_all  #TODO not the most efficient thing to do
+          manager.rerender_node(self)
+        }
+        ev = [Red::Engine::ViewDependencies::E_DEPS_CHANGED]
         root_node.yield_all_nodes do |node|
-          manager = self
           unless node.no_deps?
-            node.define_singleton_method :rerender, lambda{manager.rerender_node(self)}
-            ev = [Red::Engine::ViewDependencies::E_DEPS_CHANGED]
+            node.define_singleton_method :rerender, rerender_lambda
             node.deps.register_listener(ev) {|e, args|
               event, record = args
               pusher.add_affected_node(node, record)
