@@ -95,7 +95,7 @@ module Red::Engine
           when String
             compiled_tpl.to_s
           when CompiledTextTemplate
-            compiled_tpl.render.inspect
+            compiled_tpl.execute.inspect
           when CompiledProcTemplate
             proc_method_name = "#{method_name}_proc"
             mod.send :define_method, "#{proc_method_name}", compiled_tpl.proc
@@ -110,7 +110,7 @@ module Red::Engine
   rest_out = #{rest_method_name}()
   fst_compiler = #{fst_method_name}(rest_out)
   engine_divider()
-  fst_compiler.render(self)
+  fst_compiler.execute(self)
 """
           else
             ruby_code = (compiled_tpl.props[:ruby_code] ||
@@ -190,10 +190,7 @@ RUBY
     def merge_props(props) @props.merge! props end
 
     # @return [Object]
-    def execute(*env) fail "" end
-
-    # @return [String]
-    def render(*env) fail "" end
+    def execute(env=nil) fail "" end
 
     def gen_method_name
       arr = [props[:view], props[:template]].compact
@@ -217,8 +214,7 @@ RUBY
       @text = text
     end
 
-    def execute(*env) @text end
-    def render(*env) @text end
+    def execute(env=nil) @text end
   end
 
   # =================================================================
@@ -231,8 +227,7 @@ RUBY
       @proc = proc
     end
 
-    def execute(*env) @proc.call end
-    def render(*env) execute(*env).to_s end
+    def execute(env=nil) @proc.call end
   end
 
   # =================================================================
@@ -247,17 +242,14 @@ RUBY
       @fst = fst
       @rest = rest
     end
-
-    def exe(meth, *env)
-      rest_out = @rest.render(*env)
+    
+    def execute(env)
+      rest_out = @rest.execute(env)
       fst_compiled = @fst.call(rest_out)
       #TODO: don't hardcode this call to engine_divider
-      env.first.engine_divider() #rescue nil
-      fst_compiled.send meth, *env
+      env.engine_divider() #rescue nil
+      fst_compiled.execute(env)
     end
-
-    def render(*env) exe(:render, *env); end
-    def execute(*env) exe(:execute, *env); end
   end
 
   # =================================================================
@@ -268,8 +260,7 @@ RUBY
       @method_name = method_name.to_sym
     end
 
-    def execute(obj) obj.send @method_name end
-    def render(obj) execute(obj).to_s end
+    def execute(env) env.send @method_name end
   end
 
   # =================================================================
@@ -281,8 +272,7 @@ RUBY
       @engine = engine
     end
 
-    def render(*env) call_proc(@engine, *env); end
-    def execute(*env) call_proc(@engine, *env); nil end
+    def execute(env) call_proc(@engine, env) end
 
     protected
 
