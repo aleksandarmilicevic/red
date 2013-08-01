@@ -82,7 +82,7 @@ module Red
         sym = "obj_#{ar_cb_sym}".to_sym
         rem_sym = "remove_#{sym}".to_sym
         trigger_sym = "trigger_#{ar_cb_sym}".to_sym
-        
+
         desc = {
           :kind => :record_obj_callbacks,
           :callback => ar_cb_sym
@@ -238,7 +238,7 @@ RUBY
         hash = save_transient_values
         yield
         hash.each { |fld, val| self.write_field(fld, val) }
-      end      
+      end
 
       #TODO: REM and move transient
       # def _read_fld_value(fld)

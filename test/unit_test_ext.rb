@@ -5,6 +5,6 @@ require 'red_setup'
 
 module Test
   module Unit
-        
+
   end
 end

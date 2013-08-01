@@ -9,19 +9,19 @@ machine_model "D5" do
   } do
     abstract
   end
-  
+
   machine M < Base
 end
 
 class MigrationInheritanceAccessorsTest < MigrationTest::TestBase
-  
+
   def setup_pre
-    Red.meta.restrict_to(D5)  
+    Red.meta.restrict_to(D5)
   end
-  
+
   def test1
     m1 = D5::M.new
-    m2 = D5::M.new  
+    m2 = D5::M.new
     assert m1.save!
     assert m2.save!
     m1.bbb = m2
@@ -31,9 +31,9 @@ class MigrationInheritanceAccessorsTest < MigrationTest::TestBase
     assert m1.destroy
     assert m2.destroy
   end
-  
+
   def test2
-    m1 = D5::M.new  
+    m1 = D5::M.new
     assert m1.save!
     m1.sss = "aaa"
     assert m1.save!
