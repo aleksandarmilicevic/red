@@ -73,7 +73,7 @@ class RedAppController < ActionController::Base
 
       #TODO: cleanup expired clients
 
-      @@server_cls.delete_all
+      @@server_cls.destroy_all
       @@server = @@server_cls.create!
     end
   end

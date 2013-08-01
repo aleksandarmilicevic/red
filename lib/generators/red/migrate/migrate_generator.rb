@@ -397,8 +397,9 @@ module Red
       end
 
       def create_migration(hash={})
+        # TODO: how to get args from cmdline
         begin
-          mig = Migration.new(hash)
+          mig = Migration.new hash # :from_scratch => true
           mig.start
           mig.finish
         rescue Exception => e
