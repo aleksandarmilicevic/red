@@ -29,7 +29,7 @@ $(function() {
     // for (var i = 0; i < ser.length; i++) {
     //   params[ser[i].name] = ser[i].value;
     // }
-    var ev = new Red.Meta.events[eventName](params);
+    var ev = Red.Meta.createEvent(eventName, params);
     //TODO: Utils.askParams if any params are missing
     ev.fire();
     return false;

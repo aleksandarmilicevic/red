@@ -41,7 +41,7 @@ var Red = (function() {
         if (new RegExp("::" + name + "$").test(p))
           return hash[p];
       }
-        return null;
+      return null;
     },
 
     record : function(name) { return this.search(this.records, name); },
@@ -49,7 +49,7 @@ var Red = (function() {
 
     create       : function(constr, args) { return new constr(args); },
     createRecord : function(name, id)     { return this.create(this.record(name), id); },
-    createEvent  : function(name, id)     { return this.create(this.event(name), id); }
+    createEvent  : function(name, params) { return this.create(this.event(name), params); }
   };
 
 
@@ -631,8 +631,8 @@ var Red = (function() {
     declCreateEvent : function($elem) {
       var eventName = $elem.attr("data-trigger-event") ||
             $elem.attr("data-event-name");
-      //var ev = eval('new ' + eventName + '({})'); //TODO: don't use eval
-      var ev = new Red.Meta.events[eventName]();
+      //var ev = eval('new ' + eventName + '({})'); 
+      var ev = Red.Meta.createEvent(eventName, {});
       var undefParams = [];
       for (var paramIdx in ev.meta().params()) {
         var param = ev.meta().params()[paramIdx];

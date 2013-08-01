@@ -12,6 +12,7 @@ class RedAppController < ActionController::Base
 
   helper Red::View::AutoHelpers
 
+  before_filter :init_server_once
   before_filter :notify_red_boss
   before_filter :clear_autoviews
   around_filter :time_request
@@ -55,7 +56,11 @@ class RedAppController < ActionController::Base
       end
     end
 
+    @@server_initialized = false
     def init_server
+      Red.conf.log.debug("*** Server already initialized") and return if @@server_initialized
+
+      @@server_initialized = true
       @@server_cls = try_read_machine_from_conf(:server_machine) ||
                      try_find_machine(RedLib::Web::WebServer) ||
                      fail("No web server machine spec found")
@@ -72,8 +77,6 @@ class RedAppController < ActionController::Base
       @@server = @@server_cls.create!
     end
   end
-
-  init_server
 
   # ---------------------------------------------------------------------
 
@@ -95,6 +98,11 @@ class RedAppController < ActionController::Base
   end
 
   protected
+
+  def init_server_once
+    RedAppController.init_server
+    RedAppController.skip_before_filter :init_server_once
+  end
 
   def error(short, long=nil, status_code=412)
     Rails.logger.warn "[ERROR] #{short}. #{long}"
