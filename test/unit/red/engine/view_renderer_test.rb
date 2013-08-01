@@ -395,28 +395,42 @@ hi there <%= room1.users.map{|u| u.name}.join(", ") %>
     assert_rerender(assert_stuff)
   end
 
+  def assert_marker_expr(n, name="marker", value="'")
+    assert_expr n, value, "#{name}"
+    assert_objs_equal n.deps.objs, {}
+  end
+
+  def assert_eskang_expr(n)
+    assert_expr n, "eskang", '(!user.slacker?) ? user.name : "***"'
+    assert_objs_equal n.deps.objs, { @user1 => [["slacker", false], ["name", "eskang"]] }
+  end
+
+  def assert_jnear_expr(n)
+    assert_expr n, "jnear", '(!user.slacker?) ? user.name : "***"'
+    assert_objs_equal n.deps.objs, { @user2 => [["slacker", false], ["name", "jnear"]] }
+  end
+
+  def assert_rishabh_expr(n)
+    assert_expr n, "***", '(!user.slacker?) ? user.name : "***"'
+    assert_objs_equal n.deps.objs, { @user3 => [["slacker", true]] }
+  end
+
   def assert_eskang(n)
     assert_no_deps n
     assert_const n.children[0], " "
-    assert_expr n.children[1], "eskang", '(!user.slacker?) ? user.name : "***"'
-    assert_objs_equal n.children[1].deps.objs,
-                      { @user1 => [["slacker", false], ["name", "eskang"]] }
+    assert_eskang_expr n.children[1]
   end
 
   def assert_jnear(n)
     assert_no_deps n
     assert_const n.children[0], " "
-    assert_expr n.children[1], "jnear", '(!user.slacker?) ? user.name : "***"'
-    assert_objs_equal n.children[1].deps.objs,
-                      { @user2 => [["slacker", false], ["name", "jnear"]] }
+    assert_jnear_expr n.children[1]
   end
 
   def assert_rishabh(n)
     assert_no_deps n
     assert_const n.children[0], " "
-    assert_expr n.children[1], "***", '(!user.slacker?) ? user.name : "***"'
-    assert_objs_equal n.children[1].deps.objs,
-                      { @user3 => [["slacker", true]] }
+    assert_rishabh_expr n.children[1]
   end
 
   def assert_stuff4(result) lambda {
@@ -457,6 +471,49 @@ hi there<%= render room1.users %> bros
     UTPL
 
     do_test4(tpl, user_tpl)
+  end
+
+  def test4a
+    tpl = <<-TPL
+hi there<%= render room1.users %> bros
+    TPL
+
+    user_tpl = <<-UTPL
+<%= marker %><%= (!user.slacker?) ? user.name : "***" %><%= marker %>
+    UTPL
+
+    result = my_render :view => @@test_view,
+                       :inline => tpl.strip,
+                       :locals => locals().merge({:marker => "'"}),
+                       :view_finder => get_finder(" " + user_tpl.strip)
+
+    assert_stuff = lambda {
+      root = @manager.tree.root
+      assert_equal "hi there 'eskang' 'jnear' '***' bros", result.strip
+      assert_no_deps root
+      assert_equal 3, root.children.size
+
+      assert_const root.children[0], "hi there"
+      assert_const root.children[2], /^ bros/
+
+      ch1 = root.children[1]
+      assert_objs_equal ch1.deps.objs, { @room1 => [["users", @room1.users]] }
+
+      assert_marker_expr  ch1.children[0].children[1]
+      assert_eskang_expr  ch1.children[0].children[2]
+      assert_marker_expr  ch1.children[0].children[3]
+
+      assert_marker_expr  ch1.children[1].children[1]
+      assert_jnear_expr   ch1.children[1].children[2]
+      assert_marker_expr  ch1.children[1].children[3]
+
+      assert_marker_expr  ch1.children[2].children[1]
+      assert_rishabh_expr ch1.children[2].children[2]
+      assert_marker_expr  ch1.children[2].children[3]
+    }
+
+    assert_stuff.call
+    assert_rerender(assert_stuff)
   end
 
   def test4b

@@ -454,7 +454,9 @@ module Red
 
       def get_view_binding_obj(hash)
         cn = curr_node
-        parent = hash[:view_binding] || (cn.view_binding if cn) || (cn.parent.view_binding rescue nil)
+        parent = hash[:view_binding] ||
+                 (cn.view_binding if cn) ||
+                 (cn.parent.view_binding if cn && cn.parent)
         locals = hash[:locals] || {}
         locals = locals.merge(cn.locals_map) if cn
         obj = ViewBinding.new(self, parent, hash[:helpers])
