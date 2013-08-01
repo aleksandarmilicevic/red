@@ -1,5 +1,6 @@
 require 'red/engine/template_engine'
 require 'red/engine/view_tree'
+require 'sdg_utils/obj/uninstantiable'
 
 module Red
   module Engine
@@ -8,6 +9,7 @@ module Red
     #  Class +CompiledTemplateRepo+
     # ================================================================
     class CompiledTemplateRepo
+      include SDGUtils::Obj::Uninstantiable
 
       # TODO: all methods must be SYNCHRONIZED
 

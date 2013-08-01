@@ -1,14 +1,15 @@
-module Red::Engine
+require 'sdg_utils/obj/uninstantiable'
+
+module Alloy
+module Utils
 
   class CodegenRepo
+    include SDGUtils::Obj::Uninstantiable
+
     class << self
       
       @@gen_code = []
       def gen_code() @@gen_code end
-
-      def add_method(mod, method_name, src, file=nil, line=nil)
-        class_eval_code(mode, method_name, src, file, line)
-      end
 
       # --------------------------------------------------------------
       #
@@ -28,15 +29,15 @@ module Red::Engine
       # @param desc [Hash]   - arbitrary hash to be stored alongside
       #
       # --------------------------------------------------------------
-      def class_eval_code(mod, src, file=nil, line=nil, desc={})
+      def eval_code(mod, src, file=nil, line=nil, desc={})
         # Red.conf.log.debug "------------------------- in #{mod}"
         # Red.conf.log.debug src
         @@gen_code << {:module => mod, :code => src}.merge!(desc)
         mod.class_eval src, file, line
       end
 
-
     end
   end
 
+end
 end

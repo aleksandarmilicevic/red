@@ -1,6 +1,7 @@
 require 'active_record'
 require 'alloy/alloy_ast'
 require 'alloy/alloy_ast_errors'
+require 'alloy/utils/codegen_repo'
 require 'sdg_utils/recorder'
 require 'sdg_utils/proxy'
 require 'red/red'
@@ -81,8 +82,12 @@ module Red
         sym = "obj_#{ar_cb_sym}".to_sym
         rem_sym = "remove_#{sym}".to_sym
         trigger_sym = "trigger_#{ar_cb_sym}".to_sym
-
-        self.class_eval <<-RUBY, __FILE__, __LINE__+1
+        
+        desc = {
+          :kind => :record_obj_callbacks,
+          :callback => ar_cb_sym
+        }
+        Alloy::Utils::CodegenRepo.eval_code self, <<-RUBY, __FILE__, __LINE__+1, desc
 def #{sym}(callback=nil, &block)
   cb = callback || block
   fail 'no callback given' unless cb
@@ -104,33 +109,6 @@ RUBY
         end
       end
 
-    #   def gen_obj_callback(ar_cb_sym, opts={})
-    #     sym = "obj_#{ar_cb_sym}".to_sym
-    #     rem_sym = "remove_#{sym}".to_sym
-    #     trigger_sym = "trigger_#{ar_cb_sym}".to_sym
-    #     self.send :define_method, sym do |cb_obj=nil, &block|
-    #       cb = cb_obj || block
-    #       fail "no callback given" unless cb
-    #       self.class.get_callbacks_for(sym, self) << cb
-    #     end
-
-    #     self.send :define_method, rem_sym do |cb|
-    #       self.class.get_callbacks_for(sym, self).delete cb
-    #     end
-
-    #     proc = Proc.new{|*args|
-    #       args = [self] if args.size == 0
-    #       rec = args[0]
-    #       rec.class.get_callbacks_for(sym, rec).each do |cb|
-    #         Proc === cb ? cb.call(*args) : cb.send(sym, *args)
-    #       end
-    #     }
-    #     if opts[:not_activerecord_cb]
-    #       self.class.send :define_method, trigger_sym, proc
-    #     else
-    #       self.send ar_cb_sym, proc
-    #     end
-    #   end
     end
 
     #-------------------------------------------------------------------

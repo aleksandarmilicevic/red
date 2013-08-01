@@ -1,11 +1,14 @@
 require 'sass'
+require 'alloy/utils/codegen_repo'
 require 'red/engine/erb_compiler'
-require 'red/engine/codegen_repo'
 require 'sdg_utils/meta_utils'
+require 'sdg_utils/obj/uninstantiable'
 
 module Red::Engine
 
   class TemplateEngine
+    include SDGUtils::Obj::Uninstantiable
+
     class << self
 
       # --------------------------------------------------------
@@ -141,9 +144,9 @@ RUBY
       def add_compiled_tpl_method(mod, method_name, src, file=nil, line=nil)
         desc = {
           :kind => :template_method,
-          :method_name => method_name
+          :method => method_name
         }
-        CodegenRepo.class_eval_code mod, src, file, line, desc
+        Alloy::Utils::CodegenRepo.eval_code mod, src, file, line, desc
       end
 
       IDEN = lambda{|source| CompiledTextTemplate.new(source)}
@@ -181,13 +184,6 @@ RUBY
         end
       end
     end
-
-    private
-
-    def initialize
-      fail "Should not initialize this class"
-    end
-
   end
 
   # ==============================================
