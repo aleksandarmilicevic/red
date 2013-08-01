@@ -1,5 +1,6 @@
 require 'sass'
 require 'red/engine/erb_compiler'
+require 'red/engine/codegen_repo'
 require 'sdg_utils/meta_utils'
 
 module Red::Engine
@@ -93,43 +94,51 @@ module Red::Engine
         method_body =
           case compiled_tpl
           when String
-            compiled_tpl.to_s
+            CodegenRepo.add_method mod, method_name, <<-RUBY, __FILE__, __LINE__
+def #{method_name}
+  #{compiled_tpl}
+end
+RUBY
           when CompiledTextTemplate
-            compiled_tpl.execute.inspect
+            CodegenRepo.add_method mod, method_name, <<-RUBY, __FILE__, __LINE__
+def #{method_name}
+  #{compiled_tpl.execute.inspect}
+end
+RUBY
           when CompiledProcTemplate
             proc_method_name = "#{method_name}_proc"
             mod.send :define_method, "#{proc_method_name}", compiled_tpl.proc
-"""
+            CodegenRepo.add_method mod, method_name, <<-RUBY, __FILE__, __LINE__
+def #{method_name}
   #{proc_method_name}()
-"""
+end
+RUBY
           when CompiledCompositeTemplate
             fst_method_name = "#{method_name}_fst_compiler"
             mod.send :define_method, "#{fst_method_name}", compiled_tpl.fst
             m, rest_method_name = code_gen(compiled_tpl.rest, "#{prefix}_rest", mod)
-"""
+            CodegenRepo.add_method mod, method_name, <<-RUBY, __FILE__, __LINE__
+def #{method_name}
   rest_out = #{rest_method_name}()
   fst_compiler = #{fst_method_name}(rest_out)
   engine_divider()
   fst_compiler.execute(self)
-"""
+end
+RUBY
           else
             ruby_code = (compiled_tpl.props[:ruby_code] ||
                          compiled_tpl.ruby_code) rescue nil
             fail "No ':ruby_code' property found in #{compiled_tpl}" unless ruby_code
-            ruby_code
-          end
-        my_class_eval mod, method_name, <<-RUBY, __FILE__, __LINE__
+            CodegenRepo.add_method mod, method_name, <<-RUBY, __FILE__, __LINE__
 def #{method_name}
-  #{method_body}
+  #{ruby_code}
 end
 RUBY
+          end
         [mod, method_name]
       end
 
-      @@gen_methods = {}
-      def gen_methods() @@gen_methods end
-
-      def my_class_eval(mod, method_name, src, file, line)
+      def my_class_eval(mod, method_name, src, file=nil, line=nil)
         # Red.conf.log.debug "------------------------- in #{mod}"
         # Red.conf.log.debug src
         @@gen_methods[method_name] = src
@@ -171,6 +180,13 @@ RUBY
         end
       end
     end
+
+    private
+
+    def initialize
+      fail "Should not initialize this class"
+    end
+
   end
 
   # ==============================================
@@ -242,7 +258,7 @@ RUBY
       @fst = fst
       @rest = rest
     end
-    
+
     def execute(env)
       rest_out = @rest.execute(env)
       fst_compiled = @fst.call(rest_out)
