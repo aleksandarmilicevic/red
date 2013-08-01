@@ -94,13 +94,13 @@ module Red::Engine
         method_body =
           case compiled_tpl
           when String
-            CodegenRepo.add_method mod, method_name, <<-RUBY, __FILE__, __LINE__
+            add_compiled_tpl_method mod, method_name, <<-RUBY, __FILE__, __LINE__
 def #{method_name}
   #{compiled_tpl}
 end
 RUBY
           when CompiledTextTemplate
-            CodegenRepo.add_method mod, method_name, <<-RUBY, __FILE__, __LINE__
+            add_compiled_tpl_method mod, method_name, <<-RUBY, __FILE__, __LINE__
 def #{method_name}
   #{compiled_tpl.execute.inspect}
 end
@@ -108,7 +108,7 @@ RUBY
           when CompiledProcTemplate
             proc_method_name = "#{method_name}_proc"
             mod.send :define_method, "#{proc_method_name}", compiled_tpl.proc
-            CodegenRepo.add_method mod, method_name, <<-RUBY, __FILE__, __LINE__
+            add_compiled_tpl_method mod, method_name, <<-RUBY, __FILE__, __LINE__
 def #{method_name}
   #{proc_method_name}()
 end
@@ -117,7 +117,7 @@ RUBY
             fst_method_name = "#{method_name}_fst_compiler"
             mod.send :define_method, "#{fst_method_name}", compiled_tpl.fst
             m, rest_method_name = code_gen(compiled_tpl.rest, "#{prefix}_rest", mod)
-            CodegenRepo.add_method mod, method_name, <<-RUBY, __FILE__, __LINE__
+            add_compiled_tpl_method mod, method_name, <<-RUBY, __FILE__, __LINE__
 def #{method_name}
   rest_out = #{rest_method_name}()
   fst_compiler = #{fst_method_name}(rest_out)
@@ -129,7 +129,7 @@ RUBY
             ruby_code = (compiled_tpl.props[:ruby_code] ||
                          compiled_tpl.ruby_code) rescue nil
             fail "No ':ruby_code' property found in #{compiled_tpl}" unless ruby_code
-            CodegenRepo.add_method mod, method_name, <<-RUBY, __FILE__, __LINE__
+            add_compiled_tpl_method mod, method_name, <<-RUBY, __FILE__, __LINE__
 def #{method_name}
   #{ruby_code}
 end
@@ -138,11 +138,12 @@ RUBY
         [mod, method_name]
       end
 
-      def my_class_eval(mod, method_name, src, file=nil, line=nil)
-        # Red.conf.log.debug "------------------------- in #{mod}"
-        # Red.conf.log.debug src
-        @@gen_methods[method_name] = src
-        mod.class_eval src, file, line
+      def add_compiled_tpl_method(mod, method_name, src, file=nil, line=nil)
+        desc = {
+          :kind => :template_method,
+          :method_name => method_name
+        }
+        CodegenRepo.class_eval_code mod, src, file, line, desc
       end
 
       IDEN = lambda{|source| CompiledTextTemplate.new(source)}
