@@ -110,11 +110,11 @@ module Red
               f.write m.to_s
             end
             puts " ** Migration created: #{name}"
-            if @migrations.empty?
-              puts "Your DB schema is up to date, no migrations created.\n"
-            else
-              puts "\nRun `rake db:migrate' to apply generated migrations.\n"
-            end
+          end
+          if @migrations.empty?
+            puts "Your DB schema is up to date, no migrations created.\n"
+          else
+            puts "\nRun `rake db:migrate' to apply generated migrations.\n"
           end
         end
 
@@ -377,12 +377,14 @@ module Red
         end
 
         def _table_exists?(name)
+          return false if @from_scratch
           suppress_messages do
             table_exists? name
           end
         end
 
         def _column_exists?(table, col, type=nil, opts=nil)
+          return false if @from_scratch
           suppress_messages do
             args = [table, col, type, opts].compact
             column_exists?(*args)
@@ -399,7 +401,7 @@ module Red
       def create_migration(hash={})
         # TODO: how to get args from cmdline
         begin
-          mig = Migration.new hash # :from_scratch => true
+          mig = Migration.new hash #.merge{:from_scratch => true}
           mig.start
           mig.finish
         rescue Exception => e

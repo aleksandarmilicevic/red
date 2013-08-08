@@ -18,23 +18,6 @@ $(function() {
 
   Red.Autoview.processAutoview($("body"));
 
-  $(document).on("click", "[data-type='submit-event']", function(e) {
-    var formId = $(this).attr("data-event-form");
-    var eventName = $(this).attr("data-event-type");
-    var form = $('#' + formId);
-    var params = {};
-    form.serializeArray().map(function(e){
-      params[e.name] = e.value;
-    });
-    // for (var i = 0; i < ser.length; i++) {
-    //   params[ser[i].name] = ser[i].value;
-    // }
-    var ev = Red.Meta.createEvent(eventName, params);
-    //TODO: Utils.askParams if any params are missing
-    ev.fire();
-    return false;
-  });
-
   /* ----------------------------------------------------------------
    * Handle the 'click' event for all elements that have
    * the 'data-trigger-event' attribute set.

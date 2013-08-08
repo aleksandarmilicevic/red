@@ -48,8 +48,8 @@ module View
         buff << gen_event_meta(e) << "\n"
       end
 
-      buff << "\n/* ------------- red meta ------------- */\n\n"
-      buff << gen_red_meta(meta)
+      # buff << "\n/* ------------- red meta ------------- */\n\n"
+      # buff << gen_red_meta(meta)
 
       buff << gen_epilog
       buff

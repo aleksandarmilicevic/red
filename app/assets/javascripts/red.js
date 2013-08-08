@@ -32,7 +32,10 @@ var Red = (function() {
   //   Some meta stuff about the underlying Red model
   // ============================================================
 
-  var RedMeta = function() {};
+  var RedMeta = function() {
+    this.records = {};
+    this.events = {};
+  };
   RedMeta.prototype = {
     search: function(hash, name) {
       var ans = hash[name];
@@ -47,9 +50,9 @@ var Red = (function() {
     record : function(name) { return this.search(this.records, name); },
     event  : function(name) { return this.search(this.events, name); },
 
-    create       : function(constr, args) { return new constr(args); },
-    createRecord : function(name, id)     { return this.create(this.record(name), id); },
-    createEvent  : function(name, params) { return this.create(this.event(name), params); }
+    create      : function(constr, args) { return new constr(args); },
+    createRecord: function(name, id)     { return this.create(this.record(name), id); },
+    createEvent : function(name, params) { return this.create(this.event(name), params); }
   };
 
 
@@ -126,26 +129,28 @@ var Red = (function() {
     },
 
     record : function(name, superRecordConstr) {
+      if (superRecordConstr === undefined) superRecordConstr = Red.Model.Record;
       var c;
-      if (superRecordConstr) {
-        c = Constr.extendSig(name, superRecordConstr, "id", "Constr.id(id)");
-      } else {
+      if (superRecordConstr === "__no_super__") {
         var body = "this['id']=id;";
         c = Constr.extendSig(name, null, "id", null, body);
+      } else {
+        c = Constr.extendSig(name, superRecordConstr, "id", "Constr.id(id)");
       }
-      c.recordConstr = true;
+      c.isRecordConstr = true;
       return c;
     },
 
     event : function(name, superEventConstr) {
+      if (superEventConstr === undefined) superEventConstr = Red.Model.Event;
       var c;
-      if (superEventConstr) {
-        c = Constr.extendSig(name, superEventConstr, "params", "params");
-      } else {
+      if (superEventConstr === "__no_super__") {
         var body = "this.params=params || {}; this.canceled=false;";
         c = Constr.extendSig(name, null, "params", null, body);
+      } else {
+        c = Constr.extendSig(name, superEventConstr, "params", "params");
       }
-      c.eventConstr = true;
+      c.isEventConstr = true;
       return c;
     }
   };
@@ -367,9 +372,20 @@ var Red = (function() {
        return paramValue;
      },
 
-    readData : function(elem, name) {
-      return Utils.readParamValue(elem, "data-" + name);
-    },
+     readParamForField : function(elem, paramName, fldMeta) {
+       var ans = Utils.readParamValue(elem, paramName);
+       if (ans !== undefined) {
+         if (fldMeta.parent.isRecordConstr) {
+           var id = Number(ans);
+           if (isFinite(id)) ans = new fldMeta.parent(id);
+         }
+       }
+       return ans;
+     },
+
+     readData : function(elem, name) {
+       return Utils.readParamValue(elem, "data-" + name);
+     },
 
     /* ----------------------------------------------------------------
      *
@@ -623,21 +639,34 @@ var Red = (function() {
      *  - event name is read from either 'data-trigger-event' or
      *    'data-event-name' attribute
      *
-     *  - event parameters are read from 'data-param-*' attributes
+     *  - event parameters are read from
+     *      - 'data-param-*' attributes and
+     *      - 'data-params-form' form input elements (if specified)
      *
      * @param $elem : jQuery    - a jQuery element
      *
      * ---------------------------------------------------------------- */
     declCreateEvent : function($elem) {
       var eventName = $elem.attr("data-trigger-event") ||
-            $elem.attr("data-event-name");
-      //var ev = eval('new ' + eventName + '({})'); 
+                      $elem.attr("data-event-name");
+      //var ev = eval('new ' + eventName + '({})');
       var ev = Red.Meta.createEvent(eventName, {});
       var undefParams = [];
+
+      var formId = $elem.attr("data-params-form");
+      var formParams = {};
+      if (formId !== undefined) {
+        var form = $('#' + formId);
+        form.serializeArray().map(function(e){
+          formParams[e.name] = e.value;
+        });
+      }
+
       for (var paramIdx in ev.meta().params()) {
         var param = ev.meta().params()[paramIdx];
         var paramName = param.name;
-        var paramValue = Utils.readParamValue($elem, "data-param-" + paramName);
+        var paramValue = Utils.readParamValue($elem, "data-param-" + paramName) ||
+                         formParams[paramName];
         if (paramValue === undefined) {
           undefParams.push(param);
         }
@@ -689,7 +718,16 @@ var Red = (function() {
   var RedModel = function RedModel() {
 
     ///////////////////////////////////////////////////////
-    this.RecordMeta = function RecordMeta(props) { jQuery.extend(this, props); };
+    this.RecordMeta = function RecordMeta(props) {
+      jQuery.extend(this, props);
+      var fullname = props["name"];
+      var constr = props["sigCls"];
+      if (constr.isRecordConstr) {
+        Red.Meta.records[fullname] = constr;
+      } else if (constr.isEventConstr) {
+        Red.Meta.events[fullname] = constr;
+      }
+    };
     this.RecordMeta.prototype = {
       superRecord: function() { return this.parentSig; },
       subRecords: function() { return this.subsigs; }
@@ -723,27 +761,28 @@ var Red = (function() {
     this.Field.prototype = {
       isRecord : function() {
         var t = this.type;
-        return typeof(t) === "function" && t.recordConstr;
+        return typeof(t) === "function" && t.isRecordConstr;
       },
       isFile : function() {
         return this.isRecord() && this.type.meta.name === "RedLib::Util::FileRecord";
       },
       isPrimitive : function() {
-        return !this.isRecord();
+        return !this.isRecord(); //TODO: fix
       }
     };
 
 
     ///////////////////////////////////////////////////////
-    this.Record = Constr.record("Record");
+    this.Record = Constr.record("Record", "__no_super__");
     jQuery.extend(this.Record.prototype, {
+      is_record : true
     });
     Object.defineProperty(this.Record.prototype, "meta", {
       value: function() { return this.constructor.meta; }
     });
 
     ///////////////////////////////////////////////////////
-    this.Event = Constr.event("Event");
+    this.Event = Constr.event("Event", "__no_super__");
     jQuery.extend(this.Event.prototype, {
       is_event : true,
 
