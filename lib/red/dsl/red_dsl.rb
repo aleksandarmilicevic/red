@@ -1,3 +1,4 @@
+require 'alloy/alloy_dsl_engine'
 require 'red/red'
 require 'red/model/red_model'
 require 'red/model/red_meta_model'
@@ -15,21 +16,27 @@ module Red
     # end
 
     def data_model(name="", &block)
-      mm = _model_builder_class.get_new(
-        :mods_to_include => [Red::Dsl::MData])
-      mm.model(:data, name, &block)
+      Alloy::DslEngine::ModelBuilder.new({
+        :mods_to_include => [Red::Dsl::MData]
+      }).model(:data, name, &block)
     end
 
     def machine_model(name="", &block)
-      mm = _model_builder_class.get_new(
-        :mods_to_include => [Red::Dsl::MMachine])
-      mm.model(:machines, name, &block)
+      Alloy::DslEngine::ModelBuilder.new({
+        :mods_to_include => [Red::Dsl::MMachine]
+      }).model(:machines, name, &block)
     end
 
     def event_model(name="", &block)
-      mm = _model_builder_class.get_new(
-        :mods_to_include => [Red::Dsl::MEvent])
-      mm.model(:events, name, &block)
+      Alloy::DslEngine::ModelBuilder.new({
+        :mods_to_include => [Red::Dsl::MEvent]
+      }).model(:events, name, &block)
+    end
+
+    def security_model(name="", &block)
+      Alloy::DslEngine::ModelBuilder.new({
+        :mods_to_include => [Red::Dsl::MSecurity]
+      }).model(:events, name, &block)
     end
 
     # ==================================================================
@@ -83,5 +90,17 @@ module Red
         sb.sig(name, fields, &block)
       end
     end
+
+    # ==================================================================
+    # Model to be included in each +security_model+.
+    # ==================================================================
+    module MSecurity
+      extend self
+
+      def policy(name, &block)
+        Red::Dsl::PolicyBuilder.new.build(name, &block)
+      end
+    end
+
   end
 end
