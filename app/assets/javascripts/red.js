@@ -131,7 +131,7 @@ var Red = (function() {
     record : function(name, superRecordConstr) {
       if (superRecordConstr === undefined) superRecordConstr = Red.Model.Record;
       var c;
-      if (superRecordConstr === "__no_super__") {
+      if (superRecordConstr === null) {
         var body = "this['id']=id;";
         c = Constr.extendSig(name, null, "id", null, body);
       } else {
@@ -144,7 +144,7 @@ var Red = (function() {
     event : function(name, superEventConstr) {
       if (superEventConstr === undefined) superEventConstr = Red.Model.Event;
       var c;
-      if (superEventConstr === "__no_super__") {
+      if (superEventConstr === null) {
         var body = "this.params=params || {}; this.canceled=false;";
         c = Constr.extendSig(name, null, "params", null, body);
       } else {
@@ -773,7 +773,7 @@ var Red = (function() {
 
 
     ///////////////////////////////////////////////////////
-    this.Record = Constr.record("Record", "__no_super__");
+    this.Record = Constr.record("Record", null);
     jQuery.extend(this.Record.prototype, {
       is_record : true
     });
@@ -782,7 +782,7 @@ var Red = (function() {
     });
 
     ///////////////////////////////////////////////////////
-    this.Event = Constr.event("Event", "__no_super__");
+    this.Event = Constr.event("Event", null);
     jQuery.extend(this.Event.prototype, {
       is_event : true,
 
