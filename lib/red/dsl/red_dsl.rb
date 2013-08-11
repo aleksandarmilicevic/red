@@ -49,7 +49,7 @@ module Red
 
       def record(name, fields={}, &block)
         sb = Alloy::DslEngine::SigBuilder.new(
-          :default_superclass => Red::Model::Data)
+          :superclass => Red::Model::Data)
         sb.sig(name, fields, &block)
       end
 
@@ -68,7 +68,7 @@ module Red
 
       def machine(name, fields={}, &block)
         sb = Alloy::DslEngine::SigBuilder.new(
-          :default_superclass => Red::Model::Machine)
+          :superclass => Red::Model::Machine)
         sb.sig(name, fields, &block)
       end
 
@@ -86,7 +86,7 @@ module Red
 
       def event(name, fields={}, &block)
         sb = Alloy::DslEngine::SigBuilder.new(
-          :default_superclass => Red::Model::Event)
+          :superclass => Red::Model::Event)
         sb.sig(name, fields, &block)
       end
     end
