@@ -1,11 +1,18 @@
 require 'alloy/alloy_ast'
 require 'red/model/red_model'
+require 'red/model/event_model'
+require 'sdg_utils/delegator'
 require 'sdg_utils/meta_utils'
 require 'sdg_utils/random'
 
 module Red
   module Model
 
+    #-------------------------------------------------------------------
+    # == Class +Rule+
+    #
+    # Rule
+    #-------------------------------------------------------------------
     class Rule
       CONDITIONS = [:when, :unless]
       FILTERS    = [:select, :include, :reject, :exclude]
@@ -25,32 +32,51 @@ module Red
       def condition_method() _method(@condition) end
       def filter_method()    _method(@filter) end
 
+      def self.cond(kind, method=nil)   kind ? {kind: kind, method: method} : nil end
+      def self.filter(kind, method=nil) self.cond(kind, method) end
+
+      def bind(policy)
+        BoundRule.new(policy, self)
+      end
+
+      private
+
+      def _kind(hash)   hash ? hash[:kind] : nil end
+      def _method(hash) hash ? hash[:method] : nil end
+    end
+
+    #-------------------------------------------------------------------
+    # == Class +BoundRule+
+    #
+    # Rule bound to a concrete policy instance
+    #-------------------------------------------------------------------
+    class BoundRule
+      attr_reader :policy
+
+      def initialize(policy, rule)
+        @policy = policy
+        @rule = rule
+      end
+
       def check_condition(*args)
-        if has_condition?
-          check(_kind(@condition), _method(@condition), *args)
+        if @rule.has_condition?
+          check(@rule.condition_kind, @rule.condition_method, *args)
         else
           nil
         end
       end
 
       def check_filter(*args)
-        if has_filter?
-          check(_kind(@filter), _method(@filter), *args)
+        if @rule.has_filter?
+          check(@rule.filter_kind, @rule.filter_method, *args)
         else
           nil
         end
       end
 
-      def self.cond(kind, method=nil)   kind ? {kind: kind, method: method} : nil end
-      def self.filter(kind, method=nil) self.cond(kind, method) end
-
       private
 
-      def _kind(hash)   hash ? hash[:kind] : nil end
-      def _method(hash) hash ? hash[:method] : nil end
-
       def check(kind, method, *args)
-        binding.pry
         ans = @policy.send method.to_sym, *args
         case kind
         when :when, :select, :include; ans
@@ -58,113 +84,174 @@ module Red
         else fail "unknown condition kind: #{kind}"
         end
       end
+
     end
 
-    class Policy
-      attr_reader :name, :principal, :principal_var
+    #-------------------------------------------------------------------
+    # == Class +PolicyMeta+
+    #
+    # Meta information about policies.
+    #-------------------------------------------------------------------
+    class PolicyMeta < Alloy::Ast::SigMeta
+      attr_accessor :principal
 
-      def initialize(name, opts={})
-        @name = name
-        @field_rules = {}
+      def initialize(*args)
+        super
+        @field_restrictions = {}
       end
 
-      def relative_name
-        name.split("::").last
+      def restrictions(field=nil)
+        __restrictions(field).clone
       end
 
-      def rules(field=nil)
-        __rules(field).clone
+      def add_restriction(rule)
+        __restrictions(rule.field) << rule
+      end
+
+      def freeze
+        super
+        @field_restrictions.freeze
       end
 
       private
 
-      def __rules(field)
+      def __restrictions(field)
         if field
-          @field_rules[field] ||= []
+          @field_restrictions[field] ||= []
         else
-          @field_rules.values.flatten
+          @field_restrictions.values.flatten
         end
       end
 
-      # ---------------------------------------------------
-      # Module `Policy::Builder'
-      # ---------------------------------------------------
-      module Builder
-        def principal(hash)
-          raise ArgumentError, "only one principal can be defined" unless hash.size == 1
-          varname, machine = hash.first
-          msg = "`#{varname}' is not a proper identifier"
-          raise ArgumentError, msg unless SDGUtils::MetaUtils.check_identifier(varname)
-          msg = "#{machine}:#{machine.class} is not an instance of Red::Model::Machine"
-          raise ArgumentError, msg unless machine < Red::Model::Machine
-          @principal = machine
-          @principal_var = varname
-          singleton_class.class_eval "def #{varname}()@principal end", __FILE__, __LINE__
-        end
+    end
 
-        def restrict(*args, &block)
-          opts =
-            case
-            when args.size == 1 && Hash === args[0]; args[0]
-            when args.size == 2; {:field => args.first}.merge! args[1]
-            else raise ArgumentError, "expected hash or a field and a hash"
-            end
-          opts = __normalize_opts(opts)
-          fld = opts[:field]
-          cond = opts[:condition]
-          filter = opts[:filter]
-          if block
-            msg = "both :condition and :filter, and block given"
-            raise ArgumentError, msg if cond && filter
-            poli = cond || filter
-            raise ArgumentError, "both :method and block given" if poli[:method]
-            salt = SDGUtils::Random.salted_timestamp
-            method_name = :"restrict_#{fld.to_iden}_#{poli[:kind]}_#{salt}"
-            self.define_singleton_method method_name.to_sym, &block
-            poli[:method] = method_name
+    # ---------------------------------------------------
+    # Module `Policy::Builder'
+    # ---------------------------------------------------
+    module PolicyStatic
+      include Alloy::Ast::ASig::Static
+
+      def principal(hash)
+        _check_single_fld_hash(hash, Red::Model::Machine)
+        transient(hash)
+        meta.principal = meta.field(hash.keys.first)
+      end
+
+      def restrict(*args, &block)
+        opts =
+          case
+          when args.size == 1 && Hash === args[0]; args[0]
+          when args.size == 2; {:field => args.first}.merge! args[1]
+          else raise ArgumentError, "expected hash or a field and a hash"
           end
-          rule = Rule.new(fld, self, cond, filter)
-          __add_rule(rule)
+        opts = __normalize_opts(opts)
+        fld = opts[:field]
+        cond = opts[:condition]
+        filter = opts[:filter]
+        if block
+          msg = "both :condition and :filter, and block given"
+          raise ArgumentError, msg if cond && filter
+          poli = cond || filter
+          raise ArgumentError, "both :method and block given" if poli[:method]
+          salt = SDGUtils::Random.salted_timestamp
+          method_name = :"restrict_#{fld.to_iden}_#{poli[:kind]}_#{salt}"
+          define_method method_name.to_sym, &block
+          poli[:method] = method_name
         end
+        rule = Rule.new(fld, self, cond, filter)
+        meta.add_restriction(rule)
+      end
 
-        private
+      def instantiate(principal)
+        self.new(principal)
+      end
 
-        def __add_rule(rule)
-          __rules(rule.field) << rule
-        end
+      def restrictions(*args) meta.restrictions(*args) end
 
-        def __normalize_opts(opts)
-          fld = opts[:field]
-          raise ArgumentError, "field not specified" unless fld
-          msg = "expected `Field', got #{fld}:#{fld.class}"
-          raise ArgumentError, msg unless Alloy::Ast::FieldMeta === fld
+      def created()
+        super
+        Red.meta.policy_created(self)
+      end
 
-          cond_keys = opts.keys.select{|e| Rule::CONDITIONS.member? e}
-          filter_keys = opts.keys.select{|e| Rule::FILTERS.member? e}
-          msg = "more than one %s specified: %s"
-          raise ArgumentError, msg % ["condition", cond_keys] if cond_keys.size > 1
-          raise ArgumentError, msg % ["filter", filter_keys] if filter_keys.size > 1
+      def finish
+        meta.freeze
+        instance_eval <<-RUBY, __FILE__, __LINE__+1
+          def principal() meta.principal end
+        RUBY
+      end
 
-          cond_key = cond_keys[0]
-          filter_key = filter_keys[0]
-          cond = opts[:condition]
-          filter = opts[:filter]
-          msg = "both :%s and :%s keys given; use either one or the other form"
-          raise ArgumentError, msg % [:condition, cond_key] if cond && cond_key
-          raise ArgumentError, msg % [:filter, filter_key] if filter && filter_key
+      protected
 
-          cond ||= Rule.cond(cond_key, opts[cond_key])
-          filter ||= Rule.filter(filter_key, opts[filter_key])
+      #------------------------------------------------------------------------
+      # Defines the +meta+ method which returns some meta info
+      # about this events's params and from/to designations.
+      #------------------------------------------------------------------------
+      def _define_meta()
+        #TODO codegen
+        meta = PolicyMeta.new(self)
+        define_singleton_method(:meta, lambda {meta})
+      end
 
-          raise ArgumentError, "no condition specified" unless cond || filter
+      def __normalize_opts(opts)
+        fld = opts[:field]
+        raise ArgumentError, "field not specified" unless fld
+        msg = "expected `Field', got #{fld}:#{fld.class}"
+        raise ArgumentError, msg unless Alloy::Ast::FieldMeta === fld
 
-          { :field => fld }.
-            merge!(cond ?   {:condition => cond} : {}).
-            merge!(filter ? {:filter => filter}  : {})
-        end
+        cond_keys = opts.keys.select{|e| Rule::CONDITIONS.member? e}
+        filter_keys = opts.keys.select{|e| Rule::FILTERS.member? e}
+        msg = "more than one %s specified: %s"
+        raise ArgumentError, msg % ["condition", cond_keys] if cond_keys.size > 1
+        raise ArgumentError, msg % ["filter", filter_keys] if filter_keys.size > 1
+
+        cond_key = cond_keys[0]
+        filter_key = filter_keys[0]
+        cond = opts[:condition]
+        filter = opts[:filter]
+        msg = "both :%s and :%s keys given; use either one or the other form"
+        raise ArgumentError, msg % [:condition, cond_key] if cond && cond_key
+        raise ArgumentError, msg % [:filter, filter_key] if filter && filter_key
+
+        cond ||= Rule.cond(cond_key, opts[cond_key])
+        filter ||= Rule.filter(filter_key, opts[filter_key])
+
+        raise ArgumentError, "no condition specified" unless cond || filter
+
+        { :field => fld }.
+          merge!(cond ?   {:condition => cond} : {}).
+          merge!(filter ? {:filter => filter}  : {})
       end
     end
 
+    #-------------------------------------------------------------------
+    # == Class +Policy+
+    #
+    # Base class for all policies.
+    #-------------------------------------------------------------------
+    class Policy
+      include Alloy::Ast::ASig
+      extend PolicyStatic
+
+      attr_reader :principal
+
+      def initialize(principal)
+        write_field(meta.principal, principal)
+        @principal = principal
+      end
+
+      def restrictions(*args)
+        self.class.restrictions(*args).map { |rule|
+          rule.bind(self)
+        }
+      end
+    end
+
+    #-------------------------------------------------------------------
+    # == Module +FieldMetaRuleExt+
+    #
+    # Extensions for the FieldMeta class that adds methods for
+    # generating policy conditions and filters.
+    # -------------------------------------------------------------------
     module FieldMetaRuleExt
       private
 

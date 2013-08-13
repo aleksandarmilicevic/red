@@ -2,8 +2,8 @@ require 'active_record'
 require 'alloy/alloy_ast'
 require 'alloy/alloy_ast_errors'
 require 'alloy/utils/codegen_repo'
-
 require 'sdg_utils/proxy'
+require 'sdg_utils/delegator'
 
 module Red
   module Model

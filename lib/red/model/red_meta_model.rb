@@ -5,8 +5,8 @@ require 'alloy/alloy'
 require 'sdg_utils/meta_utils'
 
 module Red
-
   module Model
+
     #-------------------------------------------------------------------
     # == Class +MetaModel+
     #

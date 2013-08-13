@@ -59,26 +59,27 @@ class TestPolicyModel < Test::Unit::TestCase
   end
 
   def test_policy_created
-    assert (p=XTestPolicyModel::P1 rescue false), "const not created"
+    assert (p=XTestPolicyModel::P1 rescue false), "policy class not created"
     assert_equal 1, Red.meta.policies.size
     pol = Red.meta.policies[0]
     assert_equal "XTestPolicyModel::P1", pol.name
     assert_equal pol, Red.meta.policy("XTestPolicyModel::P1")
+    assert_equal pol, XTestPolicyModel::P1
   end
 
   def test_policy_props
     pol = XTestPolicyModel::P1
-    assert_equal XTestPolicyModel::Client, pol.principal
-    assert_equal 4, pol.rules.size
-    assert_equal 2, pol.rules(XTestPolicyModel::User.pswd).size
-    assert_equal 1, pol.rules(XTestPolicyModel::User.status).size
-    assert_equal 1, pol.rules(XTestPolicyModel::Room.members).size
+    assert_equal XTestPolicyModel::Client, pol.principal.type.range.klass
+    assert_equal 4, pol.restrictions.size
+    assert_equal 2, pol.restrictions(XTestPolicyModel::User.pswd).size
+    assert_equal 1, pol.restrictions(XTestPolicyModel::User.status).size
+    assert_equal 1, pol.restrictions(XTestPolicyModel::Room.members).size
   end
 
   def test_rule_props
     pol = XTestPolicyModel::P1
     begin
-      r, _ = pol.rules(XTestPolicyModel::User.pswd)
+      r, _ = pol.restrictions(XTestPolicyModel::User.pswd)
       assert_equal pol, r.policy
       assert r.has_condition?
       assert !r.has_filter?
@@ -86,7 +87,7 @@ class TestPolicyModel < Test::Unit::TestCase
       assert_equal :check_restrict_user_pswd, r.condition_method
     end
     begin
-      _, r = pol.rules(XTestPolicyModel::User.pswd)
+      _, r = pol.restrictions(XTestPolicyModel::User.pswd)
       assert_equal pol, r.policy
       assert r.has_condition?
       assert !r.has_filter?
@@ -94,7 +95,7 @@ class TestPolicyModel < Test::Unit::TestCase
       assert_starts_with "restrict_XTestPolicyModel__User_pswd_unless",r.condition_method
     end
     begin
-      r = pol.rules(XTestPolicyModel::User.status).first
+      r = pol.restrictions(XTestPolicyModel::User.status).first
       assert_equal pol, r.policy
       assert r.has_condition?
       assert !r.has_filter?
@@ -102,7 +103,7 @@ class TestPolicyModel < Test::Unit::TestCase
       assert_starts_with "restrict_XTestPolicyModel__User_status_when",r.condition_method
     end
     begin
-      r = pol.rules(XTestPolicyModel::Room.members).first
+      r = pol.restrictions(XTestPolicyModel::Room.members).first
       assert_equal pol, r.policy
       assert !r.has_condition?
       assert r.has_filter?

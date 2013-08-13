@@ -85,9 +85,9 @@ class TestPolicyCheck < MigrationTest::TestBase
     @objs.each {|r| r.save!}
   end
 
-  def _test_rule1
-    pol = P1
-    r = pol.rules(User.pswd)[0]
+  def test_restriction1
+    pol = P1.instantiate(@client1)
+    r = pol.restrictions(User.pswd)[0]
     assert !r.check_condition(@user1), "expected restriction check to fail"
   end
 end

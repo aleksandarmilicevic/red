@@ -99,20 +99,20 @@ module Red
       extend self
 
       def policy(name, &block)
-        opts = {
-          :parent_class         => Red::Model::Policy,
-          :include_builder_mods => [Red::Model::Policy::Builder],
-          :expand_name          => true,
-          :create_const         => true
-        }
-        blder = SDGUtils::DSL::InstanceBuilder.new opts
-        policy = blder.build(name, {}, &block)
-        Red.meta.policy_created(policy)
-        policy
+        # opts = {
+        #   :parent_class         => Red::Model::Policy,
+        #   :include_builder_mods => [Red::Model::Policy::Builder],
+        #   :expand_name          => true,
+        #   :create_const         => true
+        # }
+        # blder = SDGUtils::DSL::InstanceBuilder.new opts
+        # policy = blder.build(name, {}, &block)
+        # Red.meta.policy_created(policy)
+        # policy
 
-        # sb = Alloy::DslEngine::SigBuilder.new(
-        #   :superclass => Red::Model::Policy)
-        # sb.sig(name, {}, &block)
+        sb = Alloy::DslEngine::SigBuilder.new(
+          :superclass => Red::Model::Policy)
+        sb.sig(name, {}, &block)
       end
     end
 

@@ -26,7 +26,7 @@ module Red
     # == Module +EventClassMethods+
     #
     #-------------------------------------------------------------------
-    module EventClassMethods
+    module EventStatic
       include Alloy::Ast::ASig::Static
 
       def created()
@@ -35,13 +35,13 @@ module Red
       end
 
       def from(hash)
-        _check_to_from_hash(hash)
+        _check_single_fld_hash(hash, Red::Model::Machine)
         params(hash)
         meta.from = meta.field(hash.keys.first)
       end
 
       def to(hash)
-        _check_to_from_hash(hash)
+        _check_single_fld_hash(hash, Red::Model::Machine)
         params(hash)
         meta.to = meta.field(hash.keys.first)
       end
@@ -72,6 +72,7 @@ module Red
       # about this events's params and from/to designations.
       #------------------------------------------------------------------------
       def _define_meta()
+        #TODO codegen
         meta = EventMeta.new(self)
         define_singleton_method(:meta, lambda {meta})
       end
@@ -86,14 +87,6 @@ module Red
         define_method(:requires, lambda{ true }) unless method_defined? :requires
         define_method(:ensures, lambda{}) unless method_defined? :ensures
       end
-
-      def _check_to_from_hash(hash)
-        msg1 = "Hash expected, got #{hash.class} instead"
-        msg2 = "Expected exactly one entry, got #{hash.length}"
-        raise ArgumentError, msg1 unless hash.kind_of? Hash
-        raise ArgumentError, msg2 unless hash.length == 1
-        Alloy::Ast::TypeChecker.check_type(Red::Model::Machine, hash.values.first)
-      end
     end
 
     #-------------------------------------------------------------------
@@ -103,7 +96,7 @@ module Red
     #-------------------------------------------------------------------
     class Event
       include Alloy::Ast::ASig
-      extend EventClassMethods
+      extend EventStatic
 
       placeholder
 
