@@ -1,9 +1,10 @@
 require 'alloy/alloy_dsl_engine'
 require 'red/red'
+require 'red/dsl/red_dsl_engine'
 require 'red/model/red_model'
 require 'red/model/red_meta_model'
-
-require_relative 'red_dsl_engine.rb'
+require 'sdg_utils/dsl/instance_builder'
+require 'sdg_utils/dsl/module_builder'
 
 module Red
 
@@ -98,7 +99,20 @@ module Red
       extend self
 
       def policy(name, &block)
-        Red::Dsl::PolicyBuilder.new.build(name, &block)
+        opts = {
+          :parent_class         => Red::Model::Policy,
+          :include_builder_mods => [Red::Model::Policy::Builder],
+          :expand_name          => true,
+          :create_const         => true
+        }
+        blder = SDGUtils::DSL::InstanceBuilder.new opts
+        policy = blder.build(name, {}, &block)
+        Red.meta.policy_created(policy)
+        policy
+
+        # sb = Alloy::DslEngine::SigBuilder.new(
+        #   :superclass => Red::Model::Policy)
+        # sb.sig(name, {}, &block)
       end
     end
 

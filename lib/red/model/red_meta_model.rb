@@ -29,34 +29,62 @@ module Red
         @records = []
         @machines = []
         @events = []
+        @policies = []
         @cache = {}
         @restriction_mod = nil
       end
 
-      def base_records; _base_records end
-      def records;      _records end
-      def machines;     _machines end
-      def events;       _events end
+      protected
 
-      def base_record_created(rklass) add_to(@base_records, rklass) end
-      def record_created(rklass)      add_to(@records, rklass) end
-      def machine_created(mklass)     add_to(@machines, mklass) end
-      def event_created(eklass)       add_to(@events, eklass) end
+      # Returns plural of the given noun by
+      #  (1) replacing the trailing 'y' with 'ies', if `word'
+      #      ends with 'y',
+      #  (2) appending 'es', if `word' ends with 's'
+      #  (3) appending 's', otherwise
+      def self.pl(word)
+        word = word.to_s
+        if word[-1] == "y"
+          word[0...-1] + "ies"
+        elsif word[-1] == "s"
+          word + "es"
+        else
+          word + "s"
+        end
+      end
 
-      def get_base_record(name) _cache(_base_records, name) end
-      def get_record(name)      _cache(_records, name) end
-      def get_machine(name)     _cache(_machines, name) end
-      def get_event(name)       _cache(_events, name) end
+      # Generates several methods for each symbol in `whats'.  For
+      # example, if whats == [:record] it generates:
+      #
+      #   private
+      #   def _records()          _restrict @records end
+      #
+      #   public
+      #   def records()           _records end
+      #   def record_created(obj) add_to(@records, obj) end
+      #   def get_record(name)    _cache(_records, name) end
+      #   def find_record(name)   _search_by_name(_records, name) end
+      #
+      #   alias_method :record, :get_record
+      def self.gen(*whats)
+        whats.each do |what|
+          self.class_eval <<-RUBY, __FILE__, __LINE__+1
+            private
+            def _#{pl what}()        _restrict @#{pl what} end
 
-      alias_method :base_record, :get_base_record
-      alias_method :record, :get_record
-      alias_method :machine, :get_machine
-      alias_method :event, :get_event
+            public
+            def #{pl what}()         _#{pl what} end
+            def #{what}_created(obj) add_to(@#{pl what}, obj) end
+            def get_#{what}(name)    _cache(_#{pl what}, name) end
+            def find_#{what}(name);  _search_by_name(_#{pl what}, name) end
 
-      def find_base_record(name); _search_by_name(_base_records, name) end
-      def find_record(name);      _search_by_name(_records, name) end
-      def find_machine(name);     _search_by_name(_machines, name) end
-      def find_event(name);       _search_by_name(_events, name) end
+            alias_method :#{what}, :get_#{what}
+          RUBY
+        end
+      end
+
+      public
+
+      gen :base_record, :record, :machine, :event, :policy
 
       def restrict_to(mod)
         @restriction_mod = mod
@@ -66,14 +94,8 @@ module Red
       private
 
       def add_to(col, val)
-        col << val unless val.placeholder?
+        col << val unless val.respond_to?("placeholder?".to_sym) && val.placeholder?
       end
-
-      def _base_records; _restrict @base_records end
-      def _records;      _restrict @records end
-      def _machines;     _restrict @machines end
-      def _events;       _restrict @events end
-
     end
 
   end

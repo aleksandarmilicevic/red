@@ -1,19 +1,13 @@
 require 'red/model/security_model.rb'
-require_relative 'red_dsl_ext.rb'
+require 'sdg_utils/dsl/class_builder'
 
 module Red
   module DslEngine
 
-    class PolicyBuilder
+    class PolicyBuilder < SDGUtils::DSL::ClassBuilder
       def initialize(options={})
-        @options = options
-      end
-
-      def build(name, &block)
-        @policy = Red::Model::Policy.new(name)
-        if block
-          self.instance_eval block
-        end
+        opts = { :superclass => Red::Model::Policy }
+        super(opts.merge!(options))
       end
     end
 
