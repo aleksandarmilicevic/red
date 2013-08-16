@@ -125,11 +125,11 @@ module Red
 
     end
 
-    # ---------------------------------------------------
-    # Module `Policy::Builder'
-    # ---------------------------------------------------
-    module PolicyStatic
-      include Alloy::Ast::ASig::Static
+    # ===========================================================
+    # == Module +PolicyBuilder+
+    # ===========================================================
+    module PolicyBuilder
+      include Alloy::Ast::ASig::Builder
 
       def principal(hash)
         _check_single_fld_hash(hash, Red::Model::Machine)
@@ -162,35 +162,7 @@ module Red
         meta.add_restriction(rule)
       end
 
-      def instantiate(principal)
-        self.new(principal)
-      end
-
-      def restrictions(*args) meta.restrictions(*args) end
-
-      def created()
-        super
-        Red.meta.policy_created(self)
-      end
-
-      def finish
-        meta.freeze
-        instance_eval <<-RUBY, __FILE__, __LINE__+1
-          def principal() meta.principal end
-        RUBY
-      end
-
-      protected
-
-      #------------------------------------------------------------------------
-      # Defines the +meta+ method which returns some meta info
-      # about this events's params and from/to designations.
-      #------------------------------------------------------------------------
-      def _define_meta()
-        #TODO codegen
-        meta = PolicyMeta.new(self)
-        define_singleton_method(:meta, lambda {meta})
-      end
+      private
 
       def __normalize_opts(opts)
         fld = opts[:field]
@@ -223,6 +195,40 @@ module Red
       end
     end
 
+    module PolicyStatic
+      include Alloy::Ast::ASig::Static
+
+      def instantiate(principal)
+        self.new(principal)
+      end
+
+      def restrictions(*args) meta.restrictions(*args) end
+
+      def created()
+        super
+        Red.meta.policy_created(self)
+      end
+
+      def finish
+        meta.freeze
+        instance_eval <<-RUBY, __FILE__, __LINE__+1
+          def principal() meta.principal end
+        RUBY
+      end
+
+      protected
+
+      #------------------------------------------------------------------------
+      # Defines the +meta+ method which returns some meta info
+      # about this events's params and from/to designations.
+      #------------------------------------------------------------------------
+      def _define_meta()
+        #TODO codegen
+        meta = PolicyMeta.new(self)
+        define_singleton_method(:meta, lambda {meta})
+      end
+    end
+
     #-------------------------------------------------------------------
     # == Class +Policy+
     #
@@ -231,6 +237,7 @@ module Red
     class Policy
       include Alloy::Ast::ASig
       extend PolicyStatic
+      extend PolicyBuilder
 
       attr_reader :principal
 

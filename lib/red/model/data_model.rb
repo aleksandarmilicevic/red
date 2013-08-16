@@ -70,14 +70,46 @@ RUBY
           self.send ar_cb_sym, lambda{|*args| self.class.send trigger_sym, self, *args}
         end
       end
-
     end
-    #-------------------------------------------------------------------
+
+    #============================================================
+    # == Module +RecordBuilder+
+    #
+    # Includes ASig::Builder and overrides some private methods
+    # to customize processing of fields.
+    #============================================================
+    module RecordBuilder
+      include Alloy::Ast::ASig::Builder
+
+      private
+
+      def _field(*args)
+        fld = super
+        attr_accessible fld.getter_sym if fld.transient?
+      end
+
+      def _fld_reader_code(fld)      (fld.persistent?) ? "super" : super end
+      def _fld_writer_code(fld, val) (fld.persistent?) ? "super" : super end
+
+      def after_query_listeners
+        @@after_query_listeners ||= []
+      end
+
+      def _set_placeholder
+        super
+        # tell active record to ignore this class
+        self.abstract_class = true
+      end
+    end
+
+    #============================================================
     # == Module +RecordStatic+
     #
     # Static (class) methods for the Record class
-    #-------------------------------------------------------------------
+    #============================================================
     module RecordStatic
+      include Alloy::Ast::ASig::Static
+
       def allocate
         obj = super
         obj.send :init_default_transient_values
@@ -127,28 +159,6 @@ RUBY
       def start
         super
       end
-
-      protected
-
-      def _field(*args)
-        fld = super
-        if fld.transient?
-          attr_accessible fld.getter_sym
-        end
-      end
-
-      def _fld_reader_code(fld)      (fld.persistent?) ? "super" : super end
-      def _fld_writer_code(fld, val) (fld.persistent?) ? "super" : super end
-
-      def after_query_listeners
-        @@after_query_listeners ||= []
-      end
-
-      def _set_placeholder
-        super
-        # tell active record to ignore this class
-        self.abstract_class = true
-      end
     end
 
     #-------------------------------------------------------------------
@@ -160,13 +170,11 @@ RUBY
       include Alloy::Ast::ASig
       extend Red::Model::ObjCallbacks
       extend Red::Model::RecordStatic
+      extend Red::Model::RecordBuilder
 
       gen_obj_callback :after_save
       gen_obj_callback :after_destroy
       gen_obj_callback :after_elem_appended, :not_activerecord_cb => true
-
-      class << self
-      end
 
       placeholder
 

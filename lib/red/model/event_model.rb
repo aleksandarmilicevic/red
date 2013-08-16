@@ -22,17 +22,15 @@ module Red
       end
     end
 
-    #-------------------------------------------------------------------
-    # == Module +EventClassMethods+
+    #============================================================
+    # == Class +EventBuilder+
     #
-    #-------------------------------------------------------------------
-    module EventStatic
-      include Alloy::Ast::ASig::Static
+    # Adds some builder methods
+    #============================================================
+    module EventBuilder
+      include Alloy::Ast::ASig::Builder
 
-      def created()
-        super
-        Red.meta.event_created(self)
-      end
+      protected
 
       def from(hash)
         _check_single_fld_hash(hash, Red::Model::Machine)
@@ -59,6 +57,19 @@ module Red
 
       def ensures(&block)
         define_method(:ensures, &block)
+      end
+    end
+
+    #============================================================
+    # == Module +EventClassMethods+
+    #
+    #============================================================
+    module EventStatic
+      include Alloy::Ast::ASig::Static
+
+      def created()
+        super
+        Red.meta.event_created(self)
       end
 
       def finish
@@ -97,6 +108,7 @@ module Red
     class Event
       include Alloy::Ast::ASig
       extend EventStatic
+      extend EventBuilder
 
       placeholder
 
