@@ -145,7 +145,7 @@ module View
           h1.merge! :fields => to_json(sig_meta.fields),
                     :inv_fields => to_json(sig_meta.inv_fields)
         end
-      when Alloy::Ast::FieldMeta
+      when Alloy::Ast::Field
         fld = obj
         if ref
           fname = (fld.is_inv?) ? "inv_fields" : "fields"

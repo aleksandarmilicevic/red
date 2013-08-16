@@ -168,7 +168,7 @@ module Red
         fld = opts[:field]
         raise ArgumentError, "field not specified" unless fld
         msg = "expected `Field', got #{fld}:#{fld.class}"
-        raise ArgumentError, msg unless Alloy::Ast::FieldMeta === fld
+        raise ArgumentError, msg unless Alloy::Ast::Field === fld
 
         cond_keys = opts.keys.select{|e| Rule::CONDITIONS.member? e}
         filter_keys = opts.keys.select{|e| Rule::FILTERS.member? e}
@@ -254,12 +254,12 @@ module Red
     end
 
     #-------------------------------------------------------------------
-    # == Module +FieldMetaRuleExt+
+    # == Module +FieldRuleExt+
     #
-    # Extensions for the FieldMeta class that adds methods for
+    # Extensions for the Field class that adds methods for
     # generating policy conditions and filters.
     # -------------------------------------------------------------------
-    module FieldMetaRuleExt
+    module FieldRuleExt
       private
 
       def self.gen_cond(conds, filters)
@@ -281,7 +281,7 @@ RUBY
 
       gen_cond Rule::CONDITIONS, Rule::FILTERS
     end
-    Alloy::Ast::FieldMeta.send :include, FieldMetaRuleExt
+    Alloy::Ast::Field.send :include, FieldRuleExt
 
   end
 end

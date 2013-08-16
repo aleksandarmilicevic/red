@@ -96,7 +96,7 @@ module Red
       #       ActiveRecord::Base (e.g., if there is a field called "connection"
       # ---------------------------------------------------------------------
 
-      # @param fld [FieldMeta]
+      # @param fld [Field]
       def add_delegators(fld)
         return if fld.is_inv?
         # define getter
@@ -125,11 +125,11 @@ module Red
         }
       end
 
-      # @param fld [FieldMeta]
+      # @param fld [Field]
       def add_inv_delegators(inv_fld)
       end
 
-      # @param fld [FieldMeta]
+      # @param fld [Field]
       def add_associations(fld)
         fldinf = Red::Model::TableUtil.fld_table_info(fld)
         opts = { :class_name => fldinf.range_class,

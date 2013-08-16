@@ -281,7 +281,7 @@ module Red
 
         # Handles a given field of the given record
         #
-        # @param fld [FieldMeta]
+        # @param fld [Field]
         # @result [Array(ColInfo), ColInfo]
         def cols_for_field(fld)
           return [] if fld.has_impl?
@@ -323,7 +323,7 @@ module Red
         # Generates a join table for a given field
         #
         # @param record [Record]
-        # @param fld [FieldMeta]
+        # @param fld [Field]
         # @param fld_info [FldInfo]
         def gen_create_join_table(fld, fld_info)
           return if _table_exists? fld_info.join_table.to_sym
