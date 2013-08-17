@@ -1,4 +1,4 @@
-require 'alloy/alloy_dsl_engine'
+require 'alloy/alloy_dsl'
 require 'red/red'
 require 'red/dsl/red_dsl_engine'
 require 'red/model/red_model'
@@ -17,25 +17,25 @@ module Red
     # end
 
     def data_model(name="", &block)
-      Alloy::DslEngine::ModelBuilder.new({
+      Alloy::Dsl::ModelBuilder.new({
         :mods_to_include => [Red::Dsl::MData]
       }).model(:data, name, &block)
     end
 
     def machine_model(name="", &block)
-      Alloy::DslEngine::ModelBuilder.new({
+      Alloy::Dsl::ModelBuilder.new({
         :mods_to_include => [Red::Dsl::MMachine]
       }).model(:machines, name, &block)
     end
 
     def event_model(name="", &block)
-      Alloy::DslEngine::ModelBuilder.new({
+      Alloy::Dsl::ModelBuilder.new({
         :mods_to_include => [Red::Dsl::MEvent]
       }).model(:events, name, &block)
     end
 
     def security_model(name="", &block)
-      Alloy::DslEngine::ModelBuilder.new({
+      Alloy::Dsl::ModelBuilder.new({
         :mods_to_include => [Red::Dsl::MSecurity]
       }).model(:events, name, &block)
     end
@@ -44,12 +44,12 @@ module Red
     # Model to be included in each +data_model+.
     # ==================================================================
     module MData
-      include Alloy::Dsl::Mult
-      include Alloy::Dsl::Abstract
+      include Alloy::Dsl::MultHelper
+      include Alloy::Dsl::AbstractHelper
       extend self
 
       def record(name, fields={}, &block)
-        sb = Alloy::DslEngine::SigBuilder.new(
+        sb = Alloy::Dsl::SigBuilder.new(
           :superclass => Red::Model::Data)
         sb.sig(name, fields, &block)
       end
@@ -63,12 +63,12 @@ module Red
     # Model to be included in each +machine_model+.
     # ==================================================================
     module MMachine
-      include Alloy::Dsl::Mult
-      include Alloy::Dsl::Abstract
+      include Alloy::Dsl::MultHelper
+      include Alloy::Dsl::AbstractHelper
       extend self
 
       def machine(name, fields={}, &block)
-        sb = Alloy::DslEngine::SigBuilder.new(
+        sb = Alloy::Dsl::SigBuilder.new(
           :superclass => Red::Model::Machine)
         sb.sig(name, fields, &block)
       end
@@ -82,11 +82,11 @@ module Red
     # Model to be included in each +event_model+.
     # ==================================================================
     module MEvent
-      include Alloy::Dsl::Mult
+      include Alloy::Dsl::MultHelper
       extend self
 
       def event(name, fields={}, &block)
-        sb = Alloy::DslEngine::SigBuilder.new(
+        sb = Alloy::Dsl::SigBuilder.new(
           :superclass => Red::Model::Event)
         sb.sig(name, fields, &block)
       end
@@ -110,7 +110,7 @@ module Red
         # Red.meta.policy_created(policy)
         # policy
 
-        sb = Alloy::DslEngine::SigBuilder.new(
+        sb = Alloy::Dsl::SigBuilder.new(
           :superclass => Red::Model::Policy)
         sb.sig(name, {}, &block)
       end
