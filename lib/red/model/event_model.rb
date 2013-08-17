@@ -160,7 +160,7 @@ module Red
       end
 
       def check_all_present
-        check_present(*meta.params.map{|fld| fld.name})
+        check_present(*meta.params.map(&:name))
       end
 
       def error(msg)
