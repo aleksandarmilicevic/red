@@ -1,6 +1,7 @@
 require 'active_record'
 require 'alloy/alloy_ast'
 require 'alloy/alloy_ast_errors'
+require 'alloy/dsl/sig_builder'
 require 'alloy/utils/codegen_repo'
 require 'sdg_utils/proxy'
 require 'sdg_utils/delegator'
@@ -75,11 +76,11 @@ RUBY
     #============================================================
     # == Module +RecordBuilder+
     #
-    # Includes ASig::Builder and overrides some private methods
-    # to customize processing of fields.
-    #============================================================
+    # Includes Alloy::Dsl::SigDslApi and overrides some private
+    # methods to customize processing of fields.
+    # ============================================================
     module RecordBuilder
-      include Alloy::Ast::ASig::Builder
+      include Alloy::Dsl::SigDslApi
 
       private
 

@@ -1,5 +1,5 @@
 require 'alloy/alloy_ast'
-require 'alloy/alloy_ast_errors'
+require 'alloy/dsl/sig_builder'
 require 'red/model/red_meta_model'
 
 module Red
@@ -27,8 +27,8 @@ module Red
     #
     # Adds some builder methods
     #============================================================
-    module EventBuilder
-      include Alloy::Ast::ASig::Builder
+    module EventDslApi
+      include Alloy::Dsl::SigDslApi
 
       protected
 
@@ -108,7 +108,7 @@ module Red
     class Event
       include Alloy::Ast::ASig
       extend EventStatic
-      extend EventBuilder
+      extend EventDslApi
 
       placeholder
 

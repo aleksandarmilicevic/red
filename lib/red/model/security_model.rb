@@ -1,4 +1,4 @@
-require 'alloy/alloy_ast'
+require 'alloy/dsl/sig_builder'
 require 'red/model/red_model'
 require 'red/model/event_model'
 require 'sdg_utils/delegator'
@@ -129,7 +129,7 @@ module Red
     # == Module +PolicyBuilder+
     # ===========================================================
     module PolicyBuilder
-      include Alloy::Ast::ASig::Builder
+      include Alloy::Dsl::SigDslApi
 
       def principal(hash)
         _check_single_fld_hash(hash, Red::Model::Machine)
