@@ -162,6 +162,8 @@ module Red
         meta.add_restriction(rule)
       end
 
+      protected
+
       def __created()
         super
         Red.meta.policy_created(self)

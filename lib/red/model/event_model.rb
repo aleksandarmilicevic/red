@@ -54,7 +54,7 @@ module Red
       def requires(&block) _define_method(:requires, &block) end
       def ensures(&block)  _define_method(:ensures, &block) end
 
-      def __created()
+      def __created
         super
         Red.meta.event_created(self)
       end
@@ -64,14 +64,10 @@ module Red
       end
 
       def _sanity_check
-        # raise MalformedEventError, "`from' machine not defined for event `#{name}'"\
-        #   unless @from_fld
-        # raise MalformedEventError, "`to' machine not defined for event `#{name}'"\
-        #   unless @to_fld
         from({from: Machine}) unless meta.from
-        to({to: Machine}) unless meta.to
-        define_method(:requires, lambda{ true }) unless method_defined? :requires
-        define_method(:ensures, lambda{}) unless method_defined? :ensures
+        to({to: Machine})     unless meta.to
+        requires(&lambda{ true }) unless method_defined? :requires
+        ensures(&lambda{})        unless method_defined? :ensures
       end
     end
 

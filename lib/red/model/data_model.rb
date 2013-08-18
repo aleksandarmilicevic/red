@@ -83,6 +83,7 @@ RUBY
       include Alloy::Dsl::SigDslApi
 
       # ~~~~~~~~~~~~~~~~~~~~~ callbacks for ClassBuilder ~~~~~~~~~~~~~~~~~~~~~ #
+      protected
 
       def __created()
         super
@@ -91,7 +92,7 @@ RUBY
       end
 
       # ~~~~~~~~~~~~~~~~~~~~~~~~~~~ private stuff ~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-      private
+      private 
 
       def _field(*args)
         fld = super
