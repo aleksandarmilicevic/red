@@ -34,10 +34,6 @@ module Red
         @restriction_mod = nil
       end
 
-      protected
-
-      public
-
       gen :base_record, :record, :machine, :event, :policy
 
       def restrict_to(mod)
