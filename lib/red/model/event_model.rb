@@ -23,9 +23,9 @@ module Red
     end
 
     #============================================================
-    # == Class +EventBuilder+
+    # == Class +EventDslApi+
     #
-    # Adds some builder methods
+    # Adds some dsl API methods
     #============================================================
     module EventDslApi
       include Alloy::Dsl::SigDslApi
@@ -51,41 +51,16 @@ module Red
                              _field(name, type, hash.merge({:transient => true}))})
       end
 
-      def requires(&block)
-        define_method(:requires, &block)
-      end
+      def requires(&block) _define_method(:requires, &block) end
+      def ensures(&block)  _define_method(:ensures, &block) end
 
-      def ensures(&block)
-        define_method(:ensures, &block)
-      end
-    end
-
-    #============================================================
-    # == Module +EventClassMethods+
-    #
-    #============================================================
-    module EventStatic
-      include Alloy::Ast::ASig::Static
-
-      def created()
+      def __created()
         super
         Red.meta.event_created(self)
       end
 
-      def finish
+      def __finish
         _sanity_check()
-      end
-
-      protected
-
-      #------------------------------------------------------------------------
-      # Defines the +meta+ method which returns some meta info
-      # about this events's params and from/to designations.
-      #------------------------------------------------------------------------
-      def _define_meta()
-        #TODO codegen
-        meta = EventMeta.new(self)
-        define_singleton_method(:meta, lambda {meta})
       end
 
       def _sanity_check
@@ -97,6 +72,26 @@ module Red
         to({to: Machine}) unless meta.to
         define_method(:requires, lambda{ true }) unless method_defined? :requires
         define_method(:ensures, lambda{}) unless method_defined? :ensures
+      end
+    end
+
+    #============================================================
+    # == Module +EventClassMethods+
+    #
+    #============================================================
+    module EventStatic
+      include Alloy::Ast::ASig::Static
+
+      protected
+
+      #------------------------------------------------------------------------
+      # Defines the +meta+ method which returns some meta info
+      # about this events's params and from/to designations.
+      #------------------------------------------------------------------------
+      def _define_meta()
+        #TODO codegen
+        meta = EventMeta.new(self)
+        define_singleton_method(:meta, lambda {meta})
       end
     end
 

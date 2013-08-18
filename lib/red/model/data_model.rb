@@ -73,15 +73,24 @@ RUBY
       end
     end
 
-    #============================================================
-    # == Module +RecordBuilder+
+    # ============================================================
+    # == Module +RecordDslApi+
     #
     # Includes Alloy::Dsl::SigDslApi and overrides some private
     # methods to customize processing of fields.
     # ============================================================
-    module RecordBuilder
+    module RecordDslApi
       include Alloy::Dsl::SigDslApi
 
+      # ~~~~~~~~~~~~~~~~~~~~~ callbacks for ClassBuilder ~~~~~~~~~~~~~~~~~~~~~ #
+
+      def __created()
+        super
+        _define_meta()
+        Red.meta.base_record_created(self)
+      end
+
+      # ~~~~~~~~~~~~~~~~~~~~~~~~~~~ private stuff ~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
       private
 
       def _field(*args)
@@ -115,11 +124,6 @@ RUBY
         obj = super
         obj.send :init_default_transient_values
         obj
-      end
-
-      def created()
-        super
-        Red.meta.base_record_created(self)
       end
 
       def after_query(obj)
@@ -156,10 +160,6 @@ RUBY
 
       def red_root() alloy_root end
       def red_subclasses() meta.subsigs end
-
-      def start
-        super
-      end
     end
 
     #-------------------------------------------------------------------
@@ -170,8 +170,8 @@ RUBY
     class Record < ActiveRecord::Base
       include Alloy::Ast::ASig
       extend Red::Model::ObjCallbacks
+      extend Red::Model::RecordDslApi
       extend Red::Model::RecordStatic
-      extend Red::Model::RecordBuilder
 
       gen_obj_callback :after_save
       gen_obj_callback :after_destroy
@@ -239,7 +239,7 @@ RUBY
     class Data < Record
       placeholder
 
-      def self.created()
+      def self.__created()
         super
         Red.meta.record_created(self)
       end
@@ -253,7 +253,7 @@ RUBY
     class Machine < Record
       placeholder
 
-      def self.created()
+      def self.__created()
         super
         Red.meta.machine_created(self)
       end

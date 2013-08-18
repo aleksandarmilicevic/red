@@ -126,9 +126,9 @@ module Red
     end
 
     # ===========================================================
-    # == Module +PolicyBuilder+
+    # == Module +PolicyDslApi+
     # ===========================================================
-    module PolicyBuilder
+    module PolicyDslApi
       include Alloy::Dsl::SigDslApi
 
       def principal(hash)
@@ -160,6 +160,18 @@ module Red
         end
         rule = Rule.new(fld, self, cond, filter)
         meta.add_restriction(rule)
+      end
+
+      def __created()
+        super
+        Red.meta.policy_created(self)
+      end
+
+      def __finish
+        meta.freeze
+        instance_eval <<-RUBY, __FILE__, __LINE__+1
+          def principal() meta.principal end
+        RUBY
       end
 
       private
@@ -204,18 +216,6 @@ module Red
 
       def restrictions(*args) meta.restrictions(*args) end
 
-      def created()
-        super
-        Red.meta.policy_created(self)
-      end
-
-      def finish
-        meta.freeze
-        instance_eval <<-RUBY, __FILE__, __LINE__+1
-          def principal() meta.principal end
-        RUBY
-      end
-
       protected
 
       #------------------------------------------------------------------------
@@ -237,7 +237,7 @@ module Red
     class Policy
       include Alloy::Ast::ASig
       extend PolicyStatic
-      extend PolicyBuilder
+      extend PolicyDslApi
 
       attr_reader :principal
 
