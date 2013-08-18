@@ -36,52 +36,6 @@ module Red
 
       protected
 
-      # Returns plural of the given noun by
-      #  (1) replacing the trailing 'y' with 'ies', if `word'
-      #      ends with 'y',
-      #  (2) appending 'es', if `word' ends with 's'
-      #  (3) appending 's', otherwise
-      def self.pl(word)
-        word = word.to_s
-        if word[-1] == "y"
-          word[0...-1] + "ies"
-        elsif word[-1] == "s"
-          word + "es"
-        else
-          word + "s"
-        end
-      end
-
-      # Generates several methods for each symbol in `whats'.  For
-      # example, if whats == [:record] it generates:
-      #
-      #   private
-      #   def _records()          _restrict @records end
-      #
-      #   public
-      #   def records()           _records end
-      #   def record_created(obj) add_to(@records, obj) end
-      #   def get_record(name)    _cache(_records, name) end
-      #   def find_record(name)   _search_by_name(_records, name) end
-      #
-      #   alias_method :record, :get_record
-      def self.gen(*whats)
-        whats.each do |what|
-          self.class_eval <<-RUBY, __FILE__, __LINE__+1
-            private
-            def _#{pl what}()        _restrict @#{pl what} end
-
-            public
-            def #{pl what}()         _#{pl what} end
-            def #{what}_created(obj) add_to(@#{pl what}, obj) end
-            def get_#{what}(name)    _cache(_#{pl what}, name) end
-            def find_#{what}(name);  _search_by_name(_#{pl what}, name) end
-
-            alias_method :#{what}, :get_#{what}
-          RUBY
-        end
-      end
-
       public
 
       gen :base_record, :record, :machine, :event, :policy
