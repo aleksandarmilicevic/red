@@ -59,7 +59,7 @@ class TestPolicyModel < Test::Unit::TestCase
   end
 
   def test_policy_created
-    assert (p=XTestPolicyModel::P1 rescue false), "policy class not created"
+    assert((p = XTestPolicyModel::P1 rescue false), "policy class not created")
     assert_equal 1, Red.meta.policies.size
     pol = Red.meta.policies[0]
     assert_equal "XTestPolicyModel::P1", pol.name
