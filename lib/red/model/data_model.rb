@@ -190,10 +190,6 @@ RUBY
       after_update      boss_proxy
       after_query       boss_proxy
 
-      def red_meta
-        self.class.red_meta
-      end
-
       def to_s
         "#{self.class.name}(#{id})"
       end

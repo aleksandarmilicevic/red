@@ -34,7 +34,7 @@ module Red
         @restriction_mod = nil
       end
 
-      gen :base_record, :record, :machine, :event, :policy
+      attr_searchable :base_record, :record, :machine, :event, :policy
 
       def restrict_to(mod)
         @restriction_mod = mod
