@@ -166,7 +166,7 @@ module Red
 
       def __created()
         super
-        Red.meta.policy_created(self)
+        Red.meta.add_policy(self)
       end
 
       def __finish

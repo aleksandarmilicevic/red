@@ -88,11 +88,11 @@ RUBY
       def __created()
         super
         _define_meta()
-        Red.meta.base_record_created(self)
+        Red.meta.add_base_record(self)
       end
 
       # ~~~~~~~~~~~~~~~~~~~~~~~~~~~ private stuff ~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-      private 
+      private
 
       def _field(*args)
         fld = super
@@ -242,7 +242,7 @@ RUBY
 
       def self.__created()
         super
-        Red.meta.record_created(self)
+        Red.meta.add_record(self)
       end
     end
 
@@ -256,7 +256,7 @@ RUBY
 
       def self.__created()
         super
-        Red.meta.machine_created(self)
+        Red.meta.add_machine(self)
       end
     end
 

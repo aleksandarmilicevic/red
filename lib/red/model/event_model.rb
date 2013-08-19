@@ -56,7 +56,7 @@ module Red
 
       def __created
         super
-        Red.meta.event_created(self)
+        Red.meta.add_event(self)
       end
 
       def __finish

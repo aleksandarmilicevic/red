@@ -43,7 +43,7 @@ module Red
 
       private
 
-      def add_to(col, val)
+      def _add_to(col, val)
         col << val unless val.respond_to?("placeholder?".to_sym) && val.placeholder?
       end
     end
