@@ -70,7 +70,6 @@ module Engine
     end
 
     def as_node_code(var, type, source, template, original)
-#      original
       varsym = var.to_sym.inspect
       if type == :const
         node = ConstNodeRepo.create(source)
