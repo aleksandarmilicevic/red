@@ -1,4 +1,5 @@
 require_relative 'red_dsl_test_helper.rb'
+require 'sdg_utils/testing/smart_setup'
 
 module X
   data_model "DY" do
@@ -8,7 +9,12 @@ module X
 end
 
 class TestRedDataModel < Test::Unit::TestCase
+  include SDGUtils::Testing::SmartSetup
   include RedDslTestUtils
+
+  def setup_pre
+    Red.meta.restrict_to(X)  
+  end
 
   def test1() create_data_model "MyDModel1" end
   def test2() create_data_model :MyDModel2 end

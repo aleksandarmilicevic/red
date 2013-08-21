@@ -1,9 +1,11 @@
 require 'unit/alloy/alloy_test_helper.rb'
 require 'red/dsl/red_dsl'
 require 'red_setup'
+require 'sdg_utils/testing/smart_setup'
 
 include Red::Dsl
 
+module R_D_RDFT
 data_model "X" do 
   record Person, {
     name: String, 
@@ -23,15 +25,24 @@ data_model "Y" do
     }}
   end
 end
-
-RedTestSetup.red_init
+end
 
 class RedDslFldTest < Test::Unit::TestCase
+  include SDGUtils::Testing::SmartSetup
   include AlloyTestUtils
-  
+  include R_D_RDFT
+
+  def setup_class
+    RedTestSetup.red_init
+  end
+
+  def setup_pre
+    Red.meta.restrict_to(R_D_RDFT)  
+  end
+
   def test_sigs_defined
-    sig_test_helper('X::Person', Red::Model::Record)   
-    sig_test_helper('Y::House', Red::Model::Record)   
+    sig_test_helper('R_D_RDFT::X::Person', Red::Model::Record)   
+    sig_test_helper('R_D_RDFT::Y::House', Red::Model::Record)   
   end
    
   def test_fld_accessors_defined
