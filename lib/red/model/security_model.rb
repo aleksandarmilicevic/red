@@ -156,7 +156,6 @@ module Red
           raise ArgumentError, "both :method and block given" if poli[:method]
           salt = SDGUtils::Random.salted_timestamp
           method_name = :"restrict_#{fld.to_iden}_#{poli[:kind]}_#{salt}"
-          # define_method method_name.to_sym, &block
           pred(method_name, &block)
           poli[:method] = method_name
         end
