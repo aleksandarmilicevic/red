@@ -44,7 +44,6 @@ module XTestPolicyModel
         !room.messages.sender.include?(member) &&
         client.user != member
       end
-
     end
   end
 end
