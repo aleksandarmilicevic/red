@@ -44,8 +44,7 @@ module Red
     # Model to be included in each +data_model+.
     # ==================================================================
     module MData
-      include Alloy::Dsl::MultHelper
-      include Alloy::Dsl::AbstractHelper
+      include Alloy::Dsl::ModelDslApi
       extend self
 
       def record(name, fields={}, &block)
@@ -63,8 +62,7 @@ module Red
     # Model to be included in each +machine_model+.
     # ==================================================================
     module MMachine
-      include Alloy::Dsl::MultHelper
-      include Alloy::Dsl::AbstractHelper
+      include Alloy::Dsl::ModelDslApi
       extend self
 
       def machine(name, fields={}, &block)
@@ -82,7 +80,7 @@ module Red
     # Model to be included in each +event_model+.
     # ==================================================================
     module MEvent
-      include Alloy::Dsl::MultHelper
+      include Alloy::Dsl::ModelDslApi
       extend self
 
       def event(name, fields={}, &block)
@@ -96,6 +94,7 @@ module Red
     # Model to be included in each +security_model+.
     # ==================================================================
     module MSecurity
+      include Alloy::Dsl::ModelDslApi
       extend self
 
       def policy(name, &block)

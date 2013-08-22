@@ -46,10 +46,9 @@ module R_M_TPC
         }
       end
 
-      # filter out anonymous users (those who have not sent anything)
+      # filter out busy users (those who set their status to "busy")
       restrict Room.members.reject do |room, member|
-        !room.messages.sender.include?(member) &&
-        client.user != member
+        member.status == "busy"
       end
     end
   end
@@ -68,12 +67,13 @@ class TestPolicyCheck < MigrationTest::TestBase
   def setup_test
     @room1 = Room.new
     @user1 = User.new :name => "eskang", :pswd => "ek123", :status => "working"
-    @user2 = User.new :name => "jnear", :pswd => "jn123", :status => "working"
+    @user2 = User.new :name => "jnear", :pswd => "jn123", :status => "busy"
     @user3 = User.new :name => "singh", :pswd => "rs123", :status => "slacking"
-    @room1.members = [@user1, @user2, @user3]
+    @room1.members = [@user1, @user2]
     @client1 = Client.new :user => @user1
     @client2 = Client.new :user => @user2
-    @objs = [@client1, @client2, @room1, @user1, @user2, @user3]
+    @client3 = Client.new
+    @objs = [@client1, @client2, @client3, @room1, @user1, @user2, @user3]
     save_all
   end
 
@@ -85,9 +85,49 @@ class TestPolicyCheck < MigrationTest::TestBase
     @objs.each {|r| r.save!}
   end
 
-  def test_restriction1
+  def test_pswd_restriction
+    check_pswd = proc{ |pswd_r, ok_user|
+      [@user1, @user2, @user3].each do |user|
+        cond = pswd_r.check_condition(user)
+        if user == ok_user
+          assert !cond, "expected pswd rule check to pass"
+        else
+          assert cond, "expected pswd rule check to fail"
+        end
+      end
+    }
     pol = P1.instantiate(@client1)
-    r = pol.restrictions(User.pswd)[0]
-    assert !r.check_condition(@user1), "expected restriction check to fail"
+    check_pswd[pol.restrictions(User.pswd)[0], @user1]
+    check_pswd[pol.restrictions(User.pswd)[1], nil]
+
+    pol = P1.instantiate(@client2)
+    check_pswd[pol.restrictions(User.pswd)[0], @user2]
+    check_pswd[pol.restrictions(User.pswd)[1], nil]
+
+    pol = P1.instantiate(@client3)
+    check_pswd[pol.restrictions(User.pswd)[0], nil]
+    check_pswd[pol.restrictions(User.pswd)[1], nil]
   end
+
+  def test_status_restriction
+    pol = P1.instantiate(@client1)
+    status_r = pol.restrictions(User.status).first
+    assert !status_r.check_condition(@user1), "expected pswd rule check to pass"
+    assert !status_r.check_condition(@user2), "expected pswd rule check to fail"
+    assert status_r.check_condition(@user3), "expected pswd rule check to fail"
+
+    pol = P1.instantiate(@client2)
+    status_r = pol.restrictions(User.status).first
+    assert !status_r.check_condition(@user1), "expected pswd rule check to pass"
+    assert !status_r.check_condition(@user2), "expected pswd rule check to fail"
+    assert status_r.check_condition(@user3), "expected pswd rule check to fail"
+  end
+
+  def test_filter_busy
+    pol = P1.instantiate(@client1)
+    busy_r = pol.restrictions(Room.members).first
+    assert !busy_r.check_filter(@room1, @user1)
+    assert busy_r.check_filter(@room1, @user2)
+  end
+
 end

@@ -136,6 +136,11 @@ RUBY
       def all(*args)   res = super; fire_after_query(self, :all, args, res) end
       def where(*args) res = super; fire_after_query(self, :where, args, res) end
 
+      def all?(*args, &block) all.all?(*args, &block) end
+      def some?(*args, &block) all.some?(*args, &block) end
+      def none?(*args, &block) all.none?(*args, &block) end
+      def one?(*args, &block) all.one?(*args, &block) end
+
       # def scoped
       #   obj = super
       #   me = self
@@ -182,7 +187,7 @@ RUBY
 
       boss_proxy = SDGUtils::Delegator.new(lambda{Red.boss})
 
-      around_save :with_transient_values
+      around_save       :with_transient_values
       after_create      boss_proxy
       after_save        boss_proxy
       after_destroy     boss_proxy

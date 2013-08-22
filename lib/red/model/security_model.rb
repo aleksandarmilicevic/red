@@ -77,10 +77,16 @@ module Red
       private
 
       def check(kind, method, *args)
-        ans = @policy.send method.to_sym, *args
+        meth = @policy.send :method, method.to_sym
+        meth_args = args[0...meth.arity]
+        ans = @policy.send method.to_sym, *meth_args
         case kind
-        when :when, :select, :include; ans
-        when :unless, :reject, :exclude; !ans
+        # conditions
+        when :when; ans
+        when :unless; !ans
+        # filters
+        when :select, :include; !ans
+        when :reject, :exclude; ans
         else fail "unknown condition kind: #{kind}"
         end
       end
