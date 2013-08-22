@@ -15,7 +15,7 @@ end
 
 class MigrationInheritanceAccessorsTest < MigrationTest::TestBase
 
-  def setup_pre
+  def setup_class_pre_red_init
     Red.meta.restrict_to(D5)
   end
 

@@ -6,7 +6,7 @@ require 'sdg_utils/testing/smart_setup'
 include Red::Dsl
 
 module R_D_RDFT
-data_model "X" do 
+data_model "X" do
   record Person, {
     name: String,
     manager: Person,
@@ -33,16 +33,13 @@ class RedDslFldTest < Test::Unit::TestCase
   include R_D_RDFT
 
   def setup_class
+    Red.meta.restrict_to(R_D_RDFT)
     RedTestSetup.red_init
   end
 
-  def setup_pre
-    Red.meta.restrict_to(R_D_RDFT)  
-  end
-
   def test_sigs_defined
-    sig_test_helper('R_D_RDFT::X::Person', Red::Model::Record)   
-    sig_test_helper('R_D_RDFT::Y::House', Red::Model::Record)   
+    sig_test_helper('R_D_RDFT::X::Person', Red::Model::Record)
+    sig_test_helper('R_D_RDFT::Y::House', Red::Model::Record)
   end
 
   def test_fld_accessors_defined

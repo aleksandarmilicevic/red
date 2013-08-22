@@ -36,11 +36,11 @@ end
 
 class RedFldAccessEventsTest < MigrationTest::TestBase
 
-  def setup_pre
+  def setup_class_pre_red_init
     Red.meta.restrict_to(RFAE)
   end
 
-  def setup_post
+  def setup_class_post_red_init
     if @listener; Red.boss.unregister_listener(@listener) end
     @listener = AlloyTestEventListener.new
     Red.boss.register_listener(:field_read, @listener)

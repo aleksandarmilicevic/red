@@ -28,7 +28,7 @@ end
 
 class MigrationBasicTest < MigrationTest::TestBase
 
-  def setup_pre
+  def setup_class_pre_red_init
     Red.meta.restrict_to(D1)
   end
 

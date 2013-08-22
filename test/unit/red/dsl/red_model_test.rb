@@ -12,8 +12,8 @@ class TestRedDataModel < Test::Unit::TestCase
   include SDGUtils::Testing::SmartSetup
   include RedDslTestUtils
 
-  def setup_pre
-    Red.meta.restrict_to(X)  
+  def setup_class
+    Red.meta.restrict_to(X)
   end
 
   def test1() create_data_model "MyDModel1" end

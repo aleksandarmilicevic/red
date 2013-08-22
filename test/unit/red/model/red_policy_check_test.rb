@@ -59,35 +59,44 @@ class TestPolicyCheck < MigrationTest::TestBase
 
   attr_reader :client1, :client2, :room1, :user1, :user2, :user3
 
-  def setup_pre
+  @@room1 = nil
+  @@user1 = nil
+  @@user2 = nil
+  @@user3 = nil
+  @@client1 = nil
+  @@client2 = nil
+  @@client3 = nil
+  @@objs = nil
+
+  def setup_class_pre_red_init
     Red.meta.restrict_to(R_M_TPC)
-    # Red.boss.start
   end
 
-  def setup_test
-    @room1 = Room.new
-    @user1 = User.new :name => "eskang", :pswd => "ek123", :status => "working"
-    @user2 = User.new :name => "jnear", :pswd => "jn123", :status => "busy"
-    @user3 = User.new :name => "singh", :pswd => "rs123", :status => "slacking"
-    @room1.members = [@user1, @user2]
-    @client1 = Client.new :user => @user1
-    @client2 = Client.new :user => @user2
-    @client3 = Client.new
-    @objs = [@client1, @client2, @client3, @room1, @user1, @user2, @user3]
+  def setup_class_post_red_init
+    @@room1 = Room.new
+    @@user1 = User.new :name => "eskang", :pswd => "ek123", :status => "working"
+    @@user2 = User.new :name => "jnear", :pswd => "jn123", :status => "busy"
+    @@user3 = User.new :name => "singh", :pswd => "rs123", :status => "slacking"
+    @@room1.members = [@@user1, @@user2]
+    @@client1 = Client.new :user => @@user1
+    @@client2 = Client.new :user => @@user2
+    @@client3 = Client.new
+    @@objs = [@@client1, @@client2, @@client3, @@room1, @@user1, @@user2, @@user3]
     save_all
   end
 
-  def teardown
-    @objs.each {|r| r.destroy} if @objs
+  def after_tests
+    @@objs.each {|r| r.destroy} if @@objs
+    super
   end
 
   def save_all
-    @objs.each {|r| r.save!}
+    @@objs.each {|r| r.save!}
   end
 
   def test_pswd_restriction
     check_pswd = proc{ |pswd_r, ok_user|
-      [@user1, @user2, @user3].each do |user|
+      [@@user1, @@user2, @@user3].each do |user|
         cond = pswd_r.check_condition(user)
         if user == ok_user
           assert !cond, "expected pswd rule check to pass"
@@ -96,38 +105,38 @@ class TestPolicyCheck < MigrationTest::TestBase
         end
       end
     }
-    pol = P1.instantiate(@client1)
-    check_pswd[pol.restrictions(User.pswd)[0], @user1]
+    pol = P1.instantiate(@@client1)
+    check_pswd[pol.restrictions(User.pswd)[0], @@user1]
     check_pswd[pol.restrictions(User.pswd)[1], nil]
 
-    pol = P1.instantiate(@client2)
-    check_pswd[pol.restrictions(User.pswd)[0], @user2]
+    pol = P1.instantiate(@@client2)
+    check_pswd[pol.restrictions(User.pswd)[0], @@user2]
     check_pswd[pol.restrictions(User.pswd)[1], nil]
 
-    pol = P1.instantiate(@client3)
+    pol = P1.instantiate(@@client3)
     check_pswd[pol.restrictions(User.pswd)[0], nil]
     check_pswd[pol.restrictions(User.pswd)[1], nil]
   end
 
   def test_status_restriction
-    pol = P1.instantiate(@client1)
+    pol = P1.instantiate(@@client1)
     status_r = pol.restrictions(User.status).first
-    assert !status_r.check_condition(@user1), "expected pswd rule check to pass"
-    assert !status_r.check_condition(@user2), "expected pswd rule check to fail"
-    assert status_r.check_condition(@user3), "expected pswd rule check to fail"
+    assert !status_r.check_condition(@@user1), "expected pswd rule check to pass"
+    assert !status_r.check_condition(@@user2), "expected pswd rule check to fail"
+    assert status_r.check_condition(@@user3), "expected pswd rule check to fail"
 
-    pol = P1.instantiate(@client2)
+    pol = P1.instantiate(@@client2)
     status_r = pol.restrictions(User.status).first
-    assert !status_r.check_condition(@user1), "expected pswd rule check to pass"
-    assert !status_r.check_condition(@user2), "expected pswd rule check to fail"
-    assert status_r.check_condition(@user3), "expected pswd rule check to fail"
+    assert !status_r.check_condition(@@user1), "expected pswd rule check to pass"
+    assert !status_r.check_condition(@@user2), "expected pswd rule check to fail"
+    assert status_r.check_condition(@@user3), "expected pswd rule check to fail"
   end
 
   def test_filter_busy
-    pol = P1.instantiate(@client1)
+    pol = P1.instantiate(@@client1)
     busy_r = pol.restrictions(Room.members).first
-    assert !busy_r.check_filter(@room1, @user1)
-    assert busy_r.check_filter(@room1, @user2)
+    assert !busy_r.check_filter(@@room1, @@user1)
+    assert busy_r.check_filter(@@room1, @@user2)
   end
 
 end

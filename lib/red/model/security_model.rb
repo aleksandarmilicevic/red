@@ -77,17 +77,24 @@ module Red
       private
 
       def check(kind, method, *args)
-        meth = @policy.send :method, method.to_sym
-        meth_args = args[0...meth.arity]
-        ans = @policy.send method.to_sym, *meth_args
-        case kind
-        # conditions
-        when :when; ans
-        when :unless; !ans
-        # filters
-        when :select, :include; !ans
-        when :reject, :exclude; ans
-        else fail "unknown condition kind: #{kind}"
+        Red.boss.time_it("checking rule") do
+          meth, meth_args = Red.boss.time_it("getting arity", method) do
+            meth = @policy.send :method, method.to_sym
+            meth_args = args[0...meth.arity]
+            [meth, meth_args]
+          end
+          ans = Red.boss.time_it("executing rule method", method) do
+            @policy.send method.to_sym, *meth_args
+          end
+          case kind
+          # conditions
+          when :when; ans
+          when :unless; !ans
+          # filters
+          when :select, :include; !ans
+          when :reject, :exclude; ans
+          else fail "unknown condition kind: #{kind}"
+          end
         end
       end
 

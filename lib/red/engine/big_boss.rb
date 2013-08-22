@@ -38,9 +38,9 @@ module Engine
     # ------------------------------------------------
 
     begin
-      def time_it(task, &block)
+      def time_it(task, task_param=nil, &block)
         if @timer
-          @timer.time_it(task, &block)
+          @timer.time_it(task, task_param, &block)
         else
           yield
         end
@@ -54,6 +54,11 @@ module Engine
         return "" unless @timer
         @timer.print + "\n\n" + @timer.summary.map{|k,v| "#{k} = #{v*1000}ms"}.join("\n")
       end
+
+      # at_exit {
+      #   puts "timings: ---------------------"
+      #   puts Red.boss.print_timings
+      # }
     end
 
     # ------------------------------------------------

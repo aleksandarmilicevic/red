@@ -24,7 +24,7 @@ class TestViewRendererSimple < MigrationTest::TestBase
   attr_reader :room1, :user1, :user2, :user3
   attr_reader :widget_id, :widget_color
 
-  def setup_pre
+  def setup_class_pre_red_init
     Red.meta.restrict_to(R_E_VRT)
   end
 
