@@ -1,6 +1,5 @@
 require 'active_record'
 require 'alloy/alloy_ast'
-require 'alloy/alloy_ast_errors'
 require 'alloy/dsl/sig_builder'
 require 'alloy/utils/codegen_repo'
 require 'sdg_utils/proxy'

@@ -1,6 +1,5 @@
 require 'alloy/alloy_ast'
 require 'alloy/alloy_meta'
-require 'alloy/alloy_ast_errors'
 require 'alloy/alloy'
 require 'sdg_utils/meta_utils'
 
