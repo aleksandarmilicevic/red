@@ -1,2 +1,2 @@
-red
-===
+Ruby Event Driven (RED)
+====
