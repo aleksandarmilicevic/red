@@ -1,4 +1,4 @@
-require 'unit/alloy/alloy_test_helper.rb'
+require 'alloy/helpers/test/dsl_helpers'
 require 'red/dsl/red_dsl'
 require 'red_setup'
 require 'sdg_utils/testing/smart_setup'
@@ -28,8 +28,8 @@ end
 end
 
 class RedDslFldTest < Test::Unit::TestCase
+  include Alloy::Helpers::Test::DslHelpers
   include SDGUtils::Testing::SmartSetup
-  include AlloyTestUtils
   include R_D_RDFT
 
   def setup_class

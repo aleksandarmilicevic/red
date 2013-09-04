@@ -109,9 +109,9 @@ module Red
         # Red.meta.policy_created(policy)
         # policy
 
-        sb = Alloy::Dsl::SigBuilder.new(
-          :superclass => Red::Model::Policy)
-        sb.sig(name, {}, &block)
+        sb = Alloy::Dsl::SigBuilder.new({
+          :superclass => Red::Model::Policy
+        }).sig(name, {}, &block)
       end
     end
 
