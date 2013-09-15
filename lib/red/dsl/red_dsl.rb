@@ -18,25 +18,29 @@ module Red
 
     def data_model(name="", &block)
       Alloy::Dsl::ModelBuilder.new({
-        :mods_to_include => [Red::Dsl::MData]
+        :mods_to_include => [Red::Dsl::MData],
+        :return          => :builder
       }).model(:data, name, &block)
     end
 
     def machine_model(name="", &block)
       Alloy::Dsl::ModelBuilder.new({
-        :mods_to_include => [Red::Dsl::MMachine]
+        :mods_to_include => [Red::Dsl::MMachine],
+        :return          => :builder
       }).model(:machines, name, &block)
     end
 
     def event_model(name="", &block)
       Alloy::Dsl::ModelBuilder.new({
-        :mods_to_include => [Red::Dsl::MEvent]
+        :mods_to_include => [Red::Dsl::MEvent],
+        :return          => :builder
       }).model(:events, name, &block)
     end
 
     def security_model(name="", &block)
       Alloy::Dsl::ModelBuilder.new({
-        :mods_to_include => [Red::Dsl::MSecurity]
+        :mods_to_include => [Red::Dsl::MSecurity],
+        :return          => :builder
       }).model(:events, name, &block)
     end
 
@@ -48,13 +52,10 @@ module Red
       extend self
 
       def record(name, fields={}, &block)
-        sb = Alloy::Dsl::SigBuilder.new(
-          :superclass => Red::Model::Data)
-        sb.sig(name, fields, &block)
-      end
-
-      def abstract_record(name, fields={}, &block)
-        record(name, fields, &block).abstract
+        Alloy::Dsl::SigBuilder.new({
+          :superclass => Red::Model::Data,
+          :return     => :builder
+        }).sig(name, fields, &block)
       end
     end
 
@@ -66,13 +67,10 @@ module Red
       extend self
 
       def machine(name, fields={}, &block)
-        sb = Alloy::Dsl::SigBuilder.new(
-          :superclass => Red::Model::Machine)
-        sb.sig(name, fields, &block)
-      end
-
-      def abstract_machine(name, fields={}, &block)
-        machine(name, fields, &block).abstract
+        Alloy::Dsl::SigBuilder.new({
+          :superclass => Red::Model::Machine,
+          :return     => :builder
+        }).sig(name, fields, &block)
       end
     end
 
@@ -84,9 +82,10 @@ module Red
       extend self
 
       def event(name, fields={}, &block)
-        sb = Alloy::Dsl::SigBuilder.new(
-          :superclass => Red::Model::Event)
-        sb.sig(name, fields, &block)
+        sb = Alloy::Dsl::SigBuilder.new({
+          :superclass => Red::Model::Event,
+          :return     => :builder
+        }).sig(name, fields, &block)
       end
     end
 
@@ -110,7 +109,8 @@ module Red
         # policy
 
         sb = Alloy::Dsl::SigBuilder.new({
-          :superclass => Red::Model::Policy
+          :superclass => Red::Model::Policy,
+          :return     => :builder
         }).sig(name, {}, &block)
       end
     end

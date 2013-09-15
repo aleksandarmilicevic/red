@@ -19,12 +19,14 @@ module RedDslTestUtils
   end
 
   def create_data_model(name)
-    mod = Red::Dsl::data_model(name)
+    blder = Red::Dsl::data_model(name)
+    mod = blder.return_result(:array).first
     assert_module_helper(mod, name)
   end
 
   def create_machine_model(name)
-    mod = Red::Dsl::machine_model(name)
+    blder = Red::Dsl::machine_model(name)
+    mod = blder.return_result(:array).first
     assert_module_helper(mod, name)
   end
 end

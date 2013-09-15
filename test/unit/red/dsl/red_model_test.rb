@@ -1,5 +1,6 @@
 require_relative 'red_dsl_test_helper.rb'
 require 'sdg_utils/testing/smart_setup'
+require 'sdg_utils/testing/assertions'
 
 module X
   data_model "DY" do
@@ -11,6 +12,7 @@ end
 class TestRedDataModel < Test::Unit::TestCase
   include SDGUtils::Testing::SmartSetup
   include RedDslTestUtils
+  include SDGUtils::Testing::Assertions
 
   def setup_class
     Red.meta.restrict_to(X)
@@ -36,10 +38,10 @@ class TestRedDataModel < Test::Unit::TestCase
   end
 
   def test_already_defined
-    mod = data_model("MyModel1")
-    assert_equal MyModel1, mod
-    mod = machine_model("MyModel1")
-    assert_equal MyModel1, mod
+    blder = data_model("MyModel1")
+    assert_seq_equal [MyModel1], blder.return_result(:array)
+    blder = machine_model("MyModel1")
+    assert_seq_equal [MyModel1], blder.return_result(:array)
   end
 
 end

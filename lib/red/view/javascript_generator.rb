@@ -136,12 +136,14 @@ module View
         else
           cls.name
         end
-      when Alloy::Ast::SigMeta
+      when Alloy::Ast::SigMeta, Red::Model::EventMeta
         sig_meta = obj
         if ref
           Ref.new "#{to_json(sig_meta.sig_cls, true)}.meta"
         else
-          h1 = instance_variables sig_meta, :except => [:fields, :inv_fields]
+          incl = %w(sig_cls placeholder extra subsigs parentSig)
+          incl += %w(from to) if Red::Model::EventMeta === obj
+          h1 = instance_variables sig_meta, :include => incl
           h1.merge! :fields => to_json(sig_meta.fields),
                     :inv_fields => to_json(sig_meta.inv_fields)
         end
@@ -178,10 +180,10 @@ module View
     end
 
     def instance_variables(obj, hash={})
-      include = hash[:fields] || obj.instance_variables.map{|v| v[1..-1]}
+      include = hash[:include] || obj.instance_variables.map{|v| v[1..-1]}
       exclude = (hash[:except] || []).map{|e| e.to_s}
       (include - exclude).reduce({}) do |acc, var|
-        val = obj.instance_variable_get("@" + var)
+        val = obj.instance_variable_get("@" + var.to_s)
         acc.merge! to_js_name(var).to_sym => to_json(val, true)
       end
     end

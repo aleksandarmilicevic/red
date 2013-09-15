@@ -8,6 +8,13 @@ require 'sdg_utils/delegator'
 module Red
   module Model
 
+    def self.create_record(name, super_cls=Red::Model::Record)
+      sb = Alloy::Dsl::SigBuilder.new({
+             :superclass => super_cls,
+             :return     => :array
+      }).sig(name).first
+    end
+
     #-------------------------------------------------------------------
     # == Module +ObjCallbacks+
     #

@@ -52,6 +52,8 @@ class RedAppController < ActionController::Base
       elsif res.empty?
         false
       else
+        return res.last
+        # TODOOO
         fail "More than one WebServer specification found: #{res.map{|m| m.name}}"
       end
     end

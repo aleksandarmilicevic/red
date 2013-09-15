@@ -15,7 +15,7 @@ module Auth
   #===========================================================
 
   data_model do
-    abstract_record AuthUser, {
+    abstract record AuthUser, {
       name: String,
       email: String,
       password_hash: String,
@@ -61,11 +61,11 @@ module Auth
   #===========================================================
 
   machine_model do
-    abstract_machine AuthClient < WebClient, {
+    abstract machine AuthClient < WebClient, {
       user: AuthUser
     }
 
-    abstract_machine AuthServer < WebServer
+    abstract machine AuthServer < WebServer
   end
 
   #===========================================================

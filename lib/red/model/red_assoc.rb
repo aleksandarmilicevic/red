@@ -62,7 +62,7 @@ module Red
                         else
                           Red::Model::RedTuple
                         end
-            tuple_cls = Alloy::Ast.create_sig(tuple_cls_name, super_cls)
+            tuple_cls = Red::Model.create_record(tuple_cls_name, super_cls)
             tuple_cls.for_field = f
             add_tuple_fields(tuple_cls, record * type)
             log_debug "[expand_fields] #{f} expanded to #{type} via #{tuple_cls}"
@@ -80,7 +80,7 @@ module Red
             tuple_cls.field tuple_fld_name(Integer, idx), Integer
             idx += 1
           end
-          tuple_cls.field tuple_fld_name(utype.klass, idx), utype.klass
+          tuple_cls.send :field, tuple_fld_name(utype.klass, idx), utype.klass
           idx += 1
         end
       end
