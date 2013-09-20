@@ -6,12 +6,11 @@ module RedLib
 module Web
 
   machine_model do
-    abstract_machine WebClient, {
+    abstract machine WebClient, {
       auth_token: String
     }
 
-    abstract_machine WebServer, {
-    }
+    abstract machine WebServer
   end
 
 end

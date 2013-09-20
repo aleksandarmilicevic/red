@@ -31,7 +31,7 @@ module Red
 
     def init_all_but_rails
       init_all_but_rails_no_freeze
-      deep_freeze
+      # TODOOO deep_freeze
     end
 
     def init_all_but_rails_no_freeze

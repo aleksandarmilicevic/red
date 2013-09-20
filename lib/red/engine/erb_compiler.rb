@@ -70,7 +70,6 @@ module Engine
     end
 
     def as_node_code(var, type, source, template, original)
-#      original
       varsym = var.to_sym.inspect
       if type == :const
         node = ConstNodeRepo.create(source)
@@ -107,24 +106,27 @@ module Engine
         ch = ast_node.children[2]
         if ch.type == :str
           type = :const
-          src = ch.src.expression.to_source
+          src = get_node_source(ch)
           tpl = eval(src)
         else
-          src = ch.children[0].children[0].src.expression.to_source
+          src = get_node_source(ch.children[0].children[0])
           tpl = "<%= #{src} %>"
           type = :expr
         end
         return :type => type,
                :source => src,
                :template => tpl,
-               :begin_pos => ast_node.src.expression.begin_pos,
-               :end_pos => ast_node.src.expression.end_pos
+               :begin_pos => get_node_expr(ast_node).begin_pos,
+               :end_pos => get_node_expr(ast_node).end_pos
       rescue Exception
         false
       end
     end
-  end
+    
+    def get_node_expr(node) node.location.expression end
+    def get_node_source(node) get_node_expr(node).source end
 
+  end
 
 end
 end

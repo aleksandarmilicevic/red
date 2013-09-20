@@ -109,7 +109,7 @@ module Red
           red_foreign_key_name(red_ref_name(cls))
         end
 
-        # @param fld [String, Symbol, FieldMeta]
+        # @param fld [String, Symbol, Field]
         def red_foreign_key_name(fld)
           case fld
           when String
@@ -120,14 +120,14 @@ module Red
             if fld.respond_to? :name
               red_foreign_key_name(fld.name)
             else
-              msg = "expected [FieldMeta, String, Symbol], got #{fld.class}"
+              msg = "expected [Field, String, Symbol], got #{fld.class}"
               raise ArgumentError, msg
             end
           end
         end
 
         # @param src_cls [Class < Record]
-        # @param fld [FieldMeta]
+        # @param fld [Field]
         def red_join_table_name(src_cls, fld)
           dst_cls = fld.type.range.cls.klass
           name = "#{src_cls.red_table_name}_#{dst_cls.red_table_name}"
@@ -166,7 +166,7 @@ module Red
         # Returns various information about a given field relevant when
         # creating a corresponding DB column or join table.
         #
-        # @param fld [FieldMeta]
+        # @param fld [Field]
         def fld_table_info_1(fld)
           ret = basic_fld_inf(fld)
 
@@ -277,7 +277,7 @@ module Red
       #   # Returns various information about a given field relevant when
       #   # creating a corresponding DB column or join table.
       #   #
-      #   # @param fld [FieldMeta]
+      #   # @param fld [Field]
       #   def _fld_table_info_1(fld)
       #     range_type = fld.type.range.cls
       #     range_klass = range_type.klass

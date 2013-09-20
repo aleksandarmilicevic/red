@@ -18,13 +18,13 @@ module Red::Engine
     # Maps record objects to field accesses (represented by an array
     # of (field, value) pairs.
     #
-    # @return {RedRecord => Array(FieldMeta, Object)}
+    # @return {RedRecord => Array(Field, Object)}
     def objs()    @objs ||= {} end
 
     # Returns the field-access list for a given object
     #
     # @param obj [RedRecord]
-    # @return Array(FieldMeta, Object)
+    # @return Array(Field, Object)
     def obj(obj)  objs[obj] || [] end
 
     # Returns a list of queried +RedRecord+ classes.
@@ -122,7 +122,7 @@ module Red::Engine
     # itself to listen for record saved events.
     #
     # @param obj [RedRecord]
-    # @return Array(FieldMeta, Object)
+    # @return Array(Field, Object)
     def obj!(obj)
       if objs.key? obj
         objs[obj]

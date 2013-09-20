@@ -31,7 +31,7 @@ end
 
 module Alloy
   module Ast
-    class FieldMeta
+    class Field
       def red_foreign_key_name
         Red::Model::TableUtil.red_foreign_key_name(self)
       end

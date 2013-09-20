@@ -1,6 +1,9 @@
 require 'red/stdlib/web/machine_model'
 
-module RedLib::Web
+include Red::Dsl
+
+module RedLib
+module Web
 module Auth
 
   def pswd_hash(str)
@@ -11,8 +14,8 @@ module Auth
   # Data model
   #===========================================================
 
-  Red::Dsl.data_model do
-    abstract_record AuthUser, {
+  data_model do
+    abstract record AuthUser, {
       name: String,
       email: String,
       password_hash: String,
@@ -57,19 +60,19 @@ module Auth
   # Machine model
   #===========================================================
 
-  Red::Dsl.machine_model do
-    abstract_machine AuthClient < WebClient, {
+  machine_model do
+    abstract machine AuthClient < WebClient, {
       user: AuthUser
     }
 
-    abstract_machine AuthServer < WebServer
+    abstract machine AuthServer < WebServer
   end
 
   #===========================================================
   # Event model
   #===========================================================
 
-  Red::Dsl.event_model do
+  event_model do
     event Register do
       from client: AuthClient
 
@@ -141,5 +144,6 @@ module Auth
     end
   end
 
+end
 end
 end

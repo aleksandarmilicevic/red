@@ -1,12 +1,11 @@
 require 'alloy/alloy_ast'
 require 'alloy/alloy_meta'
-require 'alloy/alloy_ast_errors'
 require 'alloy/alloy'
 require 'sdg_utils/meta_utils'
 
 module Red
-
   module Model
+
     #-------------------------------------------------------------------
     # == Class +MetaModel+
     #
@@ -29,34 +28,12 @@ module Red
         @records = []
         @machines = []
         @events = []
+        @policies = []
         @cache = {}
         @restriction_mod = nil
       end
 
-      def base_records; _base_records end
-      def records;      _records end
-      def machines;     _machines end
-      def events;       _events end
-
-      def base_record_created(rklass) add_to(@base_records, rklass) end
-      def record_created(rklass)      add_to(@records, rklass) end
-      def machine_created(mklass)     add_to(@machines, mklass) end
-      def event_created(eklass)       add_to(@events, eklass) end
-
-      def get_base_record(name) _cache(_base_records, name) end
-      def get_record(name)      _cache(_records, name) end
-      def get_machine(name)     _cache(_machines, name) end
-      def get_event(name)       _cache(_events, name) end
-
-      alias_method :base_record, :get_base_record
-      alias_method :record, :get_record
-      alias_method :machine, :get_machine
-      alias_method :event, :get_event
-
-      def find_base_record(name); _search_by_name(_base_records, name) end
-      def find_record(name);      _search_by_name(_records, name) end
-      def find_machine(name);     _search_by_name(_machines, name) end
-      def find_event(name);       _search_by_name(_events, name) end
+      attr_searchable :base_record, :record, :machine, :event, :policy
 
       def restrict_to(mod)
         @restriction_mod = mod
@@ -65,15 +42,9 @@ module Red
 
       private
 
-      def add_to(col, val)
-        col << val unless val.placeholder?
+      def _add_to(col, val)
+        col << val unless val.respond_to?("placeholder?".to_sym) && val.placeholder?
       end
-
-      def _base_records; _restrict @base_records end
-      def _records;      _restrict @records end
-      def _machines;     _restrict @machines end
-      def _events;       _restrict @events end
-
     end
 
   end

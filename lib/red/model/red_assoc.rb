@@ -62,7 +62,7 @@ module Red
                         else
                           Red::Model::RedTuple
                         end
-            tuple_cls = Alloy::Ast.create_sig(tuple_cls_name, super_cls)
+            tuple_cls = Red::Model.create_record(tuple_cls_name, super_cls)
             tuple_cls.for_field = f
             add_tuple_fields(tuple_cls, record * type)
             log_debug "[expand_fields] #{f} expanded to #{type} via #{tuple_cls}"
@@ -80,7 +80,7 @@ module Red
             tuple_cls.field tuple_fld_name(Integer, idx), Integer
             idx += 1
           end
-          tuple_cls.field tuple_fld_name(utype.klass, idx), utype.klass
+          tuple_cls.send :field, tuple_fld_name(utype.klass, idx), utype.klass
           idx += 1
         end
       end
@@ -96,7 +96,7 @@ module Red
       #       ActiveRecord::Base (e.g., if there is a field called "connection"
       # ---------------------------------------------------------------------
 
-      # @param fld [FieldMeta]
+      # @param fld [Field]
       def add_delegators(fld)
         return if fld.is_inv?
         # define getter
@@ -125,11 +125,11 @@ module Red
         }
       end
 
-      # @param fld [FieldMeta]
+      # @param fld [Field]
       def add_inv_delegators(inv_fld)
       end
 
-      # @param fld [FieldMeta]
+      # @param fld [Field]
       def add_associations(fld)
         fldinf = Red::Model::TableUtil.fld_table_info(fld)
         opts = { :class_name => fldinf.range_class,
@@ -170,8 +170,14 @@ module Red
       private
 
       def wrap(obj)
-        lrec = SDGUtils::LoggerRecorder.new(Red.conf.logger, :var => obj.to_s)
-        SDGUtils::RecorderDelegator.new(obj, :recorder => lrec)
+        buff = Object.new
+        buff.instance_variable_set "@target", obj
+        def buff.<<(str)
+          Alloy::Utils::CodegenRepo.record_code(str, @target, :kind => :assoc)
+          SDGUtils::IO::LoggerIO.new(Red.conf.logger) << str
+        end
+        rec = SDGUtils::Recorder.new(:var => obj.to_s, :buffer => buff)
+        SDGUtils::RecorderDelegator.new(obj, :recorder => rec)
       end
 
       def log(str)

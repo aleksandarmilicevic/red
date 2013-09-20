@@ -9,4 +9,11 @@ Gem::Specification.new do |s|
   s.description = "Model-based, event-driven, programming paradigm for cloud-based systems."
   s.files = Dir['lib/**/*.rb']
   s.require_paths = ["lib"]
+
+  s.add_runtime_dependency "arby"
+  s.add_runtime_dependency "activerecord"
+  s.add_runtime_dependency "faye"
+  s.add_runtime_dependency "sass"
+  s.add_runtime_dependency "sqlite3"
+  s.add_runtime_dependency "browser-timezone-rails"
 end

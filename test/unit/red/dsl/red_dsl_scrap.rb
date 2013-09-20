@@ -2,7 +2,7 @@ require_relative 'red_dsl_test_helper.rb'
 
 module IRC
   module Model
-    
+
     #===========================================================
     # Data model
     #===========================================================
@@ -10,19 +10,19 @@ module IRC
       record User, {
         name: String
       }
-      
+
       record Msg, {
-        text: String, 
+        text: String,
         sender: User
       }
-      
+
       record ChatRoom, {
-        name: String, 
-        members: (set User), 
+        name: String,
+        members: (set User),
         messages: (seq Msg)
       }
     end
-  
+
     #===========================================================
     # Machine model
     #===========================================================
@@ -30,34 +30,34 @@ module IRC
       machine Client, {
         user: User
       }
-      
+
       machine Server, {
         clients: (set Client),
         rooms: (set ChatRoom)
       }
-    end 
-  
+    end
+
     #===========================================================
     # Event model
     #===========================================================
     event_model "Event" do
-      
+
       #------------------------------------------------------
       # Event +SignIn+
       #------------------------------------------------------
       event SignIn do
         from client: Client
         to   serv: Server
-        
+
         params {{
           name: String,
           xyz: Integer
         }}
-        
+
         requires {
           no u: User | u.name == name
         }
-        
+
         ensures {
           u = new User
           u.name = name
@@ -65,23 +65,23 @@ module IRC
           serv.clients += client
         }
       end
-      
+
       #------------------------------------------------------
       # Event +CreateRoom+
       #------------------------------------------------------
       event CreateRoom do
-        from client: Client 
+        from client: Client
         to   serv: Server
-        
+
         params {{
           roomName: String
         }}
-        
+
         requires {
-          (some client.user) && 
+          (some client.user) &&
           (no r: serv.rooms | r.name == roomName)
         }
-        
+
         ensures {
           room = new ChatRoom
           room.name = roomName
@@ -89,44 +89,44 @@ module IRC
           serv.rooms += room
         }
       end
-      
+
       #------------------------------------------------------
       # Event +JoinRoom+
       #------------------------------------------------------
       event JoinRoom do
         from client: Client
         to   serv: Server
-        
+
         params {{
           room: ChatRoom
         }}
-        
+
         requires {
           some client.user
         }
-        
+
         ensures {
           room.members += client.user
         }
       end
-      
+
       #------------------------------------------------------
       # Event +SendMsg+
       #------------------------------------------------------
       event SendMsg do
         from client: Client
         to   serv: Server
-        
+
         params {{
           room: ChatRoom,
           msgText: String
         }}
-        
+
         requires {
           (some client.user) &&
           (room.members.member? client.user)
         }
-        
+
         ensures {
           msg = new Msg
           msg.text = msgText
@@ -135,7 +135,7 @@ module IRC
         }
       end
     end
-    
+
   end
 end
 

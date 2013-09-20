@@ -36,7 +36,7 @@ module Red
         json_hash["__short_type__"] = record.class.relative_name
         ser_fields(record).each do |fld|
           unless fld.scalar?
-            val = record.read_field(fld).map{|e|e.id}
+            val = record.read_field(fld).map(&:id)
             json_hash[fld.name.singularize + "_ids"] = val
           end
         end

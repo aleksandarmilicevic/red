@@ -66,16 +66,25 @@ module Red
         end
         @locals.merge! hash if hash
         @locals.each do |k, v|
-          if k.to_s =~ /^[A-Z]/
+          k = k.to_s
+          if k =~ /^[A-Z]/
             # constant
             cls.send :remove_const, k if cls.const_defined?(k, false)
             cls.const_set(k, v)
           else
             # method or variable
             body = (Proc === v) ? v : lambda{v}
-            name = (k[0] == '@') ? k[1..-1] : k
+            name =
+              case
+              when k.start_with?("@@"); k[2..-1]
+              when k.start_with?("@");  k[1..-1]
+              else k
+              end
             define_singleton_method(name.to_sym, body)
-            if k[0] == '@'
+            if k.start_with? "@@"
+              self.singleton_class.class_variable_set(k, v)
+              @user_inst_vars.merge! k => v
+            elsif k.start_with? "@"
               instance_variable_set(k, v)
               @user_inst_vars.merge! k => v
             end

@@ -9,12 +9,12 @@ class RecordRendererController < RedAppController
       record = unmarshal_to_record(target) rescue nil
     end
     unless record || records
-      error "Could not find record: #{target.inspect}" 
+      error "Could not find record: #{target.inspect}"
       return
     end
 
     opts = record ? {:object => record} : {:collection => records}
-    (params[:options] || {}).each {|key, val| 
+    (params[:options] || {}).each {|key, val|
       opts.merge!({key.to_sym => val})
     }
 

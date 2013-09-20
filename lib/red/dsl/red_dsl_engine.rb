@@ -1,22 +1,13 @@
-require_relative 'red_dsl_ext.rb'
+require 'red/model/security_model.rb'
+require 'sdg_utils/dsl/class_builder'
 
 module Red
   module DslEngine
 
-    class EventBuilder
+    class PolicyBuilder < SDGUtils::DSL::ClassBuilder
       def initialize(options={})
-        @options = options
-      end
-
-      def self.event(*args)
-        new.sig(*args)
-      end
-
-      # -------------------------------------------------------------------------------------
-      #
-      # -------------------------------------------------------------------------------------
-      def event(name, options={}, &block)
-
+        opts = { :superclass => Red::Model::Policy }
+        super(opts.merge!(options))
       end
     end
 

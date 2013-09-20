@@ -23,7 +23,7 @@ module Red
     end
 
     #----------------------------------------
-    # Class +MigrationRecorder+
+    # Class +MigrationGenerator+
     #----------------------------------------
     class MigrateGenerator < Rails::Generators::Base
 
@@ -77,6 +77,7 @@ module Red
           @change_migration = nil
           @up_down_migration = nil
           @exe = !!hash[:exe]
+          @from_scratch = !!hash[:from_scratch]
           @logger = hash[:logger]
         end
 
@@ -109,11 +110,11 @@ module Red
               f.write m.to_s
             end
             puts " ** Migration created: #{name}"
-            if @migrations.empty?
-              puts "Your DB schema is up to date, no migrations created.\n"
-            else
-              puts "\nRun `rake db:migrate' to apply generated migrations.\n"
-            end
+          end
+          if @migrations.empty?
+            puts "Your DB schema is up to date, no migrations created.\n"
+          else
+            puts "\nRun `rake db:migrate' to apply generated migrations.\n"
           end
         end
 
@@ -132,10 +133,10 @@ module Red
         def check_record(r)
           if anc=r.oldest_ancestor
             log "Skipping class #{r}, will use #{anc} instead."
-          elsif _table_exists? r.red_table_name
-            gen_update_table r
-          else
+          elsif @from_scratch || !_table_exists?(r.red_table_name)
             gen_create_table r
+          else
+            gen_update_table r
           end
         end
 
@@ -280,7 +281,7 @@ module Red
 
         # Handles a given field of the given record
         #
-        # @param fld [FieldMeta]
+        # @param fld [Field]
         # @result [Array(ColInfo), ColInfo]
         def cols_for_field(fld)
           return [] if fld.has_impl?
@@ -322,7 +323,7 @@ module Red
         # Generates a join table for a given field
         #
         # @param record [Record]
-        # @param fld [FieldMeta]
+        # @param fld [Field]
         # @param fld_info [FldInfo]
         def gen_create_join_table(fld, fld_info)
           return if _table_exists? fld_info.join_table.to_sym
@@ -376,12 +377,14 @@ module Red
         end
 
         def _table_exists?(name)
+          return false if @from_scratch
           suppress_messages do
             table_exists? name
           end
         end
 
         def _column_exists?(table, col, type=nil, opts=nil)
+          return false if @from_scratch
           suppress_messages do
             args = [table, col, type, opts].compact
             column_exists?(*args)
@@ -396,8 +399,9 @@ module Red
       end
 
       def create_migration(hash={})
+        # TODO: how to get args from cmdline
         begin
-          mig = Migration.new(hash)
+          mig = Migration.new hash #.merge{:from_scratch => true}
           mig.start
           mig.finish
         rescue Exception => e
