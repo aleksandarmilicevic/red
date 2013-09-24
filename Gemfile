@@ -1,6 +1,6 @@
 source "http://rubygems.org"
 
-gem 'alloy_ruby'
+gem 'arby'
 gem 'activerecord', ['3.2.9']
 gem 'activemodel', ['3.2.9']
 gem 'browser-timezone-rails'
