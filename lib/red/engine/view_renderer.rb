@@ -18,15 +18,7 @@ module Red
     class ViewRenderer
 
       def default_opts
-        @@default_opts ||= SDGUtils::Config.new(nil, {
-          :event_server => Red.boss,
-          :view_finder => lambda{ViewFinder.new},
-          :access_listener => Red.boss.access_listener,
-          :current_view => nil,
-          :no_template_cache? => false,
-          :no_file_cache? => false,
-          :no_content_cache? => true,
-        })
+        Red.conf.renderer
       end
 
       def initialize(hash={})
@@ -273,8 +265,8 @@ module Red
       end
 
       def _compile_content(content, formats, props={})
-        key = (@conf.no_content_cache?) ? "" : "#{formats.join('')}:#{content}"
-        RenderingCache.content.fetch(key, @conf.no_content_cache?) {
+        key = @conf.no_content_cache ? "" : "#{formats.join('')}:#{content}"
+        RenderingCache.content.fetch(key, @conf.no_content_cache) {
           time_it("compiling and generating code") {
             tpl = TemplateEngine.compile(content, formats)
             tpl.merge_props props
@@ -289,7 +281,7 @@ module Red
       def _compile_file(path, hash)
         raise ViewError, "Not a file: #{file}" unless path.file?
         formats = hash[:formats] || path_formats(path)
-        RenderingCache.file.fetch("#{path}#{formats.join('')}", @conf.no_file_cache?) {
+        RenderingCache.file.fetch("#{path}#{formats.join('')}", @conf.no_file_cache) {
           time_it("Reading file: #{path}") {
             obj = hash[:object]
             ext = obj ? " for obj: #{obj}:#{obj.class}" : ""
@@ -314,7 +306,7 @@ module Red
         view = hash[:view]
         tpl_candidates = hash[:hierarchy]
         view_cannon = "#{view}/[#{tpl_candidates.join(';')}]"
-        RenderingCache.template.fetch(view_cannon, @conf.no_template_cache?) {
+        RenderingCache.template.fetch(view_cannon, @conf.no_template_cache) {
           opts = time_it("Finding templated: #{view_cannon}") {
             search_template_file(view, tpl_candidates, !!hash[:partial])
           }

@@ -8,3 +8,4 @@ gem 'faye'
 gem 'sass'
 gem 'sqlite3'
 gem 'rails', ['3.2.9']
+gem 'pry'

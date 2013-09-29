@@ -67,26 +67,39 @@ module Red
     end
   end
 
+  def self.default_renderer_conf
+    SDGUtils::Config.new do |c|
+      c.event_server       = lambda{Red.boss}
+      c.view_finder        = lambda{Red::Engine::ViewFinder.new}
+      c.access_listener    = lambda{Red.boss.access_listener}
+      c.current_view       = nil
+      c.no_template_cache  = false
+      c.no_file_cache      = false
+      c.no_content_cache   = true
+    end
+  end
+
   def self.default_conf
     SDGUtils::Config.new do |c|
       c.impl_field_namer = lambda { |fld| "#{fld.name}_REL" }
       c.impl_class_namer = lambda { |fld| "#{fld.parent.name}#{fld.name.classify}Tuple" }
       c.omit_field_name_in_join_table_names = false
-      c.app_name = lambda {Rails.root.to_s.split('/').last.underscore}
-      c.js_record_ns = "jRed"
-      c.js_event_ns = "jRed"
-      c.root = '.'
-      c.view_paths = ["app/views"]
-      c.alloy = default_alloy_conf
-      c.pusher = default_pusher_conf
+      c.app_name        = lambda {Rails.root.to_s.split('/').last.underscore}
+      c.js_record_ns    = "jRed"
+      c.js_event_ns     = "jRed"
+      c.root            = '.'
+      c.view_paths      = ["app/views"]
+      c.alloy           = default_alloy_conf
+      c.pusher          = default_pusher_conf
+      c.renderer        = default_renderer_conf
       c.access_listener = default_access_listener_conf
-      c.view_deps = default_view_deps_conf
-      c.fs_file_store = default_fs_file_store_conf
-      c.file_store = Red::Store::FSFileStore.new(c.fs_file_store)
-      c.logger = lambda{c.alloy.logger}
-      c.log = lambda{c.alloy.logger}
+      c.view_deps       = default_view_deps_conf
+      c.fs_file_store   = default_fs_file_store_conf
+      c.file_store      = Red::Store::FSFileStore.new(c.fs_file_store)
+      c.logger          = lambda{c.alloy.logger}
+      c.log             = lambda{c.alloy.logger}
       c.log_java_script = true
-      c.autoviews = true
+      c.autoviews       = true
     end
   end
 end
