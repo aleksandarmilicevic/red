@@ -195,7 +195,7 @@ module Red
         tpl = time_it("fetching template") {
           _compile_template(hash)
         }
-        raise_not_found_error(hash[:view], hash[:template], view_finder) unless tpl
+        raise_not_found_error(hash[:view], hash[:template]) unless tpl
         time_it("rendering template") {
           _render_template tpl, hash
         }
@@ -254,7 +254,6 @@ module Red
         text = tpl.execute(top_node.view_binding)
         _concat text if text
         # if text && top_node.children.empty?
-        #   binding.pry
         #   top_node.output = text
         # end
       end
@@ -319,7 +318,7 @@ module Red
         parent_dir = curr_node.compiled_tpl.props[:pathname].dirname rescue nil
         path = nil
         tpl_candidates.each do |tmpl|
-          path = @view_finder.find_in_folder(parent_dir, tmpl) rescue nil
+          path = @view_finder.find_in_folder(parent_dir, tmpl, is_partial) rescue nil
           break if path
           path = @view_finder.find_view(view, tmpl, is_partial)
           break if path
@@ -369,11 +368,11 @@ module Red
         when :nothing, NilClass
           _normalize :nothing => true
         when Symbol, String
-          if @rendering
-            _normalize :partial => true, :template => "primitive", :object => hash
-          else
-            _normalize :template => hash.to_s
-          end
+          _normalize :template => hash.to_s
+          # if @rendering
+          #   _normalize :partial => true, :template => "primitive", :object => hash
+          # else
+          # end
         when Proc
           _normalize :recurse => hash
         when Hash
@@ -522,7 +521,7 @@ module Red
         candidates << no_ext.to_s
         no_ext.file? and return no_ext
 
-        any_ext = dir.join(template_name + ".*")
+        any_ext = dir.join(template_name + ".*[^~]")
         candidates << any_ext.to_s
         cands = Dir[any_ext]
 

@@ -15,6 +15,24 @@ module Util
   #===========================================================
 
   Red::Dsl.event_model do
+    event RenderTemplate do
+      include Red::Model::Marshalling
+
+      params {{
+          name: String,
+          vars: Hash
+        }}
+
+      ensures {
+        opts = {
+          :partial => name,
+          :locals => vars || {}
+        }
+        
+        Red.boss.thr(:controller).send :render_to_string, opts
+      }
+    end
+    
     event RenderRecord do
       include Red::Model::Marshalling
 

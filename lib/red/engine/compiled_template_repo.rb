@@ -13,9 +13,9 @@ module Red
 
       @@expr_tpls = []
       def self.create(*args)
-        mod, method_name = TemplateEngine.code_gen(*args)
+        mod, method_name, props = TemplateEngine.code_gen(*args)
         ViewBinding.send :include, mod
-        CompiledClassTemplate.new(method_name)
+        CompiledClassTemplate.new(method_name, method_name, props)
       end
 
       def self.for_expr(source)

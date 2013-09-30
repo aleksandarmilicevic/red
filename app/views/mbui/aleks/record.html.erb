@@ -1,0 +1,37 @@
+<%# 
+   @param record [Record]
+%>
+
+% puts "---------------- called render.html.erb for `#{record}'"
+
+% if record.nil?
+ 
+  <em>empty</em>
+
+% elsif Red::Model::Record === record
+
+<div class="record-obj panel panel-default">
+  <div class="panel-heading">
+    <h3 class="panel-title"><%= record.class.relative_name %>(<%= record.id %>)</h3>
+  </div>
+  <div class="panel-body">
+  </div>
+  <ul class="list-group">
+    <% record.meta.fields.each do |fld| %>
+      <li class="list-group-item">
+        <div class="fld-name"><%= fld.name %></div>
+        <div class="fld-value">
+          <%= render :object => record.read_field(fld),
+                     :as => "record",
+                     :partial => "mbui/aleks/record" %>
+        </div>
+      </li>
+    <% end %>
+  </ul>
+</div>
+
+% else
+
+  <%= record.to_s %>
+
+% end

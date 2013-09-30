@@ -135,7 +135,8 @@ def #{method_name}
 end
 RUBY
           end
-        [mod, method_name]
+        props = compiled_tpl.props rescue Hash.new
+        [mod, method_name, props]
       end
 
       def add_compiled_tpl_method(mod, method_name, src, file=nil, line=nil)
