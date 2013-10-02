@@ -18,15 +18,7 @@ module Red
     class ViewRenderer
 
       def default_opts
-        @@default_opts ||= SDGUtils::Config.new(nil, {
-          :event_server => Red.boss,
-          :view_finder => lambda{ViewFinder.new},
-          :access_listener => Red.boss.access_listener,
-          :current_view => nil,
-          :no_template_cache? => false,
-          :no_file_cache? => false,
-          :no_content_cache? => true,
-        })
+        Red.conf.renderer
       end
 
       def initialize(hash={})
@@ -203,7 +195,7 @@ module Red
         tpl = time_it("fetching template") {
           _compile_template(hash)
         }
-        raise_not_found_error(hash[:view], hash[:template], view_finder) unless tpl
+        raise_not_found_error(hash[:view], hash[:template]) unless tpl
         time_it("rendering template") {
           _render_template tpl, hash
         }
@@ -262,7 +254,6 @@ module Red
         text = tpl.execute(top_node.view_binding)
         _concat text if text
         # if text && top_node.children.empty?
-        #   binding.pry
         #   top_node.output = text
         # end
       end
@@ -273,8 +264,8 @@ module Red
       end
 
       def _compile_content(content, formats, props={})
-        key = (@conf.no_content_cache?) ? "" : "#{formats.join('')}:#{content}"
-        RenderingCache.content.fetch(key, @conf.no_content_cache?) {
+        key = @conf.no_content_cache ? "" : "#{formats.join('')}:#{content}"
+        RenderingCache.content.fetch(key, @conf.no_content_cache) {
           time_it("compiling and generating code") {
             tpl = TemplateEngine.compile(content, formats)
             tpl.merge_props props
@@ -289,7 +280,7 @@ module Red
       def _compile_file(path, hash)
         raise ViewError, "Not a file: #{file}" unless path.file?
         formats = hash[:formats] || path_formats(path)
-        RenderingCache.file.fetch("#{path}#{formats.join('')}", @conf.no_file_cache?) {
+        RenderingCache.file.fetch("#{path}#{formats.join('')}", @conf.no_file_cache) {
           time_it("Reading file: #{path}") {
             obj = hash[:object]
             ext = obj ? " for obj: #{obj}:#{obj.class}" : ""
@@ -314,7 +305,7 @@ module Red
         view = hash[:view]
         tpl_candidates = hash[:hierarchy]
         view_cannon = "#{view}/[#{tpl_candidates.join(';')}]"
-        RenderingCache.template.fetch(view_cannon, @conf.no_template_cache?) {
+        RenderingCache.template.fetch(view_cannon, @conf.no_template_cache) {
           opts = time_it("Finding templated: #{view_cannon}") {
             search_template_file(view, tpl_candidates, !!hash[:partial])
           }
@@ -327,7 +318,7 @@ module Red
         parent_dir = curr_node.compiled_tpl.props[:pathname].dirname rescue nil
         path = nil
         tpl_candidates.each do |tmpl|
-          path = @view_finder.find_in_folder(parent_dir, tmpl) rescue nil
+          path = @view_finder.find_in_folder(parent_dir, tmpl, is_partial) rescue nil
           break if path
           path = @view_finder.find_view(view, tmpl, is_partial)
           break if path
@@ -377,11 +368,11 @@ module Red
         when :nothing, NilClass
           _normalize :nothing => true
         when Symbol, String
-          if @rendering
-            _normalize :partial => true, :template => "primitive", :object => hash
-          else
-            _normalize :template => hash.to_s
-          end
+          _normalize :template => hash.to_s
+          # if @rendering
+          #   _normalize :partial => true, :template => "primitive", :object => hash
+          # else
+          # end
         when Proc
           _normalize :recurse => hash
         when Hash
@@ -530,7 +521,7 @@ module Red
         candidates << no_ext.to_s
         no_ext.file? and return no_ext
 
-        any_ext = dir.join(template_name + ".*")
+        any_ext = dir.join(template_name + ".*[^~]")
         candidates << any_ext.to_s
         cands = Dir[any_ext]
 
