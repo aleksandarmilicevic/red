@@ -155,7 +155,7 @@ module View
           i = arr.index(fld)
           Ref.new "function(){ return #{to_json(fld.parent, true)}.meta.#{fname}[#{i}];}"
         else
-          json = instance_variables fld, :except => [:impl]
+          json = instance_variables fld, :except => [:impl, :expr]
           Fmt.new "new Red.Model.Field(%s)", [json]
         end
       when Alloy::Ast::AType
