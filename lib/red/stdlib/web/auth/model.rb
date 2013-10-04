@@ -121,7 +121,7 @@ module Auth
       from client: AuthClient
 
       requires {
-        some client.user
+        client.user
       }
 
       ensures {
