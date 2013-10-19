@@ -147,6 +147,15 @@ RUBY
       def none?(*args, &block) all.none?(*args, &block) end
       def one?(*args, &block) all.one?(*args, &block) end
 
+      def *(*args)
+        if args.empty?
+          RuleBuilder.new(:field_proc => proc{true} )
+        else
+          super
+        end
+      end
+
+
       # def scoped
       #   obj = super
       #   me = self

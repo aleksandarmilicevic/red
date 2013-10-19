@@ -62,6 +62,10 @@ module R_M_TPC
       restrict write User.status.unless do |user|
         client.user == user
       end
+
+      write User.*.when do |user|
+        client.user == user
+      end
     end
   end
 end
@@ -147,15 +151,15 @@ class TestPolicyCheck < MigrationTest::TestBase
   def do_test_status_restriction_idx(idx)
     pol = P1.instantiate(@@client1)
     status_r = pol.restrictions(User.status)[idx]
-    assert !status_r.check_condition(@@user1), "expected pswd rule check to pass"
-    assert status_r.check_condition(@@user2), "expected pswd rule check to fail"
-    assert status_r.check_condition(@@user3), "expected pswd rule check to fail"
+    assert !status_r.check_condition(@@user1), "expected status rule check to pass"
+    assert status_r.check_condition(@@user2), "expected status rule check to fail"
+    assert status_r.check_condition(@@user3), "expected status rule check to fail"
 
     pol = P1.instantiate(@@client2)
     status_r = pol.restrictions(User.status)[idx]
-    assert status_r.check_condition(@@user1), "expected pswd rule check to fail"
-    assert !status_r.check_condition(@@user2), "expected pswd rule check to pass"
-    assert status_r.check_condition(@@user3), "expected pswd rule check to fail"
+    assert status_r.check_condition(@@user1), "expected status rule check to fail"
+    assert !status_r.check_condition(@@user2), "expected status rule check to pass"
+    assert status_r.check_condition(@@user3), "expected status rule check to fail"
   end
 
   def test_status_restriction2() do_test_status_restriction_idx(1) end

@@ -23,36 +23,37 @@ module Red
       F_SEL, F_INC, F_REJ, F_EXC = :select, :include, :reject, :exclude
       FILTERS                    = [F_SEL, F_INC, F_REJ, F_EXC]
 
-      attr_reader :operation, :field, :policy, :condition, :filter, :negated
+      attr_accessor :policy
 
-      def initialize(operation, field, policy, condition, filter, negated=false)
-        @operation = operation
-        @field     = field
-        @policy    = policy
-        @condition = condition
-        @filter    = filter
-        @negated   = negated
-        self.freeze
+      def initialize(policy)
+        @policy        = policy
+        @operation     = OP_BOTH
+        @negated       = false
       end
 
-      def negate() 
-        Rule.new(operation(), field(), policy, condition(), filter(), !negated()) 
+      def freeze
+        super
+        raise ArgumentError, "Field checker not a Proc" unless Proc === @field_checker
+        raise ArgumentError, "both :condition and :filter given" if @condition && @filter
       end
 
-      def negated?() @negated end
+      def operation(*args)     get_set(:operation, *args) end
+      def condition(*args)     get_set(:condition, *args) end
+      def filter(*args)        get_set(:filter, *args) end
+      def field(*args)         get_set(:field, *args) end
+      def field_checker(*args) get_set(:field_checker, *args) end
+      def method(*args)        get_set(:method, *args) end
+      def negate()             get_set(:negated, !negated?) end
+      def negated?()           !!get_set(:negated) end
 
       def applies_for_read()  [OP_READ, OP_BOTH].member?(@operation) end
       def applies_for_write() [OP_WRITE, OP_BOTH].member?(@operation) end
-
-      def has_condition?()   !!_method(@condition) end
-      def has_filter?()      !!_method(@filter) end
-      def condition_kind()   _kind(@condition) end
-      def filter_kind()      _kind(@filter) end
-      def condition_method() _method(@condition) end
-      def filter_method()    _method(@filter) end
-
-      def self.cond(kind, method=nil)   kind ? {kind: kind, method: method} : nil end
-      def self.filter(kind, method=nil) self.cond(kind, method) end
+      
+      def has_method?()      !!@method end
+      def has_condition?()   !!@condition end
+      def has_filter?()      !!@filter end
+      def condition_kind()   @condition end
+      def filter_kind()      @filter end
 
       def bind(policy)
         BoundRule.new(policy, self)
@@ -60,8 +61,16 @@ module Red
 
       private
 
-      def _kind(hash)   hash ? hash[:kind] : nil end
-      def _method(hash) hash ? hash[:method] : nil end
+      def get_set(prop, *args)
+        if args.empty?
+          self.instance_variable_get "@#{prop}"
+        elsif args.size == 1
+          self.instance_variable_set "@#{prop}", args.first
+          self
+        else
+          fail "At most 1 arg accepted"
+        end
+      end
     end
 
     #-------------------------------------------------------------------
@@ -78,18 +87,18 @@ module Red
       end
 
       def check_condition(*args)
-        if @rule.has_condition?
-          check(@rule.negated?, @rule.condition_kind, @rule.condition_method, *args)
+        if @rule.has_condition? && @rule.has_method?
+          check(@rule.negated?, @rule.condition, @rule.method, *args)
         else
-          nil
+          fail "Either no condition or no method in #{@rule}"
         end
       end
 
       def check_filter(*args)
         if @rule.has_filter?
-          check(@rule.negated?, @rule.filter_kind, @rule.filter_method, *args)
+          check(@rule.negated?, @rule.filter, @rule.method, *args)
         else
-          nil
+          fail "Either no filter or no method in #{@rule}"
         end
       end
 
@@ -130,34 +139,35 @@ module Red
 
       def initialize(*args)
         super
-        @field_restrictions = {}
+        @field_restrictions = []
       end
 
+      # @param field [Alloy::Ast::Field, NilClass]
       def restrictions(field=nil)
-        #TODO: if field is not found, this throws "can't modify frozen hash" exception
-        __restrictions(field).clone 
+        if field.nil?
+          @field_restrictions.clone
+        else
+          ans = []
+          @field_restrictions.each do |rule|
+            ans << rule if rule.field_checker[field]
+          end
+          ans
+        end
       end
 
       def add_restriction(rule)
-        __restrictions(rule.field) << rule
+        @field_restrictions << rule
         rule
+      end
+
+      def remove_restriction(rule) 
+        @field_restrictions -= [rule] 
       end
 
       def freeze
         super
         @field_restrictions.freeze
       end
-
-      private
-
-      def __restrictions(field)
-        if field
-          @field_restrictions[field] ||= []
-        else
-          @field_restrictions.values.flatten
-        end
-      end
-
     end
 
     # ===========================================================
@@ -174,32 +184,37 @@ module Red
       end
 
       def rw(*args, &block)
-        rule = __to_rule({operation: Rule::OP_BOTH}, *args, &block)
+        rule = to_rule({operation: Rule::OP_BOTH}, *args)
+        add_rule_block(rule, block) if block
         meta.add_restriction(rule.negate())
       end
 
       def read(*args, &block)
-        rule = __to_rule({operation: Rule::OP_READ}, *args, &block)
+        rule = to_rule({operation: Rule::OP_READ}, *args)
+        add_rule_block(rule, block) if block
         meta.add_restriction(rule.negate())
       end
 
       def write(*args, &block)
-        rule = __to_rule({operation: Rule::OP_WRITE}, *args, &block)
+        rule = to_rule({operation: Rule::OP_WRITE}, *args)
+        add_rule_block(rule, block) if block
         meta.add_restriction(rule.negate())
       end
 
       def restrict(*args, &block)
         rule = if args.size == 1 && Rule === args.first
+                 meta.remove_restriction(args.first)
                  args.first.negate()
                else 
-                 __to_rule({operation: Rule::OP_BOTH}, *args, &block)
+                 to_rule({operation: Rule::OP_BOTH}, *args)
                end
+        add_rule_block(rule, block) if block
         meta.add_restriction(rule)
       end
 
       protected
 
-      def __to_rule(def_opts, *args, &block)
+      def to_rule(def_opts, *args)
         user_opts =
           case
           when args.size == 1 && Hash === args[0]
@@ -214,22 +229,25 @@ module Red
             msg = "expected hash or a field and a hash, got #{args.map(&:class)}"
             raise ArgumentError, msg
           end
-        opts   = __normalize_opts(def_opts.merge(user_opts))
-        op     = opts[:operation]
-        fld    = opts[:field]
-        cond   = opts[:condition]
-        filter = opts[:filter]
-        if block
-          msg = "both :condition and :filter, and block given"
-          raise ArgumentError, msg if cond && filter
-          poli = cond || filter
-          raise ArgumentError, "both :method and block given" if poli[:method]
-          salt = SDGUtils::Random.salted_timestamp
-          method_name = :"restrict_#{fld.to_iden}_#{poli[:kind]}_#{salt}"
-          pred(method_name, &block)
-          poli[:method] = method_name
-        end
-        Rule.new(op, fld, self, cond, filter)
+        opts = __normalize_opts(def_opts.merge(user_opts))
+        Rule.new(self).
+          operation(opts[:operation]).
+          field(opts[:field]).
+          field_checker(opts[:field_proc]).
+          condition(opts[:condition]).
+          filter(opts[:filter]).
+          method(opts[:method])
+      end
+
+      def add_rule_block(rule, block)
+        fld_iden = rule.field() ? rule.field().to_iden : "fld_proc"
+        cond = rule.condition || rule.filter || ""
+        raise ArgumentError, "can't add block, rule has method" if rule.has_method?
+        salt = SDGUtils::Random.salted_timestamp
+        method_name = :"restrict_#{fld_iden}_#{cond}_#{salt}"
+        pred(method_name, &block)
+        rule.method(method_name)
+        rule
       end
 
       def __created()
@@ -247,10 +265,18 @@ module Red
       private
 
       def __normalize_opts(opts)
-        fld = opts[:field]
-        raise ArgumentError, "field not specified" unless fld
-        msg = "expected `Field', got #{fld}:#{fld.class}"
-        raise ArgumentError, msg unless Alloy::Ast::Field === fld
+        op       = opts[:operation]
+        raise ArgumentError, "operation not specified" unless op
+
+        fld      = opts[:field]
+        fld_proc = opts[:field_proc]
+        raise ArgumentError, "field not specified" unless fld || fld_proc
+
+        msg = "expected `Field' got #{fld.class}"
+        raise ArgumentError, msg unless fld.nil? || Alloy::Ast::Field === fld
+
+        fld_proc ||= proc{|f| f == fld}
+        raise ArgumentError, "expected `Proc' got #{fld.class}" unless Proc === fld_proc
 
         cond_keys = opts.keys.select{|e| Rule::CONDITIONS.member? e}
         filter_keys = opts.keys.select{|e| Rule::FILTERS.member? e}
@@ -266,14 +292,18 @@ module Red
         raise ArgumentError, msg % [:condition, cond_key] if cond && cond_key
         raise ArgumentError, msg % [:filter, filter_key] if filter && filter_key
 
-        cond ||= Rule.cond(cond_key, opts[cond_key])
-        filter ||= Rule.filter(filter_key, opts[filter_key])
+        cond   ||= cond_key
+        filter ||= filter_key
+        method = opts[cond_key] || opts[filter_key]
 
         raise ArgumentError, "no condition specified" unless cond || filter
 
-        { :field => fld }.
-          merge!(cond ?   {:condition => cond} : {}).
-          merge!(filter ? {:filter => filter}  : {})
+        { :operation => op, 
+          :field => fld, 
+          :field_proc => fld_proc }.
+          merge!(method ? {:method    => method} : {}).
+          merge!(cond   ? {:condition => cond}   : {}).
+          merge!(filter ? {:filter    => filter} : {})
       end
     end
 
@@ -336,14 +366,14 @@ module Red
         conds.each do |cond|
           self.module_eval <<-RUBY, __FILE__, __LINE__+1
 def #{cond}
-  {:field => self, :condition => #{Rule.cond(cond).inspect}}
+  {:field => self, :condition => #{cond.inspect}}
 end
 RUBY
         end
         filters.each do |filter|
           self.module_eval <<-RUBY, __FILE__, __LINE__+1
 def #{filter}
-  {:field => self, :filter => #{Rule.filter(filter).inspect}}
+  {:field => self, :filter => #{filter.inspect}}
 end
 RUBY
         end
@@ -374,14 +404,14 @@ RUBY
         conds.each do |cond|
           self.module_eval <<-RUBY, __FILE__, __LINE__+1
 def #{cond}
-  condition(#{Rule.cond(cond).inspect})
+  condition(#{cond.inspect})
 end
 RUBY
         end
         filters.each do |filter|
           self.module_eval <<-RUBY, __FILE__, __LINE__+1
 def #{filter}
-  filter(#{Rule.filter(filter).inspect})
+  filter(#{filter.inspect})
 end
 RUBY
         end

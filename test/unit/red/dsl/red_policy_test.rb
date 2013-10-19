@@ -82,32 +82,32 @@ class TestPolicyModel < Test::Unit::TestCase
       assert_equal pol, r.policy
       assert r.has_condition?
       assert !r.has_filter?
-      assert_equal :when, r.condition_kind
-      assert_equal :check_restrict_user_pswd, r.condition_method
+      assert_equal :when, r.condition
+      assert_equal :check_restrict_user_pswd, r.method
     end
     begin
       _, r = pol.restrictions(XTestPolicyModel::User.pswd)
       assert_equal pol, r.policy
       assert r.has_condition?
       assert !r.has_filter?
-      assert_equal :unless, r.condition_kind
-      assert_starts_with "restrict_XTestPolicyModel__User_pswd_unless",r.condition_method
+      assert_equal :unless, r.condition
+      assert_starts_with "restrict_XTestPolicyModel__User_pswd_unless",r.method
     end
     begin
       r = pol.restrictions(XTestPolicyModel::User.status).first
       assert_equal pol, r.policy
       assert r.has_condition?
       assert !r.has_filter?
-      assert_equal :when, r.condition_kind
-      assert_starts_with "restrict_XTestPolicyModel__User_status_when",r.condition_method
+      assert_equal :when, r.condition
+      assert_starts_with "restrict_XTestPolicyModel__User_status_when",r.method
     end
     begin
       r = pol.restrictions(XTestPolicyModel::Room.members).first
       assert_equal pol, r.policy
       assert !r.has_condition?
       assert r.has_filter?
-      assert_equal :reject, r.filter_kind
-      assert_starts_with "restrict_XTestPolicyModel__Room_members_reject",r.filter_method
+      assert_equal :reject, r.filter
+      assert_starts_with "restrict_XTestPolicyModel__Room_members_reject",r.method
     end
   end
 
@@ -134,7 +134,7 @@ class TestPolicyModel < Test::Unit::TestCase
 
   def test_restrict_invalid_not_field
     ex = do_test_invalid_policy_opts :field => XTestPolicyModel::User
-    assert ex.message.start_with?("expected `Field', got"), ex.message
+    assert ex.message.start_with?("expected `Field' got"), ex.message
   end
 
   def test_restrict_invalid_no_field
@@ -169,7 +169,7 @@ class TestPolicyModel < Test::Unit::TestCase
   def test_restrict_invalid_both_cond_filter
     ex = do_test_invalid_policy_opts :field => XTestPolicyModel::User.pswd,
                                      :select => "", :when => "" do end
-    assert_equal "both :condition and :filter, and block given", ex.message
+    assert_equal "can't add block, rule has method", ex.message
   end
 
   def test_restrict_invalid_no_cond_filter
