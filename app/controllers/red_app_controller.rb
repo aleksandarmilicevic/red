@@ -18,6 +18,8 @@ class RedAppController < ActionController::Base
   around_filter :time_request
   after_filter  :push_changes
 
+  layout Red.conf.view.default_layout
+
   # ---------------------------------------------------------------------
   #  SERVER INITIALIZATION
   #

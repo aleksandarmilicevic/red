@@ -79,6 +79,13 @@ module Red
     end
   end
 
+  def self.default_view_conf
+    SDGUtils::Config.new do |c|
+      c.autoviews          = true
+      c.default_layout     = "red_app"
+    end
+  end
+
   def self.default_conf
     SDGUtils::Config.new do |c|
       c.impl_field_namer = lambda { |fld| "#{fld.name}_REL" }
@@ -100,6 +107,7 @@ module Red
       c.log             = lambda{c.alloy.logger}
       c.log_java_script = true
       c.autoviews       = true
+      c.view            = default_view_conf           
     end
   end
 end
