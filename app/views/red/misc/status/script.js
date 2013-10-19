@@ -6,7 +6,7 @@ Red.subscribe(function() {
         if (data.type === "status_message") {
             var parent = $("#red_" + data.payload.kind + "_message");
             if (parent != null) {
-                var context = {kind: data.payload.kind, msg: data.payload.msg}
+                var context = {kind: data.payload.kind, msg: data.payload.msg};
                 var msgHtml = template(context);
                 parent.append(msgHtml);
                 var chldrn = parent.children();

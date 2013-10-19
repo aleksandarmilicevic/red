@@ -193,6 +193,19 @@ var Red = (function() {
     }
   };
 
+  // ============================================================
+  //   Various utility functions
+  // ============================================================
+
+  var Rendering = {
+    renderTemplate : function(template, context) {
+      var ans = template;
+      for (var key in context) {
+        ans = ans.replace(new RegExp("\\$\\{" + key + "\\}", 'g'), context[key]);
+      }
+      return ans;
+    }
+  };
 
   // ============================================================
   //   Various utility functions
@@ -1095,15 +1108,16 @@ var Red = (function() {
 
   var Red = {
 
-    Events : new RedEvents(),
-    Meta : new RedMeta(),
-    Model : new RedModel(),
+    Events     : new RedEvents(),
+    Meta       : new RedMeta(),
+    Model      : new RedModel(),
 
-    Constr : jQuery.extend({}, Constr),
-    Utils : jQuery.extend({}, Utils),
+    Constr     : jQuery.extend({}, Constr),
+    Utils      : jQuery.extend({}, Utils),
+    Renderer   : jQuery.extend({}, Rendering),
     Serializer : jQuery.extend({}, Serializer),
 
-    Autoview : new RedAutoview(),
+    Autoview   : new RedAutoview(),
 
     // ===============================================================
     //   handlers
