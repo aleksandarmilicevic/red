@@ -14,16 +14,35 @@ module Red
     # Rule
     #-------------------------------------------------------------------
     class Rule
-      CONDITIONS = [:when, :unless]
-      FILTERS    = [:select, :include, :reject, :exclude]
+      OP_READ, OP_WRITE, OP_BOTH = :read, :write, :both
+      OPERATIONS                 = [OP_READ, OP_WRITE, OP_BOTH]
 
-      attr_reader :field, :policy, :condition, :filter
-      def initialize(field, policy, condition, filter)
-        @field = field
-        @policy = policy
+      COND_WHEN, COND_UNLESS     = :when, :unless
+      CONDITIONS                 = [COND_WHEN, COND_UNLESS]
+
+      F_SEL, F_INC, F_REJ, F_EXC = :select, :include, :reject, :exclude
+      FILTERS                    = [F_SEL, F_INC, F_REJ, F_EXC]
+
+      attr_reader :operation, :field, :policy, :condition, :filter, :negated
+
+      def initialize(operation, field, policy, condition, filter, negated=false)
+        @operation = operation
+        @field     = field
+        @policy    = policy
         @condition = condition
-        @filter = filter
+        @filter    = filter
+        @negated   = negated
+        self.freeze
       end
+
+      def negate() 
+        Rule.new(operation(), field(), policy, condition(), filter(), !negated()) 
+      end
+
+      def negated?() @negated end
+
+      def applies_for_read()  [OP_READ, OP_BOTH].member?(@operation) end
+      def applies_for_write() [OP_WRITE, OP_BOTH].member?(@operation) end
 
       def has_condition?()   !!_method(@condition) end
       def has_filter?()      !!_method(@filter) end
@@ -60,7 +79,7 @@ module Red
 
       def check_condition(*args)
         if @rule.has_condition?
-          check(@rule.condition_kind, @rule.condition_method, *args)
+          check(@rule.negated?, @rule.condition_kind, @rule.condition_method, *args)
         else
           nil
         end
@@ -68,7 +87,7 @@ module Red
 
       def check_filter(*args)
         if @rule.has_filter?
-          check(@rule.filter_kind, @rule.filter_method, *args)
+          check(@rule.negated?, @rule.filter_kind, @rule.filter_method, *args)
         else
           nil
         end
@@ -76,25 +95,26 @@ module Red
 
       private
 
-      def check(kind, method, *args)
+      def check(negate, kind, method, *args)
         Red.boss.time_it("checking rule") do
           meth, meth_args = Red.boss.time_it("getting arity", method) do
             meth = @policy.send :method, method.to_sym
             meth_args = args[0...meth.arity]
             [meth, meth_args]
           end
-          ans = Red.boss.time_it("executing rule method", method) do
+          meth_return = Red.boss.time_it("executing rule method", method) do
             @policy.send method.to_sym, *meth_args
           end
-          case kind
-          # conditions
-          when :when; ans
-          when :unless; !ans
-          # filters
-          when :select, :include; !ans
-          when :reject, :exclude; ans
-          else fail "unknown condition kind: #{kind}"
-          end
+          ans = case kind
+                  # conditions
+                when :when; meth_return
+                when :unless; !meth_return
+                  # filters
+                when :select, :include; !meth_return
+                when :reject, :exclude; meth_return
+                else fail "unknown condition kind: #{kind}"
+                end
+          negate ? !ans : ans
         end
       end
 
@@ -114,11 +134,13 @@ module Red
       end
 
       def restrictions(field=nil)
-        __restrictions(field).clone
+        #TODO: if field is not found, this throws "can't modify frozen hash" exception
+        __restrictions(field).clone 
       end
 
       def add_restriction(rule)
         __restrictions(rule.field) << rule
+        rule
       end
 
       def freeze
@@ -151,16 +173,51 @@ module Red
         meta.principal = meta.field(hash.keys.first)
       end
 
+      def rw(*args, &block)
+        rule = __to_rule({operation: Rule::OP_BOTH}, *args, &block)
+        meta.add_restriction(rule.negate())
+      end
+
+      def read(*args, &block)
+        rule = __to_rule({operation: Rule::OP_READ}, *args, &block)
+        meta.add_restriction(rule.negate())
+      end
+
+      def write(*args, &block)
+        rule = __to_rule({operation: Rule::OP_WRITE}, *args, &block)
+        meta.add_restriction(rule.negate())
+      end
+
       def restrict(*args, &block)
-        opts =
+        rule = if args.size == 1 && Rule === args.first
+                 args.first.negate()
+               else 
+                 __to_rule({operation: Rule::OP_BOTH}, *args, &block)
+               end
+        meta.add_restriction(rule)
+      end
+
+      protected
+
+      def __to_rule(def_opts, *args, &block)
+        user_opts =
           case
-          when args.size == 1 && Hash === args[0]; args[0]
-          when args.size == 2; {:field => args.first}.merge! args[1]
-          else raise ArgumentError, "expected hash or a field and a hash"
+          when args.size == 1 && Hash === args[0]
+            args[0]
+          when args.size == 1 && RuleBuilder === args[0]
+            args[0].export_props
+          when args.size == 2 && RuleBuilder === args[0] && Hash === args[1]
+            args[0].export_props.merge!(args[1])
+          when args.size == 2 && Alloy::Ast::Field === args[0] && Hash === args[1]
+            {:field => args[0]}.merge!(args[1])
+          else 
+            msg = "expected hash or a field and a hash, got #{args.map(&:class)}"
+            raise ArgumentError, msg
           end
-        opts = __normalize_opts(opts)
-        fld = opts[:field]
-        cond = opts[:condition]
+        opts   = __normalize_opts(def_opts.merge(user_opts))
+        op     = opts[:operation]
+        fld    = opts[:field]
+        cond   = opts[:condition]
         filter = opts[:filter]
         if block
           msg = "both :condition and :filter, and block given"
@@ -172,11 +229,8 @@ module Red
           pred(method_name, &block)
           poli[:method] = method_name
         end
-        rule = Rule.new(fld, self, cond, filter)
-        meta.add_restriction(rule)
+        Rule.new(op, fld, self, cond, filter)
       end
-
-      protected
 
       def __created()
         super
@@ -298,6 +352,56 @@ RUBY
       gen_cond Rule::CONDITIONS, Rule::FILTERS
     end
     Alloy::Ast::Field.send :include, FieldRuleExt
+
+    #-------------------------------------------------------------------
+    # == Class +RuleBuilder+
+    #
+    # Rule
+    #-------------------------------------------------------------------
+    class RuleBuilder
+      def initialize(hash={})
+        @props = hash.clone
+      end
+
+      def export_props()     @props.clone end
+
+      def operation(arg=nil) get_set(:operation, arg) end
+      def condition(arg=nil) get_set(:condition, arg) end
+      def filter(arg=nil)    get_set(:filter, arg) end
+      def field(arg=nil)     get_set(:field, arg) end
+
+      def self.gen_cond(conds, filters)
+        conds.each do |cond|
+          self.module_eval <<-RUBY, __FILE__, __LINE__+1
+def #{cond}
+  condition(#{Rule.cond(cond).inspect})
+end
+RUBY
+        end
+        filters.each do |filter|
+          self.module_eval <<-RUBY, __FILE__, __LINE__+1
+def #{filter}
+  filter(#{Rule.filter(filter).inspect})
+end
+RUBY
+        end
+      end
+
+      gen_cond Rule::CONDITIONS, Rule::FILTERS
+
+      private
+
+      def get_set(prop, arg=nil)
+        if arg.nil?
+          @props[prop]
+        else
+          @props[prop] = arg
+          self
+        end
+      end
+
+    end
+
 
   end
 end

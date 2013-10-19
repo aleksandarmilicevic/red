@@ -519,7 +519,7 @@ var Red = (function() {
             myRemoveClass($elem, updatingCls, upEndDur, function() {
               var cont = function() {
                 myAddClass($elem, okCls, duration, function() {
-                  setTimeout(function() {myRemoveClass($elem, okCls);}, timeout);
+                  //setTimeout(function() {myRemoveClass($elem, okCls);}, timeout);
                 });
               };
               cont.cancel = false;

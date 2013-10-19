@@ -50,6 +50,18 @@ module R_M_TPC
       restrict Room.members.reject do |room, member|
         member.status == "busy"
       end
+
+      write User.status.when do |user|
+        client.user == user
+      end
+
+      restrict User.status.when do |user|
+        client.user != user
+      end
+
+      restrict write User.status.unless do |user|
+        client.user == user
+      end
     end
   end
 end
@@ -121,16 +133,34 @@ class TestPolicyCheck < MigrationTest::TestBase
   def test_status_restriction
     pol = P1.instantiate(@@client1)
     status_r = pol.restrictions(User.status).first
-    assert !status_r.check_condition(@@user1), "expected pswd rule check to pass"
-    assert !status_r.check_condition(@@user2), "expected pswd rule check to fail"
-    assert status_r.check_condition(@@user3), "expected pswd rule check to fail"
+    assert !status_r.check_condition(@@user1), "expected status rule check to pass"
+    assert !status_r.check_condition(@@user2), "expected status rule check to pass"
+    assert status_r.check_condition(@@user3), "expected status rule check to fail"
 
     pol = P1.instantiate(@@client2)
     status_r = pol.restrictions(User.status).first
+    assert !status_r.check_condition(@@user1), "expected status rule check to pass"
+    assert !status_r.check_condition(@@user2), "expected status rule check to pass"
+    assert status_r.check_condition(@@user3), "expected status rule check to fail"
+  end
+
+  def do_test_status_restriction_idx(idx)
+    pol = P1.instantiate(@@client1)
+    status_r = pol.restrictions(User.status)[idx]
     assert !status_r.check_condition(@@user1), "expected pswd rule check to pass"
-    assert !status_r.check_condition(@@user2), "expected pswd rule check to fail"
+    assert status_r.check_condition(@@user2), "expected pswd rule check to fail"
+    assert status_r.check_condition(@@user3), "expected pswd rule check to fail"
+
+    pol = P1.instantiate(@@client2)
+    status_r = pol.restrictions(User.status)[idx]
+    assert status_r.check_condition(@@user1), "expected pswd rule check to fail"
+    assert !status_r.check_condition(@@user2), "expected pswd rule check to pass"
     assert status_r.check_condition(@@user3), "expected pswd rule check to fail"
   end
+
+  def test_status_restriction2() do_test_status_restriction_idx(1) end
+  def test_status_restriction3() do_test_status_restriction_idx(2) end
+  def test_status_restriction4() do_test_status_restriction_idx(3) end
 
   def test_filter_busy
     pol = P1.instantiate(@@client1)

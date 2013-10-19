@@ -124,12 +124,12 @@ class TestPolicyModel < Test::Unit::TestCase
 
   def test_restrict_invalid_no_opts
     ex = do_test_invalid_policy_opts
-    assert_equal "expected hash or a field and a hash", ex.message
+    assert ex.message.start_with?("expected hash or a field and a hash"), ex.message
   end
 
   def test_restrict_invalid_not_hash
     ex = do_test_invalid_policy_opts XTestPolicyModel::User
-    assert_equal "expected hash or a field and a hash", ex.message
+    assert ex.message.start_with?("expected hash or a field and a hash"), ex.message
   end
 
   def test_restrict_invalid_not_field
