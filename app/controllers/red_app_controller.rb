@@ -77,6 +77,13 @@ class RedAppController < ActionController::Base
       Rails.logger.debug "Using server machine: #{@@server_cls}"
       Rails.logger.debug "Using client machine: #{@@client_cls}"
 
+      # add the online method to clients
+      @@client_cls.send :define_singleton_method, :online do
+        ans = Red.boss.send :clients
+        ans.each{|c| c.reload}
+        ans
+      end
+
       #TODO: cleanup expired clients
 
       @@server_cls.destroy_all
@@ -128,9 +135,14 @@ class RedAppController < ActionController::Base
     end
   end
 
+  # @param payload_json [Hash]
+  def get_status_json(payload_json) 
+    { :type => "status_message", :payload => payload_json } 
+  end
+
   def push_status(json)
     pusher = Red.boss.client_pusher
-    pusher.push_json(:type => "status_message", :payload => json) if pusher
+    pusher.push_json(get_status_json(json)) if pusher
   end
 
   def notify_red_boss

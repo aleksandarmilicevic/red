@@ -114,10 +114,14 @@ module Engine
         clients.member?(client)
       end
 
-      def push_changes
+      # @param notes [Array(String)]: JSON objects (notes) to push 
+      #                               along with any view updates
+      def push_changes(notes=[])
+        updated_clients = []
         time_it("[RedBoss] PushChanges") {
           clients.each do |c|
-            client_pusher(c).push
+            cp = client_pusher(c)
+            cp.push() and notes.each{|json| cp.push_json(json)}
           end
           # client_pushers.values.each{|pusher| pusher.push}
           # client2views.values.flatten.each {|view| view.push}

@@ -105,6 +105,7 @@ module Red
 
       def initialize(hash={})
         super rescue nil
+        @notes = []
         hash.each do |k, v|
           set_param(k, v)
         end
@@ -142,6 +143,8 @@ module Red
 
       alias_method :check, :check_precondition
 
+      def notes() (@notes ||= []).clone end
+
       def check_present(*param_names)
         param_names.each do |param_name|
           obj = get_param(param_name)
@@ -152,6 +155,10 @@ module Red
 
       def check_all_present
         check_present(*meta.params.map(&:name))
+      end
+
+      def success(msg)
+        @notes << [:success, msg]
       end
 
       def error(msg)

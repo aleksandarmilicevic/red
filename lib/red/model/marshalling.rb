@@ -174,6 +174,7 @@ module Red
           msg = "Unmarshalling integer to Record without knowing the record class"
           raise MarshallingError.new, msg unless rec_cls
           begin
+            binding.pry if $pera
             rec_cls.find(id)
           rescue Exception => e
             raise MarshallingError.new(e), "Couldn't find record #{rec_cls.name}(#{id})"
