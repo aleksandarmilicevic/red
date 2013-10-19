@@ -1,5 +1,6 @@
 require 'red/stdlib/web/machine_model'
 require 'red/engine/view_manager'
+require 'red/engine/rendering_cache'
 require 'red/view/auto_helpers'
 require 'red/model/marshalling'
 require 'red/model/red_model_errors'
@@ -15,6 +16,7 @@ class RedAppController < ActionController::Base
   before_filter :init_server_once
   before_filter :notify_red_boss
   before_filter :clear_autoviews
+  before_filter :invalidate_rendering_caches
   around_filter :time_request
   after_filter  :push_changes
 
@@ -134,6 +136,13 @@ class RedAppController < ActionController::Base
   def notify_red_boss
     Red.boss.set_thr :request => request, :session => session,
                      :client => client, :server => server, :controller => self
+  end
+
+  def invalidate_rendering_caches
+    if Red.conf.renderer.invalidate_caches_between_requests && !self.class.async?
+      Red.conf.log.debug "[RedAppController] clearing caches before request to #{self}"
+      Red::Engine::RenderingCache.clear_all()
+    end
   end
 
   def clear_autoviews

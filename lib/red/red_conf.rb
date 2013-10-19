@@ -69,13 +69,14 @@ module Red
 
   def self.default_renderer_conf
     SDGUtils::Config.new do |c|
-      c.event_server       = lambda{Red.boss}
-      c.view_finder        = lambda{Red::Engine::ViewFinder.new}
-      c.access_listener    = lambda{Red.boss.access_listener}
-      c.current_view       = nil
-      c.no_template_cache  = false
-      c.no_file_cache      = false
-      c.no_content_cache   = true
+      c.event_server                       = lambda{Red.boss}
+      c.view_finder                        = lambda{Red::Engine::ViewFinder.new}
+      c.access_listener                    = lambda{Red.boss.access_listener}
+      c.current_view                       = nil
+      c.no_template_cache                  = false
+      c.no_file_cache                      = false
+      c.no_content_cache                   = true
+      c.invalidate_caches_between_requests = false
     end
   end
 
