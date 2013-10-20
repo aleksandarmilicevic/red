@@ -285,7 +285,6 @@ hi there
     p = get_pusher_for_current_view
     @@user1.name = "asdf"
     @@room1.users = []
-    save_all
 
     assert_arry_equal [], p._affected_nodes
     assert_arry_equal [], p._updated_nodes
@@ -313,7 +312,7 @@ hi there in <%= room1.name %>
       ch1 = root.children[1]
       assert_expr ch1, "g708", 'room1.name'
       assert_objs_equal ch1.deps.objs, @@room1 => [["name", "g708"]]
-      assert ch1.deps.classes.empty?
+      assert ch1.deps.classes.empty?, "deps classes not empty but #{ch1.deps.classes}"
     }
 
     assert_stuff.call
@@ -355,8 +354,9 @@ hi there in <%= room1.name %>
     root = tree.root
     ch1old = root.children[1]
 
-    @@room1.name = "xxx"
-    @@room1.save!
+    r1 = Room.find(@@room1.id)
+    r1.name = "xxx"
+    r1.save!
 
     ch1 = root.children[1]
 

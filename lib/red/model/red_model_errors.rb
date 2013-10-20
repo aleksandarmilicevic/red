@@ -1,3 +1,5 @@
+require 'sdg_utils/errors'
+
 module Red
   module Model
 
@@ -15,6 +17,17 @@ module Red
 
     class EventPreconditionNotSatisfied < StandardError
     end
+
+    class AccessDeniedError < StandardError # SDGUtils::Errors::ErrorWithCause
+      attr_reader :op, :failing_rule, :payload
+      def initialize(op, failing_rule, *payload)
+        super()
+        @op           = op
+        @failing_rule = failing_rule
+        @payload      = payload
+      end
+    end
+
   end
 end
 

@@ -176,20 +176,22 @@ class TestPolicyCheck < MigrationTest::TestBase
     assert busy_r.check_filter(@@room1, @@user2)
   end
 
-  def do_test_star_field_rule(fld)
+  def do_test_star_field_rule(fld, op)
     pol = P1.instantiate(@@client1)
     ur = pol.restrictions(fld).last
+    assert_equal op, ur.rule.operation
     do_check_rule ur, [@@user1, @@user2, @@user3], [false, true, true]
 
     pol = P1.instantiate(@@client2)
     ur = pol.restrictions(fld).last
+    assert_equal op, ur.rule.operation
     do_check_rule ur, [@@user1, @@user2, @@user3], [true, false, true]
   end
 
   def test_star_field_rule
-    ur = pol.restrictions(User.name).last
-    ur = pol.restrictions(User.pswd).last
-    ur = pol.restrictions(User.status).last
+    do_test_star_field_rule(User.name, :write)
+    do_test_star_field_rule(User.pswd, :write)
+    do_test_star_field_rule(User.status, :write)
   end
 
 end

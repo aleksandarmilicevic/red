@@ -4,8 +4,8 @@ module Red
   module Engine
 
     class RenderingCache
-      @@content_cache = SDGUtils::Caching::Cache.new("content")
-      @@file_cache = SDGUtils::Caching::Cache.new("file")
+      @@content_cache  = SDGUtils::Caching::Cache.new("content")
+      @@file_cache     = SDGUtils::Caching::Cache.new("file")
       @@template_cache = SDGUtils::Caching::Cache.new("template")
 
       class << self

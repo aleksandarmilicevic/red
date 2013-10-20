@@ -87,6 +87,19 @@ module Red
     end
   end
 
+  def self.default_policy_conf
+    SDGUtils::Config.new do |c|
+      c.return_empty_for_read_violations        = true
+      c.no_meta_cache                           = false
+      c.no_read_cache                           = false
+      c.no_write_cache                          = false
+      c.no_filter_cache                         = false
+      c.invalidate_meta_cache_between_requests  = true
+      c.invalidate_read_cache_between_requests  = true
+      c.invalidate_write_cache_between_requests = true
+    end
+  end
+
   def self.default_conf
     SDGUtils::Config.new do |c|
       c.impl_field_namer = lambda { |fld| "#{fld.name}_REL" }
@@ -108,7 +121,8 @@ module Red
       c.log             = lambda{c.alloy.logger}
       c.log_java_script = true
       c.autoviews       = true
-      c.view            = default_view_conf           
+      c.view            = default_view_conf
+      c.policy          = default_policy_conf
     end
   end
 end

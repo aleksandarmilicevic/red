@@ -1,7 +1,7 @@
 require 'alloy/dsl/sig_builder'
 require 'red/model/red_model'
 require 'red/model/event_model'
-require 'sdg_utils/delegator'
+require 'sdg_utils/proxy'
 require 'sdg_utils/meta_utils'
 require 'sdg_utils/random'
 
@@ -29,12 +29,20 @@ module Red
         @policy        = policy
         @operation     = OP_BOTH
         @negated       = false
+
+        raise ArgumentError, "policy not given" unless @policy
       end
 
       def freeze
         super
         raise ArgumentError, "Field checker not a Proc" unless Proc === @field_checker
         raise ArgumentError, "both :condition and :filter given" if @condition && @filter
+      end
+
+      # @param principal [Red::Model::Machine]
+      def instantiate(principal)
+        self.bind(@policy.instantiate(principal))
+        # BoundRule.new(@policy.instantiate(principal), self)
       end
 
       def operation(*args)     get_set(:operation, *args) end
@@ -48,7 +56,9 @@ module Red
 
       def applies_for_read()  [OP_READ, OP_BOTH].member?(@operation) end
       def applies_for_write() [OP_WRITE, OP_BOTH].member?(@operation) end
-      
+
+      def applies_to_field(f) field_checker()[f] end
+
       def has_method?()      !!@method end
       def has_condition?()   !!@condition end
       def has_filter?()      !!@filter end
@@ -56,6 +66,8 @@ module Red
       def filter_kind()      @filter end
 
       def bind(policy)
+        msg = "wrong kind of policy: expected #{@policy}, got #{policy.class}"
+        raise ArgumentError, msg unless @policy === policy
         BoundRule.new(policy, self)
       end
 
@@ -78,14 +90,18 @@ module Red
     #
     # Rule bound to a concrete policy instance
     #-------------------------------------------------------------------
-    class BoundRule
-      attr_reader :policy
+    class BoundRule < SDGUtils::Proxy
+      attr_reader :policy, :rule
 
       def initialize(policy, rule)
+        super(rule)
         @policy = policy
         @rule = rule
       end
 
+      # Returns whether the rule is matched.  In terms of policies, who
+      # only have restriction rule, if a rule is matched (the return value
+      # of this method is +true+, access is forbidden.
       def check_condition(*args)
         if @rule.has_condition? && @rule.has_method?
           check(@rule.negated?, @rule.condition, @rule.method, *args)
@@ -149,7 +165,7 @@ module Red
         else
           ans = []
           @field_restrictions.each do |rule|
-            ans << rule if rule.field_checker[field]
+            ans << rule if rule.applies_to_field(field)
           end
           ans
         end
@@ -160,8 +176,8 @@ module Red
         rule
       end
 
-      def remove_restriction(rule) 
-        @field_restrictions -= [rule] 
+      def remove_restriction(rule)
+        @field_restrictions -= [rule]
       end
 
       def freeze
@@ -205,7 +221,7 @@ module Red
         rule = if args.size == 1 && Rule === args.first
                  meta.remove_restriction(args.first)
                  args.first.negate()
-               else 
+               else
                  to_rule({operation: Rule::OP_BOTH}, *args)
                end
         add_rule_block(rule, block) if block
@@ -225,7 +241,7 @@ module Red
             args[0].export_props.merge!(args[1])
           when args.size == 2 && Alloy::Ast::Field === args[0] && Hash === args[1]
             {:field => args[0]}.merge!(args[1])
-          else 
+          else
             msg = "expected hash or a field and a hash, got #{args.map(&:class)}"
             raise ArgumentError, msg
           end
@@ -298,8 +314,8 @@ module Red
 
         raise ArgumentError, "no condition specified" unless cond || filter
 
-        { :operation => op, 
-          :field => fld, 
+        { :operation => op,
+          :field => fld,
           :field_proc => fld_proc }.
           merge!(method ? {:method    => method} : {}).
           merge!(cond   ? {:condition => cond}   : {}).

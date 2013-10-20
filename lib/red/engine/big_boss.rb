@@ -1,4 +1,5 @@
 require 'red/engine/event_constants'
+require 'red/engine/policy_checker'
 require 'red/engine/pusher'
 require 'red/engine/access_listener'
 require 'sdg_utils/meta_utils'
@@ -13,7 +14,7 @@ module Engine
     include SDGUtils::Events::EventHandler
 
     def initialize(alloy_boss)
-      super() # important to initialize monitor included by Sync
+      super()
       reset_timer()
       if alloy_boss
         delegate_all SDGUtils::Events::EventProvider, :to => alloy_boss
@@ -71,6 +72,47 @@ module Engine
     end
 
     # ------------------------------------------------
+    # Field access checking
+    # ------------------------------------------------
+
+    # @policy_checker [PolicyChecker]
+    begin
+      def enable_policy_checking(principal=curr_client())
+        @policy_checker = PolicyChecker.new(principal)
+      end
+
+      def disable_policy_checking
+        @policy_checker = nil
+      end
+
+      # @see Red::Engine::PolicyChecker#check_read
+      def check_fld_read(*args)  run_checker{|checker| checker.check_read(*args)} end
+
+      # @see Red::Engine::PolicyChecker#check_write
+      def check_fld_write(*args) run_checker{|checker| checker.check_write(*args)} end
+
+      # Expects that the last argument is the actual value to be
+      # filtered; doesn't care about other arguments, just passes them
+      # along to PolicyChecker
+      #
+      # @see Red::Engine::PolicyChecker#apply_filters
+      def apply_filters(*args)
+        return args.last unless @policy_checker
+        run_checker{|checker| checker.apply_filters(*args)}
+      end
+
+      private
+
+      def run_checker
+        old_checker = @policy_checker
+        @policy_checker = nil
+        yield(old_checker) if old_checker
+      ensure
+        @policy_checker = old_checker
+      end
+    end
+
+    # ------------------------------------------------
     # Thread-local stuff, doesn't need synchronizing.
     # ------------------------------------------------
     begin
@@ -114,7 +156,7 @@ module Engine
         clients.member?(client)
       end
 
-      # @param notes [Array(String)]: JSON objects (notes) to push 
+      # @param notes [Array(String)]: JSON objects (notes) to push
       #                               along with any view updates
       def push_changes(notes=[])
         updated_clients = []
@@ -127,6 +169,8 @@ module Engine
           # client2views.values.flatten.each {|view| view.push}
         }
       end
+
+      def connected_clients() clients.clone end
 
       protected
 

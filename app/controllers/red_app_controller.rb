@@ -79,9 +79,7 @@ class RedAppController < ActionController::Base
 
       # add the online method to clients
       @@client_cls.send :define_singleton_method, :online do
-        ans = Red.boss.send :clients
-        ans.each{|c| c.reload}
-        ans
+        Red.boss.connected_clients
       end
 
       #TODO: cleanup expired clients
@@ -103,7 +101,7 @@ class RedAppController < ActionController::Base
     unless Red.boss.has_client?(client)
       Red.boss.fireClientConnected :client => client
     end
-    session[:client]
+    client #session[:client]
   end
 
   def server
@@ -136,8 +134,8 @@ class RedAppController < ActionController::Base
   end
 
   # @param payload_json [Hash]
-  def get_status_json(payload_json) 
-    { :type => "status_message", :payload => payload_json } 
+  def get_status_json(payload_json)
+    { :type => "status_message", :payload => payload_json }
   end
 
   def push_status(json)
