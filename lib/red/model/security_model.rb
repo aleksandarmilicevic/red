@@ -40,11 +40,13 @@ module Red
       end
 
       # @param principal [Red::Model::Machine]
-      def instantiate(principal)
-        self.bind(@policy.instantiate(principal))
-        # BoundRule.new(@policy.instantiate(principal), self)
+      # @param globals   [Hash<String, Object>]
+      def instantiate(principal, globals={})
+        self.bind(@policy.instantiate(principal, globals))
+        # BoundRule.new(@policy.instantiate(principal, globals), self)
       end
 
+      def desc(*args)          get_set(:desc, *args) end
       def operation(*args)     get_set(:operation, *args) end
       def condition(*args)     get_set(:condition, *args) end
       def filter(*args)        get_set(:filter, *args) end
@@ -59,6 +61,7 @@ module Red
 
       def applies_to_field(f) field_checker()[f] end
 
+      def has_desc?()        !!@desc end
       def has_method?()      !!@method end
       def has_condition?()   !!@condition end
       def has_filter?()      !!@filter end
@@ -70,6 +73,8 @@ module Red
         raise ArgumentError, msg unless @policy === policy
         BoundRule.new(policy, self)
       end
+
+      def unbind() self end
 
       private
 
@@ -118,6 +123,8 @@ module Red
         end
       end
 
+      def unbind() @rule end
+
       private
 
       def check(negate, kind, method, *args)
@@ -156,6 +163,7 @@ module Red
       def initialize(*args)
         super
         @field_restrictions = []
+        @globals            = []
       end
 
       # @param field [Alloy::Ast::Field, NilClass]
@@ -169,6 +177,14 @@ module Red
           end
           ans
         end
+      end
+
+      def global_var_names()
+        @globals.clone
+      end
+
+      def add_globals(str_arr)
+        @globals += str_arr
       end
 
       def add_restriction(rule)
@@ -197,6 +213,11 @@ module Red
         _check_single_fld_hash(hash, Red::Model::Machine)
         transient(hash)
         meta.principal = meta.field(hash.keys.first)
+      end
+
+      def global(hash)
+        transient(hash)
+        meta.add_globals(hash.keys)
       end
 
       def rw(*args, &block)
@@ -231,6 +252,7 @@ module Red
       protected
 
       def to_rule(def_opts, *args)
+        desc = @desc; @desc = nil
         user_opts =
           case
           when args.size == 1 && Hash === args[0]
@@ -247,6 +269,7 @@ module Red
           end
         opts = __normalize_opts(def_opts.merge(user_opts))
         Rule.new(self).
+          desc(desc).
           operation(opts[:operation]).
           field(opts[:field]).
           field_checker(opts[:field_proc]).
@@ -326,8 +349,8 @@ module Red
     module PolicyStatic
       include Alloy::Ast::ASig::Static
 
-      def instantiate(principal)
-        self.new(principal)
+      def instantiate(principal, globals={})
+        self.new(principal, globals)
       end
 
       def restrictions(*args) meta.restrictions(*args) end
@@ -357,9 +380,13 @@ module Red
 
       attr_reader :principal
 
-      def initialize(principal)
-        write_field(meta.principal, principal)
+      def initialize(principal, globals={})
         @principal = principal
+        @globals   = globals
+        write_field(meta.principal, principal)
+        globals.each do |fname, fvalue|
+          fld=meta().field(fname) and write_field(fld, fvalue)
+        end
       end
 
       def restrictions(*args)
@@ -367,6 +394,12 @@ module Red
           rule.bind(self)
         }
       end
+
+      protected
+
+      # don't track field accesses for policies
+      def intercept_read(fld)       yield end
+      def intercept_write(fld, val) yield end
     end
 
     #-------------------------------------------------------------------

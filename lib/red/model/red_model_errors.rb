@@ -26,6 +26,11 @@ module Red
         @failing_rule = failing_rule
         @payload      = payload
       end
+
+      def message()
+        "#{op} failed because of rule #{failing_rule.method}\n" +
+          "record: #{payload[0]}, field: #{payload[1]}"
+      end
     end
 
   end

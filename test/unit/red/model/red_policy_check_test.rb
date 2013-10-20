@@ -1,6 +1,7 @@
 require 'migration_test_helper'
 require 'nilio'
 require 'red/model/security_model'
+require 'red/engine/policy_checker'
 
 include Red::Dsl
 
@@ -27,12 +28,12 @@ module R_M_TPC
     policy P1 do
       principal client: Client
 
-      # restrict access to passwords except for owning user
+      @desc = "restrict access to passwords except for owning user"
       restrict User.pswd.unless do |user|
         client.user == user
       end
 
-      # never send passwords to clients
+      @desc = "never send passwords to clients"
       def check_restrict_user_pswd() true end
       restrict User.pswd, :when => :check_restrict_user_pswd
 
@@ -86,6 +87,8 @@ class TestPolicyCheck < MigrationTest::TestBase
 
   def setup_class_pre_red_init
     Red.meta.restrict_to(R_M_TPC)
+    Red::Engine::PolicyCache.clear_meta()
+    Red::Engine::PolicyCache.clear_apps()
   end
 
   def setup_class_post_red_init
@@ -189,7 +192,7 @@ class TestPolicyCheck < MigrationTest::TestBase
   end
 
   def test_star_field_rule
-    do_test_star_field_rule(User.name, :write)
+    do_test_star_field_rule(User.f(:name), :write)
     do_test_star_field_rule(User.pswd, :write)
     do_test_star_field_rule(User.status, :write)
   end

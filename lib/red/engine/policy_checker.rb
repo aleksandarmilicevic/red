@@ -7,25 +7,15 @@ module Red
   module Engine
 
     class PolicyCache
-      # @@policies    = nil
-      # @@rules       = nil
-      # @@read_rules  = nil
-      # @@write_rules = nil
-
       @@meta_cache  = SDGUtils::Caching::Cache.new("meta")
       @@apps_cache  = SDGUtils::Caching::Cache.new("apps")
 
-      # @@read_cache  = SDGUtils::Caching::Cache.new("read")
-      # @@write_cache = SDGUtils::Caching::Cache.new("write")
-
       class << self
-        # def policies()    @@policies    ||= Red.meta.policies end
-        # def rules()       @@rules       ||= policies().map(&:restrictions).flatten end
-        # def read_rules()  @@read_rules  ||= rules().select(&:applies_for_read) end
-        # def write_rules() @@write_rules ||= rules().select(&:applies_for_write) end
-
         def meta() @@meta_cache end
         def apps() @@apps_cache end
+
+        def clear_meta() @@meta_cache.clear end
+        def clear_apps() @@apps_cache.clear end
       end
     end
 
@@ -35,10 +25,11 @@ module Red
       # @param conf      [Hash]                configuration options
       def initialize(principal, conf={})
         @conf = Red.conf.policy.extend(conf)
+        globals = @conf.globals || {}
         @principal   = principal
-        @read_conds  = _r_conds().map{|r| r.instantiate(principal)}
-        @write_conds = _w_conds().map{|r| r.instantiate(principal)}
-        @filters     = _r_filters().map{|r| r.instantiate(principal)}
+        @read_conds  = _r_conds().map{|r| r.instantiate(principal, globals)}
+        @write_conds = _w_conds().map{|r| r.instantiate(principal, globals)}
+        @filters     = _r_filters().map{|r| r.instantiate(principal, globals)}
       end
 
       def check_read(record, fld)

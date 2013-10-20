@@ -150,7 +150,8 @@ RUBY
 
       def *(*args)
         if args.empty?
-          RuleBuilder.new(:field_proc => proc{true} )
+          cls = self
+          RuleBuilder.new(:field_proc => proc{|fld| fld.parent == cls} )
         else
           super
         end

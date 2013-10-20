@@ -23,15 +23,18 @@ module XTestPolicyModel
     policy P1 do
       principal client: Client
 
+      @desc = "hide password"
       def check_restrict_user_pswd(user, pswd)
         client.user != user
       end
       restrict User.pswd, :when => :check_restrict_user_pswd
 
+      @desc = "hide password 2"
       restrict User.pswd.unless do |user, pswd|
         client.user == user
       end
 
+      @desc = "status to comrades"
       restrict User.status.when do |user, status|
         client.user != user &&
         Room.none? { |room|
@@ -40,6 +43,7 @@ module XTestPolicyModel
         }
       end
 
+      @desc = "filter members"
       restrict Room.members.reject do |room, member|
         !room.messages.sender.include?(member) &&
         client.user != member
@@ -84,6 +88,7 @@ class TestPolicyModel < Test::Unit::TestCase
       assert !r.has_filter?
       assert_equal :when, r.condition
       assert_equal :check_restrict_user_pswd, r.method
+      assert_equal "hide password", r.desc
     end
     begin
       _, r = pol.restrictions(XTestPolicyModel::User.pswd)
@@ -92,6 +97,7 @@ class TestPolicyModel < Test::Unit::TestCase
       assert !r.has_filter?
       assert_equal :unless, r.condition
       assert_starts_with "restrict_XTestPolicyModel__User_pswd_unless",r.method
+      assert_equal "hide password 2", r.desc
     end
     begin
       r = pol.restrictions(XTestPolicyModel::User.status).first
@@ -100,6 +106,7 @@ class TestPolicyModel < Test::Unit::TestCase
       assert !r.has_filter?
       assert_equal :when, r.condition
       assert_starts_with "restrict_XTestPolicyModel__User_status_when",r.method
+      assert_equal "status to comrades", r.desc
     end
     begin
       r = pol.restrictions(XTestPolicyModel::Room.members).first
@@ -108,6 +115,7 @@ class TestPolicyModel < Test::Unit::TestCase
       assert r.has_filter?
       assert_equal :reject, r.filter
       assert_starts_with "restrict_XTestPolicyModel__Room_members_reject",r.method
+      assert_equal "filter members", r.desc
     end
   end
 

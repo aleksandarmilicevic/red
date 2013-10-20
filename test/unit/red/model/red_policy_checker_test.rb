@@ -1,7 +1,7 @@
 require 'migration_test_helper'
 require 'nilio'
 require 'red/model/security_model'
-require 'red/model/red_model_errors'
+require 'red/engine/policy_checker'
 
 include Red::Dsl
 
@@ -55,7 +55,7 @@ module R_M_TPChecker
   end
 end
 
-class TestPolicyCheck < MigrationTest::TestBase
+class TestPolicyChecker < MigrationTest::TestBase
   include R_M_TPChecker
 
   attr_reader :client1, :client2, :room1, :user1, :user2, :user3
@@ -72,6 +72,8 @@ class TestPolicyCheck < MigrationTest::TestBase
   def setup_class_pre_red_init
     Red.meta.restrict_to(R_M_TPChecker)
     Red.conf.policy.return_empty_for_read_violations = false
+    Red::Engine::PolicyCache.clear_meta()
+    Red::Engine::PolicyCache.clear_apps()
   end
 
   def setup_class_post_red_init

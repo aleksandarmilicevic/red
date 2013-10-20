@@ -39,6 +39,8 @@ module Engine
     # ------------------------------------------------
 
     begin
+      public
+
       def time_it(task, task_param=nil, &block)
         if @timer
           @timer.time_it(task, task_param, &block)
@@ -77,13 +79,28 @@ module Engine
 
     # @policy_checker [PolicyChecker]
     begin
+      public
+
+      def policy_checking_enabled?() !!@policy_checker end
+
       def enable_policy_checking(principal=curr_client())
-        @policy_checker = PolicyChecker.new(principal)
+        @policy_checker = PolicyChecker.new(principal, globals: {server: curr_server})
       end
 
       def disable_policy_checking
         @policy_checker = nil
       end
+
+      # @see BigBoss#enable_policy_checking
+      def with_enabled_policy_checking(principal=curr_client())
+        prev_checker = @policy_checker
+        already_enabled = !!prev_checker && prev_checker.principal == principal
+        enable_policy_checking(principal) unless already_enabled
+        yield
+      ensure
+        @policy_checker = prev_checker unless already_enabled
+      end
+
 
       # @see Red::Engine::PolicyChecker#check_read
       def check_fld_read(*args)  run_checker{|checker| checker.check_read(*args)} end
@@ -116,6 +133,8 @@ module Engine
     # Thread-local stuff, doesn't need synchronizing.
     # ------------------------------------------------
     begin
+      public
+
       def set_thr(hash)  hash.each {|k,v| Thread.current[k] = v} end
       def thr(sym)       Thread.current[sym] end
       def thr=(sym, val) Thread.current[sym] = val end
@@ -125,7 +144,10 @@ module Engine
     # Managing clients
     # ------------------------------------------------
     begin
+      public
+
       def curr_client() thr(:client) end
+      def curr_server() thr(:server) end
 
       # @param client [Client]
       # @param view [ViewManager]
@@ -152,10 +174,6 @@ module Engine
         fire(Red::E_CLIENT_CONNECTED, params)
       end
 
-      def has_client?(client)
-        clients.member?(client)
-      end
-
       # @param notes [Array(String)]: JSON objects (notes) to push
       #                               along with any view updates
       def push_changes(notes=[])
@@ -163,7 +181,15 @@ module Engine
         time_it("[RedBoss] PushChanges") {
           clients.each do |c|
             cp = client_pusher(c)
-            cp.push() and notes.each{|json| cp.push_json(json)}
+            un = cp.push() and notes.each{|json| cp.push_json(json)}
+            #TODO: not necessary to log this
+            if un
+              log = Red.conf.logger
+              log.debug "@@@ NEW View tree for #{c}: "
+              client_views(c).each do |vm|
+                log.debug vm.view_tree.print_full_info
+              end
+            end
           end
           # client_pushers.values.each{|pusher| pusher.push}
           # client2views.values.flatten.each {|view| view.push}
@@ -171,6 +197,10 @@ module Engine
       end
 
       def connected_clients() clients.clone end
+
+      def has_client?(client)
+        clients.member?(client)
+      end
 
       protected
 

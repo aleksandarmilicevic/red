@@ -170,6 +170,13 @@ module Red
         raise Red::Model::EventPreconditionNotSatisfied, "Precondition failed" unless ok
         ensures()
       end
+
+      protected
+
+      # don't track field accesses for policies
+      def intercept_read(fld)       yield end
+      def intercept_write(fld, val) yield end
+
     end
 
   end

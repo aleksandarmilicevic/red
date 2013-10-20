@@ -89,14 +89,14 @@ module Red
 
   def self.default_policy_conf
     SDGUtils::Config.new do |c|
+      c.globals                                 = {}
       c.return_empty_for_read_violations        = true
       c.no_meta_cache                           = false
       c.no_read_cache                           = false
       c.no_write_cache                          = false
       c.no_filter_cache                         = false
-      c.invalidate_meta_cache_between_requests  = true
-      c.invalidate_read_cache_between_requests  = true
-      c.invalidate_write_cache_between_requests = true
+      c.invalidate_meta_cache_between_requests  = false
+      c.invalidate_apps_cache_between_requests  = true
     end
   end
 

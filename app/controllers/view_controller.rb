@@ -11,7 +11,9 @@ class ViewController < RedAppController
     template_name = params[:template] || "home"
 
     # autoview is included in RedAppController
-    text = autoview :view => view_name, :template => template_name
+    text = with_enabled_policy_checking {
+      autoview :view => view_name, :template => template_name
+    }
 
     render :text => text, :layout => true
   end

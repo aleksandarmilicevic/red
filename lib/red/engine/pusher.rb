@@ -94,7 +94,9 @@ module Engine
       dirty_nodes.each do |dn|
         begin
           new_node = Red.boss.time_it("[Pusher] rerendering node"){
-            dn.rerender
+            Red.boss.with_enabled_policy_checking(@conf.client) {
+              dn.rerender()
+            }
           }
           unless new_node.equal?(dn)
             updated_nodes << [dn, new_node]
