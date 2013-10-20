@@ -134,32 +134,35 @@ class TestPolicyCheck < MigrationTest::TestBase
     check_pswd[pol.restrictions(User.pswd)[1], nil]
   end
 
+  def do_check_rule(rule, arg_cases, outcome_cases)
+    arg_cases.each_with_index do |args, idx|
+      outcome = rule.check_condition(*args)
+      if outcome_cases[idx]
+        assert outcome, "expected status rule check to fail"
+      else
+        assert !outcome, "expected status rule check to pass"
+      end
+    end
+  end
+
   def test_status_restriction
     pol = P1.instantiate(@@client1)
     status_r = pol.restrictions(User.status).first
-    assert !status_r.check_condition(@@user1), "expected status rule check to pass"
-    assert !status_r.check_condition(@@user2), "expected status rule check to pass"
-    assert status_r.check_condition(@@user3), "expected status rule check to fail"
+    do_check_rule status_r, [@@user1, @@user2, @@user3], [false, false, true]
 
     pol = P1.instantiate(@@client2)
     status_r = pol.restrictions(User.status).first
-    assert !status_r.check_condition(@@user1), "expected status rule check to pass"
-    assert !status_r.check_condition(@@user2), "expected status rule check to pass"
-    assert status_r.check_condition(@@user3), "expected status rule check to fail"
+    do_check_rule status_r, [@@user1, @@user2, @@user3], [false, false, true]
   end
 
   def do_test_status_restriction_idx(idx)
     pol = P1.instantiate(@@client1)
     status_r = pol.restrictions(User.status)[idx]
-    assert !status_r.check_condition(@@user1), "expected status rule check to pass"
-    assert status_r.check_condition(@@user2), "expected status rule check to fail"
-    assert status_r.check_condition(@@user3), "expected status rule check to fail"
+    do_check_rule status_r, [@@user1, @@user2, @@user3], [false, true, true]
 
     pol = P1.instantiate(@@client2)
     status_r = pol.restrictions(User.status)[idx]
-    assert status_r.check_condition(@@user1), "expected status rule check to fail"
-    assert !status_r.check_condition(@@user2), "expected status rule check to pass"
-    assert status_r.check_condition(@@user3), "expected status rule check to fail"
+    do_check_rule status_r, [@@user1, @@user2, @@user3], [true, false, true]
   end
 
   def test_status_restriction2() do_test_status_restriction_idx(1) end
@@ -171,6 +174,22 @@ class TestPolicyCheck < MigrationTest::TestBase
     busy_r = pol.restrictions(Room.members).first
     assert !busy_r.check_filter(@@room1, @@user1)
     assert busy_r.check_filter(@@room1, @@user2)
+  end
+
+  def do_test_star_field_rule(fld)
+    pol = P1.instantiate(@@client1)
+    ur = pol.restrictions(fld).last
+    do_check_rule ur, [@@user1, @@user2, @@user3], [false, true, true]
+
+    pol = P1.instantiate(@@client2)
+    ur = pol.restrictions(fld).last
+    do_check_rule ur, [@@user1, @@user2, @@user3], [true, false, true]
+  end
+
+  def test_star_field_rule
+    ur = pol.restrictions(User.name).last
+    ur = pol.restrictions(User.pswd).last
+    ur = pol.restrictions(User.status).last
   end
 
 end
