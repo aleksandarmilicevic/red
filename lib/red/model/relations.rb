@@ -1,5 +1,5 @@
 require 'alloy/alloy'
-require 'alloy/relations/all'
+require 'alloy/relations/relation'
 require 'alloy/alloy_event_constants'
 require 'red/model/red_model'
 require 'sdg_utils/proxy'
@@ -8,31 +8,78 @@ module Red
   module Model
 
     class SetProxy < SDGUtils::Proxy
-      def initialize(owner, field, value)
+      include Alloy::Relations::MRelation
+      def initialize(owner, field, value, original_value=nil)
         super(value)
         @owner = owner
         @field = field
         @target = value
+        @original_target = original_value || value
+        add_methods_fld_type
       end
 
-      def arity() 1 end
-      def tuples() @target.to_a end
-      def unwrap() @target end
+      def arity()      1 end
+      def tuples()     @target.to_a end
+      def unwrap()     @target end
+      def map(*a, &b)  tuples.map(*a, &b) end
+      def size()       tuples.size end
+      def empty?()     tuples.empty? end
+      def reject(&b)   delegate_and_wrap(:reject, &b) end
+      def map(&b   )   delegate_and_wrap(:map, &b) end
+      def compact(&b)  delegate_and_wrap(:compact, &b) end
+      def join(*a, &b) tuples.join(*a, &b) end
 
       def << (elem)
-        @target << elem
+        fail "Can't mutate (append to) a derived relation" unless @owner
+        @original_target << elem
         if Red::Model::Record === @owner
           @owner.class.trigger_after_elem_appended(@owner, @field, elem)
+        end
+      end
+
+      private
+
+      def delegate_and_wrap(func_sym, &b)
+        SetProxy.new(@owner, @field, tuples.send(func_sym, &b), @original_target)
+      end
+
+      def add_methods_fld_type()
+        return unless @field
+        cls = (class << self; self end)
+        range_cls = @field.type.range.klass
+        if (Alloy::Ast::ASig >= range_cls rescue false)
+          add_field_methods cls, range_cls.meta.fields(false) # own + super fields
+          # add_field_methods cls, range_cls.meta.inv_fields_including_sub_and_super
+        end
+      end
+
+      def add_field_methods(target_cls, fields)
+        fields.each do |fld|
+          fname = fld.getter_sym.to_s
+          if self.size() == 1
+            target_cls.send :define_method, "#{fname}" do
+              o = self.tuples.first
+              SetProxy.new(o, fld, o.send(fname.to_sym))
+            end
+          else
+            target_cls.send :define_method, "#{fname}" do
+              SetProxy.new(nil, fld, self.tuples.map(&fname.to_sym).compact)
+            end
+          end
         end
       end
     end
 
     class RelationWrapper
+      def self.is_scalar(value)
+        !value.kind_of?(Array)
+      end
+
       def self.wrap(owner, field, value)
-        unless field.primitive?
-          SetProxy.new(owner, field, value)
-        else
+        if is_scalar(value)
           value
+        else
+          SetProxy.new(owner, field, value)
         end
       end
     end

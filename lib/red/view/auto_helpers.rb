@@ -7,6 +7,7 @@ module View
 
   module AutoHelpers
     def autosave_fld(record, fld_name, hash={})
+      fail "no record is provided" unless record
       av = hash[:autoview]
       av = true if av.nil?
       if av
@@ -21,7 +22,7 @@ module View
           :fieldName => fld_name,
           :saveTarget => true
         }
-        hash[:body] ||= record.read_field(fld_name) || hash[:default]
+        hash[:body] ||= (record and record.read_field(fld_name)) || hash[:default]
         autotrigger(RedLib::Crud::LinkToRecord, "fieldValue", hash)
       end
     end

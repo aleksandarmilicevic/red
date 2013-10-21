@@ -36,6 +36,7 @@ module R_M_TPChecker
       # restrict access to status messages to users who share at least
       # one chat room with the owner of that status message
       restrict User.status.when do |user|
+        $pera = 1
         client.user != user &&
         Room.none? { |room|
           room.members.include?(client.user) &&

@@ -30,43 +30,56 @@ module Red
         @read_conds  = _r_conds().map{|r| r.instantiate(principal, globals)}
         @write_conds = _w_conds().map{|r| r.instantiate(principal, globals)}
         @filters     = _r_filters().map{|r| r.instantiate(principal, globals)}
+        @fld_rules   = {}
       end
 
       def check_read(record, fld)
+        fld_conds = _fld_read_conds(fld)
+        return if fld_conds.empty?
         key = "read: #{fld.full_name}(#{record.id}) by #{@principal}"
         failing_rule = PolicyCache.apps.fetch(key, @conf.no_read_cache) {
-          @read_conds.find do |rule|
-            rule.applies_to_field(fld) && rule.check_condition(record, fld)
+          fld_conds.find do |rule|
+            rule.check_condition(record, fld)
           end
         }
         raise_access_denied(:read, failing_rule, record, fld) if failing_rule
       end
 
       def check_write(record, fld, value)
+        fld_conds = _fld_write_conds(fld)
+        return if fld_conds.empty?
         key = "write: #{fld.full_name}(#{record.id}) by #{@principal}"
         failing_rule = PolicyCache.apps.fetch(key, @conf.no_write_cache) {
-          @write_conds.find do |rule|
-            rule.applies_to_field(fld) && rule.check_condition(record, fld, value)
+          fld_conds.find do |rule|
+            rule.check_condition(record, fld, value)
           end
         }
         raise_access_denied(:write, failing_rule, record, fld, value) if failing_rule
       end
 
       def apply_filters(record, fld, value)
+        # return value if is_scalar(value)
+        fld_filters = _fld_filters(fld)
+        return value if fld_filters.empty?
         key = "filter `#{value.__id__}': #{fld.full_name}(#{record.id}) by #{@principal}"
-        PolicyCache.apps.fetch(key, @conf.no_filter_cache) {
-          fld_filters = @filters.select{ |rule| rule.applies_to_field(fld) }
-          if fld_filters.empty? || is_scalar(value)
-            value
-          else
-            fld_filters.reduce(value) do |acc, filter|
-              acc.reject{|val| filter.check_filter(record, val, fld)}
-            end
+        ans = PolicyCache.apps.fetch(key, @conf.no_filter_cache) {
+          fld_filters.reduce(value) do |acc, filter|
+            acc.reject{|val| filter.check_filter(record, val, fld)}
           end
         }
+        ans
       end
 
       private
+
+      def _fld_rule(kind, rule_repo, fld)
+        key = "field_#{kind}_#{fld.full_name}"
+        @fld_rules[key] ||= rule_repo.select{|rule| rule.applies_to_field(fld)}
+      end
+
+      def _fld_read_conds(fld)  _fld_rule(:read_conds,  @read_conds,  fld) end
+      def _fld_write_conds(fld) _fld_rule(:write_conds, @write_conds, fld) end
+      def _fld_filters(fld)     _fld_rule(:filters,     @filters,     fld) end
 
       def is_scalar(value)
         return !value.kind_of?(Array)

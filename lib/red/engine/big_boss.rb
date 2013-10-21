@@ -84,7 +84,7 @@ module Engine
       def policy_checking_enabled?() !!@policy_checker end
 
       def enable_policy_checking(principal=curr_client())
-        @policy_checker = PolicyChecker.new(principal, globals: {server: curr_server})
+        @policy_checker = checker_for(principal)
       end
 
       def disable_policy_checking
@@ -119,6 +119,11 @@ module Engine
       end
 
       private
+
+      def checker_for(principal)
+        cache = @checkers_cache ||= {}
+        cache[principal] ||= PolicyChecker.new(principal, globals: {server: curr_server})
+      end
 
       def run_checker
         old_checker = @policy_checker

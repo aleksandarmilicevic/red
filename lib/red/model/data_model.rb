@@ -228,6 +228,8 @@ RUBY
         "#{self.class.name}(#{id})"
       end
 
+      def to_a() [self] end
+
       protected
 
       def reload_instances
@@ -254,7 +256,7 @@ RUBY
                 else
                   super
                 end
-        # value = wrap(value)
+        value = RelationWrapper.wrap(self, fld, value)
         Red.boss.apply_filters(self, fld, value)
       end
 
