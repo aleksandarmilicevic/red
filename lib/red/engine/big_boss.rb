@@ -175,8 +175,12 @@ module Engine
                                                            :listen => false
       end
 
-       def fireClientConnected(params)
+      def fireClientConnected(params)
         fire(Red::E_CLIENT_CONNECTED, params)
+      end
+      
+      def fireClientDisconnected(params)
+         fire(Red::E_CLIENT_DISCONNECTED, params)
       end
 
       # @param notes [Array(String)]: JSON objects (notes) to push
@@ -219,6 +223,22 @@ module Engine
         debug "Client connected: #{client.inspect}."
         clients << client
         client_pushers.merge! client => params[:pusher]
+        # curr_server.online_clients << client
+        ev = RedLib::Web::ClientConnected.new
+        ev.from = client
+        ev.to   = curr_server
+        ev.execute
+      end
+
+      def handle_client_disconnected(params)
+        client = params[:client]
+        return unless client
+        debug "Client disconnected: #{client}"
+        clients.delete client
+        client_pushers[client] = nil
+        client2views[client] = nil
+        # # curr_server.online_clients.delete(client)
+        # curr_server.online_clients = curr_server.online_clients - [client]
       end
     end
 

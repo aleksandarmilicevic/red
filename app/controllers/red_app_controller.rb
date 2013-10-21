@@ -80,19 +80,20 @@ class RedAppController < ActionController::Base
       Rails.logger.debug "Using client machine: #{@@client_cls}"
 
       # add the online method to clients
-
-      vf = Alloy::Ast::Field.new :name => :online,
-                                 :type => @@client_cls,
-                                 :parent => @@client_cls,
-                                 :transient => true
-      @@client_cls.send :define_singleton_method, :online do
-        Red::Model::RelationWrapper.wrap(nil, vf, Red.boss.connected_clients)
-      end
+      # vf = Alloy::Ast::Field.new :name => :online,
+      #                            :type => @@client_cls,
+      #                            :parent => @@client_cls,
+      #                            :transient => true
+      # @@client_cls.send :define_singleton_method, :online do
+      #   Red::Model::RelationWrapper.wrap(nil, vf, Red.boss.connected_clients)
+      # end
 
       #TODO: cleanup expired clients
 
       @@server_cls.destroy_all
       @@server = @@server_cls.create!
+
+      Red.boss.set_thr :server => @@server
     end
   end
 
@@ -165,7 +166,7 @@ class RedAppController < ActionController::Base
 
   def bf_notify_red_boss
     Red.boss.set_thr :request => request, :session => session,
-                     :client => client(), :server => server(), :controller => self
+                     :client => client(), :controller => self
   end
 
   def bf_invalidate_session_client

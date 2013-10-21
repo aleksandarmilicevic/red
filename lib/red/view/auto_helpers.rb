@@ -22,7 +22,7 @@ module View
           :fieldName => fld_name,
           :saveTarget => true
         }
-        hash[:body] ||= (record and record.read_field(fld_name)) || hash[:default]
+        hash[:body] ||= record.read_field(fld_name) || hash[:default]
         autotrigger(RedLib::Crud::LinkToRecord, "fieldValue", hash)
       end
     end

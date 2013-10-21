@@ -123,6 +123,7 @@ module Auth
 
     event SignOut do
       from client: AuthClient
+      to   server: WebServer
 
       requires {
         client.user
@@ -130,6 +131,7 @@ module Auth
 
       ensures {
         client.user = nil
+        server.client_disconnected(client)
         client.save
       }
     end

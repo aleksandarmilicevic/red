@@ -48,7 +48,7 @@ module Red
         cls = (class << self; self end)
         range_cls = @field.type.range.klass
         if (Alloy::Ast::ASig >= range_cls rescue false)
-          add_field_methods cls, range_cls.meta.fields(false) # own + super fields
+          add_field_methods cls, range_cls.meta.fields_including_sub_and_super
           # add_field_methods cls, range_cls.meta.inv_fields_including_sub_and_super
         end
       end
@@ -63,7 +63,7 @@ module Red
             end
           else
             target_cls.send :define_method, "#{fname}" do
-              SetProxy.new(nil, fld, self.tuples.map(&fname.to_sym).compact)
+              SetProxy.new(nil, fld, self.tuples.map(&fname.to_sym).reject(&:nil?))
             end
           end
         end
@@ -76,7 +76,7 @@ module Red
       end
 
       def self.wrap(owner, field, value)
-        if is_scalar(value)
+        if field.type.primitive?
           value
         else
           SetProxy.new(owner, field, value)
