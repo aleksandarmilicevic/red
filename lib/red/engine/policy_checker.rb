@@ -7,8 +7,9 @@ module Red
   module Engine
 
     class PolicyCache
-      @@meta_cache  = SDGUtils::Caching::Cache.new("meta")
-      @@apps_cache  = SDGUtils::Caching::Cache.new("apps")
+      @@meta_cache  = SDGUtils::Caching::Cache.new("meta", :fast => true)
+      @@apps_cache  = SDGUtils::Caching::Cache.new("apps", :fast => true, 
+                                                           :acept_nils => true)
 
       class << self
         def meta() @@meta_cache end
@@ -37,7 +38,8 @@ module Red
         fld_conds = _fld_read_conds(fld)
         return if fld_conds.empty?
         key = "read: #{fld.full_name}(#{record.id}) by #{@principal}"
-        failing_rule = PolicyCache.apps.fetch(key, @conf.no_read_cache) {
+        failing_rule = PolicyCache.apps.fetch(key# , @conf.no_read_cache
+                                              ) {
           fld_conds.find do |rule|
             rule.check_condition(record, fld)
           end
@@ -49,7 +51,8 @@ module Red
         fld_conds = _fld_write_conds(fld)
         return if fld_conds.empty?
         key = "write: #{fld.full_name}(#{record.id}) by #{@principal}"
-        failing_rule = PolicyCache.apps.fetch(key, @conf.no_write_cache) {
+        failing_rule = PolicyCache.apps.fetch(key#, @conf.no_write_cache
+                                              ) {
           fld_conds.find do |rule|
             rule.check_condition(record, fld, value)
           end
@@ -62,7 +65,8 @@ module Red
         fld_filters = _fld_filters(fld)
         return value if fld_filters.empty?
         key = "filter `#{value.__id__}': #{fld.full_name}(#{record.id}) by #{@principal}"
-        ans = PolicyCache.apps.fetch(key, @conf.no_filter_cache) {
+        ans = PolicyCache.apps.fetch(key# , @conf.no_filter_cache
+                                     ) {
           fld_filters.reduce(value) do |acc, filter|
             acc.reject{|val| filter.check_filter(record, val, fld)}
           end
@@ -99,7 +103,8 @@ module Red
       def _w_filters() _meta(:w_filters){ _w_rules().select(&:has_filter?)        } end
 
       def _meta(what, &block)
-        PolicyCache.meta.fetch(what, @conf.no_meta_cache, &block)
+        PolicyCache.meta.fetch(what, &block)
+        # PolicyCache.meta.fetch(what, @conf.no_meta_cache, &block)
       end
     end
 

@@ -40,7 +40,9 @@ module Red
       private
 
       def delegate_and_wrap(func_sym, &b)
-        SetProxy.new(@owner, @field, tuples.send(func_sym, &b), @original_target)
+        Red.boss.time_it("SetProxy.#{func_sym}") {
+          SetProxy.new(@owner, @field, tuples.send(func_sym, &b), @original_target)
+        }
       end
 
       def add_methods_fld_type()

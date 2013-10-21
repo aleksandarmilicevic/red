@@ -129,11 +129,8 @@ module Red
 
       def check(negate, kind, method, *args)
         Red.boss.time_it("checking rule") do
-          meth, meth_args = Red.boss.time_it("getting arity", method) do
-            meth = @policy.send :method, method.to_sym
-            meth_args = args[0...meth.arity]
-            [meth, meth_args]
-          end
+          meth = @policy.send :method, method.to_sym
+          meth_args = args[0...meth.arity]
           meth_return = Red.boss.time_it("executing rule method", method) do
             @policy.send method.to_sym, *meth_args
           end
