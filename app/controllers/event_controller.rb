@@ -86,7 +86,7 @@ class EventController < RedAppController
 
   protected
 
-  def push_changes
+  def aff_push_changes
     notes = (@last_event ? @last_event.notes : []).map do |kv|
       get_status_json :kind => kv[0], :msg => kv[1], :status => 200
     end
