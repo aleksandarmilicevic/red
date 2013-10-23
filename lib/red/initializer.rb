@@ -2,6 +2,7 @@ require 'alloy/initializer'
 require 'red/resolver'
 require 'red/red_conf'
 require 'red/model/red_assoc'
+require 'generators/red/migrate/migrate_generator'
 
 module Red
 
@@ -26,7 +27,16 @@ module Red
     def init_all
       require_models
       init_all_but_rails
+      init_db
       Red.boss.start
+    end
+
+    def init_db
+      mg = Red::Generators::MigrateGenerator.new
+      # print to log first
+      mg.create_migration :logger => Red.conf.logger
+      # actually execute
+      mg.create_migration :exe => true
     end
 
     def init_all_but_rails
