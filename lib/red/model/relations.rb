@@ -28,6 +28,7 @@ module Red
       def map(&b   )   delegate_and_wrap(:map, &b) end
       def compact(&b)  delegate_and_wrap(:compact, &b) end
       def join(*a, &b) tuples.join(*a, &b) end
+      def contains?(a) a.all?{|e| tuples.member?(e)} end
 
       def << (elem)
         fail "Can't mutate (append to) a derived relation" unless @owner
@@ -39,10 +40,14 @@ module Red
 
       private
 
-      def delegate_and_wrap(func_sym, &b)
+      def delegate_and_wrap(func_sym, *a, &b)
         Red.boss.time_it("SetProxy.#{func_sym}") {
-          SetProxy.new(@owner, @field, tuples.send(func_sym, &b), @original_target)
+          wrap(tuples.send(func_sym, *a, &b))
         }
+      end
+     
+      def wrap(result)
+        SetProxy.new(@owner, @field, result, @original_target)
       end
 
       def add_methods_fld_type()
