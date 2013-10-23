@@ -62,6 +62,7 @@ module Red
 
       def apply_filters(record, fld, value)
         # return value if is_scalar(value)
+        # value = [value] if is_scalar(value)
         fld_filters = _fld_filters(fld)
         return value if fld_filters.empty?
         key = "filter `#{value.__id__}': #{fld.full_name}(#{record.id}) by #{@principal}"
