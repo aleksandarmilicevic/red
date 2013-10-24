@@ -29,23 +29,28 @@ class TestViewRendererSimple < MigrationTest::TestBase
   @@test_view = "test_view"
 
   @@room1 = nil
+  @@room2 = nil
   @@user1 = nil
   @@user2 = nil
   @@user3 = nil
   @@objs = []
   @@room1_id = nil
+  @@room2_id = nil
   @@widget_id = nil
   @@widget_color = nil
 
   def setup_class_post_red_init
     @@room1 = Room.new :name => "g708"
+    @@room2 = Room.new :name => "g7"
     @@user1 = User.new :name => "eskang", :slacker => false
     @@user2 = User.new :name => "jnear", :slacker => false
     @@user3 = User.new :name => "singh", :slacker => true
     @@room1.users = [@@user1, @@user2, @@user3]
-    @@objs = [@@room1, @@user1, @@user2, @@user3]
+    @@room2.users = []
+    @@objs = [@@room1, @@room2, @@user1, @@user2, @@user3]
     save_all
     @@room1_id = @@room1.id
+    @@room2_id = @@room2.id
     @@widget_id = 42
     @@widget_color = 'green'
   end
@@ -932,7 +937,7 @@ pre <%= render :partial => "\#{room1.name}" %> post
     do_test10(tpl, /room name\* is not greater than 3/)
   end
 
-  def do_test11(tpl, user_tpl, room_tpl)
+  def do_test11(tpl, user_tpl="", room_tpl="", expected_res=nil)
     result = my_render :view => @@test_view, :inline => tpl.strip,
                        :formats => %w(.txt .erb),
                        :locals => locals(),
@@ -941,7 +946,7 @@ pre <%= render :partial => "\#{room1.name}" %> post
 
     assert_stuff = lambda{
       root = @@manager.tree.root
-      assert_matches(/\s*_eskang_\s*_jnear_\s*_\*\*\*_\s*/, result)
+      assert_matches(expected_res || /\s*_eskang_\s*_jnear_\s*_\*\*\*_\s*/, result)
       # assert_objs_equal root.deps.objs, { @@room1 => [["name", "g708"]] }
       # assert_equal 1, root.children.size
       # assert_const root.children[0], expected
@@ -966,7 +971,35 @@ pre <%= render :partial => "\#{room1.name}" %> post
 <% end %>
     UTPL
 
-    do_test11(tpl, utpl, "")
+    do_test11(tpl, utpl)
+
+    tpl = <<-TPL
+<%= render room1.users %>
+    TPL
+
+    do_test11(tpl, utpl)
+
+    tpl = <<-TPL
+<%= render(room2.users) || "room is empty" %>
+    TPL
+
+    do_test11(tpl, "", "", "room is empty")    
+  end
+
+  def test11b
+    tpl = <<-TPL
+<%= render room1.users %>
+    TPL
+
+    utpl = <<-UTPL
+<% if user.slacker %>
+  _***_
+<% else %>
+  _<%= user.name %>_
+<% end %>
+    UTPL
+
+    do_test11(tpl, utpl)
   end
 
   def do_test12(tpl, branch_result, branch_check)
@@ -1029,4 +1062,5 @@ post
 
     do_test12(tpl, "room has 3 users.", branch_check)
   end
+
 end

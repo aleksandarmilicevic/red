@@ -181,7 +181,7 @@ module Red
       end
 
       def _process_collection(col, hash)
-        col.each do |obj|
+        ans = col.each do |obj|
           node = start_node(:tree)
           begin
             my_render(hash.merge :object => obj, :normalized => false)
@@ -189,6 +189,7 @@ module Red
             end_node(node)
           end
         end
+        ans.empty?() ? nil: ans
       end
 
       def _process(hash)
