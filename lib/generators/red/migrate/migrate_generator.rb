@@ -311,7 +311,6 @@ module Red
             elsif fld_info.ref_many?
               ColInfo.new :kind => :join, :fld => fld, :fld_info => fld_info
             else
-              binding.pry
               fail "Internal error: fld_table_info returned inconsistent info: " +
                    "#{fld_info.inspect}"
             end

@@ -46,8 +46,10 @@ module Engine
       end
     end
 
-    def push
-      push_views
+    # @return [TrueClass, FalseClass]: whether anything was pushed to the client
+    def push()
+      updated_nodes = push_views
+      return !updated_nodes.empty?
     end
 
     def push_json(hash)
@@ -74,9 +76,12 @@ module Engine
       }
       @_updated_nodes += un.clone # TODO: for testing only
 
-      Red.boss.time_it("[Pusher] Pushing changes") {
-        push_view_changes(un) if @conf.push_changes
-      }
+      if @conf.push_changes
+        Red.boss.time_it("[Pusher] Pushing changes") { push_view_changes(un) }
+        un
+      else
+        []
+      end
     end
 
     # Re-renders a given list of nodes. Updates the nodes and the
@@ -89,7 +94,9 @@ module Engine
       dirty_nodes.each do |dn|
         begin
           new_node = Red.boss.time_it("[Pusher] rerendering node"){
-            dn.rerender
+            Red.boss.with_enabled_policy_checking(@conf.client) {
+              dn.rerender()
+            }
           }
           unless new_node.equal?(dn)
             updated_nodes << [dn, new_node]

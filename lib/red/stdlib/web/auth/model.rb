@@ -28,7 +28,11 @@ module Auth
 
       before_validation { |user|
         user.email = user.email.downcase if user.email
-        user.password_hash = pswd_hash(user.password) rescue nil
+        if user.password_hash
+          user.password = "......" # it won't matter, passwors is already set
+        else
+          user.password_hash = pswd_hash(user.password) rescue nil
+        end
       }
 
       before_save :update_remember_token
@@ -119,13 +123,15 @@ module Auth
 
     event SignOut do
       from client: AuthClient
+      to   server: WebServer
 
       requires {
-        some client.user
+        client.user
       }
 
       ensures {
         client.user = nil
+        server.client_disconnected(client)
         client.save
       }
     end

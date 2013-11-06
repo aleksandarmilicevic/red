@@ -2,6 +2,7 @@ require 'active_record'
 require 'alloy/alloy_ast'
 require 'alloy/dsl/sig_builder'
 require 'alloy/utils/codegen_repo'
+require 'red/model/red_model_errors'
 require 'sdg_utils/proxy'
 require 'sdg_utils/delegator'
 
@@ -147,6 +148,16 @@ RUBY
       def none?(*args, &block) all.none?(*args, &block) end
       def one?(*args, &block) all.one?(*args, &block) end
 
+      def *(*args)
+        if args.empty?
+          cls = self
+          RuleBuilder.new(:field_proc => proc{|fld| fld.parent == cls} )
+        else
+          super
+        end
+      end
+
+
       # def scoped
       #   obj = super
       #   me = self
@@ -185,6 +196,9 @@ RUBY
       extend Red::Model::RecordDslApi
       extend Red::Model::RecordStatic
 
+      #TODO: investigate this more (as well as if interning instances would work)
+      # after_save       :reload_instances
+
       gen_obj_callback :after_save
       gen_obj_callback :after_destroy
       gen_obj_callback :after_elem_appended, :not_activerecord_cb => true
@@ -201,11 +215,67 @@ RUBY
       after_update      boss_proxy
       after_query       boss_proxy
 
+      def deep_reload
+        self.reload
+        self.meta().fields(false).map{ |f|
+          self.read_field(f)
+        }.select{ |v|
+          Record === v
+        }.map(&:deep_reload)
+      end
+
       def to_s
         "#{self.class.name}(#{id})"
       end
 
+      def to_a() [self] end
+
       protected
+
+      def reload_instances
+        meta().atoms().select(&:persisted?).each do |a|
+          begin
+            a.reload
+          rescue
+            meta().unregister_atom(a)
+          end
+        end
+      end
+
+      # def _fld_pre_read(fld)
+      #   Red.boss.may_read_fld?(self, fld)
+      # end
+
+      def intercept_read(fld)
+        value = if Red.conf.policy.return_empty_for_read_violations
+                  begin
+                    super
+                  rescue AccessDeniedError => e
+                    nil
+                  end
+                else
+                  super
+                end
+        value = RelationWrapper.wrap(self, fld, value)
+        Red.boss.apply_filters(self, fld, value)
+      end
+
+      # def intercept_write(fld, value)
+      #   _fld_pre_write(fld, value)
+      #   value = unwrap(value)
+      #   yield
+      #   _fld_post_write(fld, value)
+      # end
+
+      def _fld_pre_read(fld)
+        super
+        Red.boss.check_fld_read(self, fld)
+      end
+
+      def _fld_pre_write(fld, value)
+        super
+        Red.boss.check_fld_write(self, fld, value)
+      end
 
       def with_transient_values
         hash = save_transient_values

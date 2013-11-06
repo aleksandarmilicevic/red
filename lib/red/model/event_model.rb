@@ -51,8 +51,10 @@ module Red
                              _field(name, type, hash.merge({:transient => true}))})
       end
 
-      def requires(&block) _define_method(:requires, &block) end
-      def ensures(&block)  _define_method(:ensures, &block) end
+      def requires(&blk)     _define_method(:requires, &blk) end
+      def ensures(&blk)      _define_method(:ensures, &blk) end
+      def success_note(&blk) _define_method(:success_note, &blk) end
+      def error_note(&blk)   _define_method(:error_note, &blk) end
 
       def __created
         super
@@ -105,6 +107,7 @@ module Red
 
       def initialize(hash={})
         super rescue nil
+        @notes = []
         hash.each do |k, v|
           set_param(k, v)
         end
@@ -142,6 +145,8 @@ module Red
 
       alias_method :check, :check_precondition
 
+      def notes() (@notes || []).clone end
+
       def check_present(*param_names)
         param_names.each do |param_name|
           obj = get_param(param_name)
@@ -154,14 +159,38 @@ module Red
         check_present(*meta.params.map(&:name))
       end
 
+      def success(msg)
+        add_note(:success, msg)
+      end
+
       def error(msg)
         fail msg
       end
 
       def execute
+        succeeded = false
+
         ok = requires()
         raise Red::Model::EventPreconditionNotSatisfied, "Precondition failed" unless ok
         ensures()
+
+        succeeded = true
+        suc_note = success_note() and add_note(:success, suc_note)
+      ensure
+        !succeeded and er_note = error_note() and  add_note(:error, er_note)
+      end
+
+      protected
+
+      # don't track field accesses for policies
+      def intercept_read(fld)       yield end
+      def intercept_write(fld, val) yield end
+
+      def success_note() nil end
+      def error_note()   nil end
+
+      def add_note(kind, msg)
+        @notes << [kind, msg]
       end
     end
 
