@@ -11,8 +11,9 @@ module Util
       value: String
     }
 
-    record HashRecord do
-      field entries: (set RedLib::Util::HashEntryRecord), :owned => true
+    record HashRecord [
+      entries: (set RedLib::Util::HashEntryRecord) | [:owned => true]
+    ] do
 
       def entry(key)
         entries.where("key = ?", key).first

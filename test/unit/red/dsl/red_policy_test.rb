@@ -1,5 +1,5 @@
-require 'red/red'
 require_relative 'red_dsl_test_helper.rb'
+require 'red/red'
 
 module XTestPolicyModel
   data_model do
@@ -59,6 +59,7 @@ class TestPolicyModel < Test::Unit::TestCase
 
   def setup_class
     Red.meta.restrict_to(XTestPolicyModel)
+    Red.initializer.init_all_but_rails_no_freeze
   end
 
   def test_policy_created
@@ -121,10 +122,12 @@ class TestPolicyModel < Test::Unit::TestCase
 
   def do_test_invalid_policy_opts(*args, &block)
     assert_raise(ArgumentError) do
-      security_model do
-        policy :P do
-          principal c: XTestPolicyModel::Client
-          restrict *args, &block
+      Alloy.conf.do_with :defer_body_eval => false do
+        security_model do
+          policy :P do
+            principal c: XTestPolicyModel::Client
+            restrict *args, &block
+          end
         end
       end
     end

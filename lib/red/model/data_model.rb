@@ -256,6 +256,7 @@ RUBY
                 else
                   super
                 end
+        value = fld.default if value.nil?
         value = RelationWrapper.wrap(self, fld, value)
         Red.boss.apply_filters(self, fld, value)
       end

@@ -50,6 +50,11 @@ module Store
       end
     end
 
+    def expand_path(file_name)
+      ensure_init
+      File.absolute_path(File.join @dir_path, file_name)
+    end
+
     def extract_file(file_record)
       ensure_init
       file_record.filepath
@@ -57,7 +62,7 @@ module Store
 
     def read_content(file_record)
       ensure_init
-      File.open(file_record.filepath, "rb"){|f| f.read}
+      File.open(extract_file(file_record), "rb"){|f| f.read}
     end
   end
 

@@ -7,6 +7,7 @@ $LOAD_PATH.unshift File.expand_path('../../lib', __FILE__)
 
 require 'set'
 require 'test/unit'
+require 'pry'
 
 require 'alloy/alloy'
 require 'red/red_conf'

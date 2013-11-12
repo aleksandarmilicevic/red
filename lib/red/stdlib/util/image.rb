@@ -8,12 +8,22 @@ module Util
   #===========================================================
 
   Red::Dsl.data_model do
-    record ImageRecord, {
-      width: Integer,
-      height: Integer,
-      img_type: String
-    } do
-      field file: FileRecord, :owned => true
+    record ImageRecord [
+      width:    Integer,
+      height:   Integer,
+      img_type: String,
+      file:     FileRecord | [:owned => true]
+    ] do
+
+      def self.from_file(file_path, content_type=nil)
+        img = ImageRecord.new
+        f = FileRecord.from_file(file_path, content_type)
+        img.file = f
+        img.try_infer_metadata
+        img
+      end
+
+      delegate :url, :filename, :filepath, :size, :content, :content_type, :to => :file
 
       def aspect_ratio
         return 1 unless width && height

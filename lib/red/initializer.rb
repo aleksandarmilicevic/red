@@ -50,11 +50,10 @@ module Red
       expand_fields
       init_inv_fields
       add_associations
+      eval_sig_bodies
     end
 
     def configure_alloy
-      # just copy everything from Red.conf to Alloy.conf
-      #Red.conf.each {|k,v| Alloy.conf[k] = v}
     end
 
     # ----------------------------------------------------------------
@@ -87,6 +86,10 @@ module Red
     def add_associations(force=false)
       return unless force || Red.test_and_set(:assoc_defined)
       Red::Model::Assoc.define_associations
+    end
+
+    def eval_sig_bodies(force=false)
+      @alloy_initializer.eval_sig_bodies(force)
     end
 
     def deep_freeze

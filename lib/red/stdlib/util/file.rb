@@ -15,15 +15,33 @@ module Util
     } do
       def self.isFile?() true end
 
+      def self.from_file(file_path, content_type=nil)
+        path = store.expand_path(file_path)
+        raise ArgumentError, "not a file: #{path}" unless File.file?(path)
+        fr = FileRecord.new
+        fr.filepath     = path
+        fr.filename     = File.basename(path)
+        fr.size         = File.size(path)
+        fr.content_type = content_type
+        fr
+      end
+
+      def url(*_)        filepath end
+
       before_save lambda{store.save(self)}
       after_destroy lambda{store.destroy(self)}
 
       def extract_file() store.extract_file(self) end
       def read_content() store.read_content(self) end
 
+      def read_metadata
+
+      end
+
       private
 
-      def store() Red.conf.file_store end
+      def self.store() Red.conf.file_store end
+      def store()      self.class.store() end
 
     end
   end
