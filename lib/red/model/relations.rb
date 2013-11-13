@@ -19,13 +19,13 @@ module Red
       end
 
       def arity()      1 end
-      def tuples()     @target.to_a end
+      def tuples()     @target.respond_to?(:to_a) ? @target.to_a : Array(@target) end
       def unwrap()     @target end
       def map(*a, &b)  tuples.map(*a, &b) end
       def size()       tuples.size end
       def empty?()     tuples.empty? end
       def reject(&b)   delegate_and_wrap(:reject, &b) end
-      def map(&b   )   delegate_and_wrap(:map, &b) end
+      def map(&b)      delegate_and_wrap(:map, &b) end
       def compact(&b)  delegate_and_wrap(:compact, &b) end
       def join(*a, &b) tuples.join(*a, &b) end
       def contains?(a) a.all?{|e| tuples.member?(e)} end
@@ -38,6 +38,12 @@ module Red
         end
       end
 
+      def method_missing(sym, *args, &block)
+        super
+      rescue NoMethodError => e
+        (empty?) ? SetProxy.new(self, sym, nil) : raise(e)
+      end
+
       private
 
       def delegate_and_wrap(func_sym, *a, &b)
@@ -45,13 +51,13 @@ module Red
           wrap(tuples.send(func_sym, *a, &b))
         }
       end
-     
+
       def wrap(result)
         SetProxy.new(@owner, @field, result, @original_target)
       end
 
       def add_methods_fld_type()
-        return unless @field
+        return unless @field.is_a? Alloy::Ast::Field
         cls = (class << self; self end)
         range_cls = @field.type.range.klass
         if (Alloy::Ast::ASig >= range_cls rescue false)

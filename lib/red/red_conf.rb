@@ -122,6 +122,7 @@ module Red
       c.log             = lambda{c.alloy.logger}
       c.log_java_script = true
       c.autoviews       = true
+      c.automigrate     = false
       c.view            = default_view_conf
       c.policy          = default_policy_conf
     end

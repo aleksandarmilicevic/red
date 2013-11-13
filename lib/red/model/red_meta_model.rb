@@ -40,6 +40,10 @@ module Red
         Alloy.meta.restrict_to(mod)
       end
 
+      def record_or_machine(name)
+        record(name) || machine(name)
+      end
+
       private
 
       def _add_to(col, val)

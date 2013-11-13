@@ -51,6 +51,7 @@ module Store
     end
 
     def expand_path(file_name)
+      return file_name if file_name[0] == "/"
       ensure_init
       File.absolute_path(File.join @dir_path, file_name)
     end

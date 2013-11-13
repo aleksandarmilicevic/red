@@ -27,7 +27,7 @@ module Red
     def init_all
       require_models
       init_all_but_rails
-      init_db
+      init_db if Red.conf.automigrate
       Red.boss.start
     end
 

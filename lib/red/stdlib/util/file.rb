@@ -7,11 +7,11 @@ module Util
 
   Red::Dsl.data_model do
     record FileRecord, {
-      content: Blob,
+      content:      Blob,
       content_type: String,
-      filename: String,
-      filepath: String,
-      size: Integer
+      filename:     String,
+      filepath:     String,
+      size:         Integer
     } do
       def self.isFile?() true end
 
@@ -26,9 +26,19 @@ module Util
         fr
       end
 
-      def url(*_)        filepath end
+      @@static_files = {}
+      def self.public(name, content_type=nil)
+        @@static_files[name] ||= begin
+                                   path = Rails.root.join("public").join(name).to_s
+                                   fr = from_file(path, content_type)
+                                   fr.define_singleton_method :url do |*_| "/#{name}" end
+                                   fr
+                                 end
+      end
 
-      before_save lambda{store.save(self)}
+      def url(*_)         "/fetchFile?id=#{self.id}" end
+
+      before_save   lambda{store.save(self)}
       after_destroy lambda{store.destroy(self)}
 
       def extract_file() store.extract_file(self) end
