@@ -24,7 +24,7 @@ module Red
 
         # render_json @record
         respond_to do |format|
-          format.html { render :template => "#{@resource_path}/show" }
+          format.html { render :template => "#{@resource}/#{params[:action]}" }
         end
       end
 
@@ -76,35 +76,35 @@ module Red
       protected
 
       def render_json(target, hash={})
-        # opts = hash.merge :json => target, :root => @resource_path.singularize
+        # opts = hash.merge :json => target, :root => @resource.singularize
         # render opts
 
         if target.kind_of?(ActiveRecord::Relation) || target.kind_of?(Array)
-          root = @resource_path.pluralize
+          root = @resource.pluralize
         else
-          root = @resource_path.singularize
+          root = @resource.singularize
         end
         json = { root => target.as_red_json({:root => false}) }
         render :text => json.to_json
       end
 
       def extract_info
-        @record_id     = params[:id]
-        @record        = params[:record]
-        @record_cls    = params[:klass]
-        @resource_path = params[:resource_ppath] || request.path
+        @record_id  = params[:id]
+        @record     = params[:record]
+        @record_cls = params[:klass]
+        @resource   = params[:resource] || request.path
 
         @record = self.instance_eval &@record if @record.is_a?(Proc)
 
         @record_cls =
           (@record.class if @record) ||
            (@record_cls) ||
-           (Red.meta.record_or_machine(@resource_path.classify.singularize) if @resource_path)
+           (Red.meta.record_or_machine(@resource.classify.singularize) if @resource)
 
-           @resource_path ||= (@record_cls.name.underscore if @record_cls)
+           @resource ||= (@record_cls.name.underscore if @record_cls)
            unless @record_cls
-             if @resource_path
-               fail("No #{@resource_path} record class found")
+             if @resource
+               fail("No #{@resource} record class found")
              else
                fail "No record class specified"
              end

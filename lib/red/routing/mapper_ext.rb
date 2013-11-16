@@ -26,8 +26,8 @@ module Red
         resources.each do |url|
           opts = normalize(is_singleton, url, hash)
           common_opts = opts[:other].merge({
-            :controller    => opts[:controller],
-            :resource_path => opts[:url]
+            :controller => opts[:controller],
+            :resource   => opts[:url]
           })
           opts[:actions].each do |act|
             common_opts_act = common_opts.merge :action => act
