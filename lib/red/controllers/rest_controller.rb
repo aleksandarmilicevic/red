@@ -21,11 +21,8 @@ module Red
       def show
         # @record = @record_cls.find(params[:id])
         # #instance_variable_set("@#{params[:resource].singularize}".to_sym, @record)
-
-        # render_json @record
-        respond_to do |format|
-          format.html { render :template => "#{@resource}/#{params[:action]}" }
-        end
+        
+        respond
       end
 
       # GET /<resource>/new.json (e.g., GET /posts/new.json)
@@ -55,19 +52,17 @@ module Red
       # PUT /posts/1
       # PUT /posts/1.json
       def update
-        params_key = params[:resource].singularize.to_sym
-        @record = @record_cls.find(params[:id])
-
-        if @post.update_attributes(params[params_key])
+        params_key = @resource.singularize.to_sym
+        fail if @record.nil?
+        if @record.update_attributes(params[params_key])
           head :no_content
         else
-          render_json @post.errors, status: :unprocessable_entity
+          respond
         end
       end
 
       # DELETE /<resource>/<id>.json (e.g., DELETE /posts/1.json)
       def destroy
-        @record = @record_cls.find(params[:id])
         @record.destroy
 
         head :no_content
@@ -92,7 +87,7 @@ module Red
         @record_id  = params[:id]
         @record     = params[:record]
         @record_cls = params[:klass]
-        @resource   = params[:resource] || request.path
+        @resource   = params[:resource].to_s || request.path
 
         @record = self.instance_eval &@record if @record.is_a?(Proc)
 
@@ -117,6 +112,13 @@ module Red
            @aliases = Array(params[:record_alias]) + Array(params[:record_aliases])
            @aliases.each {|a| instance_variable_set "@#{a}", @record}
          end
+    end
+
+    def respond
+      respond_to do |format|
+        format.html { render :template => "#{@resource}/#{params[:action]}" }
+        format.json { render_json @record }
+      end
     end
   end
 end
