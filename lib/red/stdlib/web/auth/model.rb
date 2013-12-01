@@ -6,8 +6,8 @@ module RedLib
 module Web
 module Auth
 
-  def pswd_hash(str)
-    Digest::SHA256.hexdigest(str)
+  def pswd_hash(str, salt)
+    Digest::SHA256.hexdigest(str + salt)
   end
 
   #===========================================================
@@ -18,6 +18,7 @@ module Auth
     abstract record AuthUser, {
       name: String,
       email: String,
+      password_salt: String,
       password_hash: String,
       remember_token: String
     } do
@@ -28,14 +29,14 @@ module Auth
 
       before_validation { |user|
         user.email = user.email.downcase if user.email
+        user.remember_token = SecureRandom.urlsafe_base64
+        user.password_salt = SecureRandom.urlsafe_base64 unless self.password_salt        
         if user.password_hash
           user.password = "......" # it won't matter, passwors is already set
         else
-          user.password_hash = pswd_hash(user.password) rescue nil
+          user.password_hash = pswd_hash(user.password, user.password_salt) rescue nil
         end
       }
-
-      before_save :update_remember_token
 
       validates :name,  presence: true, length: { maximum: 50 }
 
@@ -49,14 +50,9 @@ module Auth
       validates :password_hash, presence: true
 
       def authenticate(pswd)
-        password_hash == pswd_hash(pswd)
+        password_hash == pswd_hash(pswd, self.password_salt)
       end
 
-      private
-
-      def update_remember_token
-        self.remember_token = SecureRandom.urlsafe_base64
-      end
     end
   end
 
