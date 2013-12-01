@@ -43,8 +43,9 @@ module Red
 
   def self.default_alloy_conf
     SDGUtils::PushConfig.new(Alloy.conf) do |c|
-      c.inv_field_namer = lambda { |fld| "_" + fld.name }
-      c.defer_body_eval = false
+      c.inv_field_namer   = lambda { |fld| "_" + fld.name }
+      c.defer_body_eval   = false
+      c.wrap_field_values = false
       #c.logger = SDGUtils::IO::LoggerIO.new(Rails.logger)
       # :inv_field_namer => lambda { |fld|
       #     begin
