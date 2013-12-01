@@ -18,8 +18,11 @@ require 'sdg_utils/testing/smart_setup'
 Alloy.set_default :logger => Logger.new(NilIO.instance) # Logger.new(STDOUT)
 
 # red config
-c = Red::default_conf
+c = Red.default_conf()
 c.view_deps.log = Logger.new(NilIO.instance)
 
-Red.define_singleton_method :default_conf, lambda {c}
+Red.define_singleton_method :default_conf, lambda {
+  c.alloy = Red.default_alloy_conf()
+  c
+}
 
