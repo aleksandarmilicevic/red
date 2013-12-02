@@ -12,22 +12,69 @@
 
 <div class="record-obj panel panel-default">
   <div class="panel-heading">
-    <h3 class="panel-title"><%= record.class.relative_name %>(<%= record.id %>)</h3>
+    <h3 class="panel-title"><%= record.class.relative_name %> (<%= record.id %>)</h3>
   </div>
   <div class="panel-body">
   </div>
+
+
+
   <ul class="list-group">
-    <% record.meta.fields.each do |fld| %>
-      <li class="list-group-item">
-        <div class="fld-name"><%= fld.name %></div>
+
+   <% record.meta.fields(false).each do |fld| %>
+      
+      <li class="list-group-item">    
+       
+        <div class="fld-name"><h4><%= fld.name %></h4></div> 
+        
+
         <div class="fld-value">
-          <%= render :object => record.read_field(fld),
+           <%#= record.read_field(fld).to_s %> 
+          <%#= render :object => record.read_field(fld),
                      :as => "record",
                      :partial => "mbui/aleks/record" %>
+
+          
+
+          <%if record.read_field(fld).class == String  %> 
+
+              <%= record.read_field(fld).to_s %> 
+          <%else %>
+             <%local_record = record.read_field(fld)%>
+             <table border="1">
+              <tr>
+
+              <% local_record.meta.fields(false).each do |localfld| %>
+               <th>
+                 <%= localfld.name %>
+               </th>
+               <%end%>
+             </tr> 
+              <tr>
+                <% local_record.all.each do |rec|%>  
+                 <% local_record.meta.fields(false).each do |localfld| %>
+                   <td>
+                      <p> <%= rec.read_field(localfld) %> 
+                       <p>
+                    
+                    </td>
+                  <%end%>
+               </tr>
+              <%end%>
+              </table>
+          <%end%>
+
+             
+                     
+
         </div>
       </li>
-    <% end %>
-  </ul>
+      
+    <% end %> 
+    
+</ul>
+
+
 </div>
 
 % else
