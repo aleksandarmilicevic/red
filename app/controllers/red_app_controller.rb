@@ -97,6 +97,12 @@ class RedAppController < ActionController::Base
     end
   end
 
+  def red_render(*args)
+    # autoview is included in RedAppController
+    text = with_enabled_policy_checking { autoview *args }
+    render :text => text, :layout => true
+  end
+
   # ---------------------------------------------------------------------
 
   def client

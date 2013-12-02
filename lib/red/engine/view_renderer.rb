@@ -452,7 +452,7 @@ module Red
         locals = hash[:locals] || {}
         locals = locals.merge(cn.locals_map) if cn
         obj = ViewBinding.new(self, parent, hash[:helpers])
-        obj._add_getters(locals)
+        obj._add_getters(locals.merge :locals => locals)
         obj
       end
 

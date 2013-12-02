@@ -1,0 +1,16 @@
+.gui_builder.container {
+  width: 100%;
+  max-width: 100%;
+  margin: 5px;
+  padding: 5px;
+  border: 1px solid black;
+}
+
+.fname {
+  color: #990073;
+}
+
+.red_records, .red_machines, .red_events {
+  margin: 5px;
+  border-width: 3px;
+}

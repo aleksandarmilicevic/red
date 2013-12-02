@@ -1,0 +1,52 @@
+<div class="gui_builder container">
+
+<div class="col-md-2">
+<div class="panel panel-info red_records">
+  <div class="panel-heading"><h3 class="panel-title">Records</h3></div>
+  <div class="panel-body">
+    <%= render :partial => "red/gui_builder/models",
+               :locals => { :models => Red.meta.records,
+                            :cssClass => "panel-info red_record" } %>
+  </div>
+</div>
+
+<div class="panel panel-danger red_machines">
+  <div class="panel-heading"><h3 class="panel-title">Machines</h3></div>
+  <div class="panel-body">
+    <%= render :partial => "red/gui_builder/models",
+               :locals => { :models => Red.meta.machines,
+                            :cssClass => "panel-danger red_machine" } %>
+  </div>
+</div>
+
+<div class="panel panel-success red_events">
+  <div class="panel-heading"><h3 class="panel-title">Events</h3></div>
+  <div class="panel-body">
+    <%= render :partial => "red/gui_builder/models",
+               :locals => { :models => Red.meta.events,
+                            :cssClass => "panel-success red_event",
+                            :fields_property => "params" } %>
+  </div>
+</div>
+</div>
+
+<div class="col-md-8">
+  <h1>Content</h1>
+</div>
+
+<div class="col-md-2">
+  <div class="panel panel-default">
+    <!-- Default panel contents -->
+    <div class="panel-heading">Properties</div>
+    <div class="panel-body">
+      <p>... property description ...</p>
+    </div>
+
+    <!-- Table -->
+    <table class="table table-default">
+      <tr><td>name1</td><td>value1</td></tr>
+      <tr><td>name2</td><td>value2</td></tr>
+    </table>
+  </div>
+</div>
+</div>
