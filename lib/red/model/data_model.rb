@@ -1,7 +1,7 @@
 require 'active_record'
-require 'alloy/alloy_ast'
-require 'alloy/dsl/sig_builder'
-require 'alloy/utils/codegen_repo'
+require 'arby/alloy_ast'
+require 'arby/dsl/sig_builder'
+require 'arby/utils/codegen_repo'
 require 'red/model/red_model_errors'
 require 'sdg_utils/proxy'
 require 'sdg_utils/delegator'
@@ -10,7 +10,7 @@ module Red
   module Model
 
     def self.create_record(name, super_cls=Red::Model::Record)
-      sb = Alloy::Dsl::SigBuilder.new({
+      sb = Arby::Dsl::SigBuilder.new({
              :superclass => super_cls,
              :return     => :array
       }).sig(name).first
@@ -57,7 +57,7 @@ module Red
           :kind => :record_obj_callbacks,
           :callback => ar_cb_sym
         }
-        Alloy::Utils::CodegenRepo.eval_code self, <<-RUBY, __FILE__, __LINE__+1, desc
+        Arby::Utils::CodegenRepo.eval_code self, <<-RUBY, __FILE__, __LINE__+1, desc
 def #{sym}(callback=nil, &block)
   cb = callback || block
   fail 'no callback given' unless cb
@@ -83,11 +83,11 @@ RUBY
     # ============================================================
     # == Module +RecordDslApi+
     #
-    # Includes Alloy::Dsl::SigDslApi and overrides some private
+    # Includes Arby::Dsl::SigDslApi and overrides some private
     # methods to customize processing of fields.
     # ============================================================
     module RecordDslApi
-      include Alloy::Dsl::SigDslApi
+      include Arby::Dsl::SigDslApi
 
       # ~~~~~~~~~~~~~~~~~~~~~ callbacks for ClassBuilder ~~~~~~~~~~~~~~~~~~~~~ #
       protected
@@ -126,7 +126,7 @@ RUBY
     # Static (class) methods for the Record class
     #============================================================
     module RecordStatic
-      include Alloy::Ast::ASig::Static
+      include Arby::Ast::ASig::Static
 
       def allocate
         obj = super
@@ -191,7 +191,7 @@ RUBY
     # Base class for all persistent model object in Red.
     #-------------------------------------------------------------------
     class Record < ActiveRecord::Base
-      include Alloy::Ast::ASig
+      include Arby::Ast::ASig
       extend Red::Model::ObjCallbacks
       extend Red::Model::RecordDslApi
       extend Red::Model::RecordStatic

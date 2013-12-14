@@ -9,13 +9,13 @@ require 'set'
 require 'test/unit'
 require 'pry'
 
-require 'alloy/alloy'
+require 'arby/alloy'
 require 'red/red_conf'
 require_relative 'unit_test_ext.rb'
 require 'sdg_utils/testing/assertions'
 require 'sdg_utils/testing/smart_setup'
 
-Alloy.set_default :logger => Logger.new(NilIO.instance) # Logger.new(STDOUT)
+Arby.set_default :logger => Logger.new(NilIO.instance) # Logger.new(STDOUT)
 
 # red config
 c = Red.default_conf()

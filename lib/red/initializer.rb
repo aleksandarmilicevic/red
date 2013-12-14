@@ -1,4 +1,4 @@
-require 'alloy/initializer'
+require 'arby/initializer'
 require 'red/resolver'
 require 'red/red_conf'
 require 'red/model/red_assoc'
@@ -20,7 +20,7 @@ module Red
     @@required  = false
 
     def initialize
-      @alloy_initializer = Alloy::CInitializer.new :resolver => Red::Resolver,
+      @alloy_initializer = Arby::CInitializer.new :resolver => Red::Resolver,
                                                    :baseklass => Red::Model::Record
     end
 

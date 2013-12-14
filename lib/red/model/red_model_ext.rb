@@ -29,12 +29,9 @@ end
 
 # ====================================================================
 
-module Alloy
-  module Ast
-    class Field
-      def red_foreign_key_name
-        Red::Model::TableUtil.red_foreign_key_name(self)
-      end
-    end
+class Arby::Ast::Field
+  def red_foreign_key_name
+    Red::Model::TableUtil.red_foreign_key_name(self)
   end
 end
+

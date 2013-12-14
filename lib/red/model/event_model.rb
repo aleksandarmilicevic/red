@@ -1,5 +1,5 @@
-require 'alloy/alloy_ast'
-require 'alloy/dsl/sig_builder'
+require 'arby/alloy_ast'
+require 'arby/dsl/sig_builder'
 require 'red/model/red_meta_model'
 
 module Red
@@ -10,7 +10,7 @@ module Red
     #
     # Meta information about events.
     #-------------------------------------------------------------------
-    class EventMeta < Alloy::Ast::SigMeta
+    class EventMeta < Arby::Ast::SigMeta
       attr_accessor :from, :to
 
       def params(include_inherited=true)
@@ -28,7 +28,7 @@ module Red
     # Adds some dsl API methods
     #============================================================
     module EventDslApi
-      include Alloy::Dsl::SigDslApi
+      include Arby::Dsl::SigDslApi
 
       protected
 
@@ -78,7 +78,7 @@ module Red
     #
     #============================================================
     module EventStatic
-      include Alloy::Ast::ASig::Static
+      include Arby::Ast::ASig::Static
 
       protected
 
@@ -99,7 +99,7 @@ module Red
     # Base class for all classes from the event-model.
     #-------------------------------------------------------------------
     class Event
-      include Alloy::Ast::ASig
+      include Arby::Ast::ASig
       extend EventStatic
       extend EventDslApi
 

@@ -1,9 +1,9 @@
-require 'alloy/alloy_event_constants'
+require 'arby/alloy_event_constants'
 
 module Red
   module Engine
     module EventConstants
-      include Alloy::EventConstants
+      include Arby::EventConstants
 
       E_CLIENT_CONNECTED    = :client_connected
       E_CLIENT_DISCONNECTED = :client_disconnected

@@ -1,5 +1,5 @@
 require 'sass'
-require 'alloy/utils/codegen_repo'
+require 'arby/utils/codegen_repo'
 require 'red/engine/erb_compiler'
 require 'sdg_utils/meta_utils'
 
@@ -144,7 +144,7 @@ RUBY
           :kind => :template_method,
           :method => method_name
         }
-        Alloy::Utils::CodegenRepo.eval_code mod, src, file, line, desc
+        Arby::Utils::CodegenRepo.eval_code mod, src, file, line, desc
       end
 
       IDEN = lambda{|source| CompiledTextTemplate.new(source)}

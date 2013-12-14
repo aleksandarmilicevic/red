@@ -80,7 +80,7 @@ class RedAppController < ActionController::Base
       Rails.logger.debug "Using client machine: #{@@client_cls}"
 
       # add the online method to clients
-      # vf = Alloy::Ast::Field.new :name => :online,
+      # vf = Arby::Ast::Field.new :name => :online,
       #                            :type => @@client_cls,
       #                            :parent => @@client_cls,
       #                            :transient => true

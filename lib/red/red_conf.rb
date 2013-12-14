@@ -1,4 +1,4 @@
-require 'alloy/alloy_conf'
+require 'arby/alloy_conf'
 require 'red/store/fs_file_store'
 require 'sdg_utils/config'
 require 'sdg_utils/io'
@@ -42,7 +42,7 @@ module Red
   end
 
   def self.default_alloy_conf
-    SDGUtils::PushConfig.new(Alloy.conf) do |c|
+    SDGUtils::PushConfig.new(Arby.conf) do |c|
       c.inv_field_namer   = lambda { |fld| "_" + fld.name }
       c.defer_body_eval   = false
       c.wrap_field_values = false

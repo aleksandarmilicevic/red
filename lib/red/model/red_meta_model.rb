@@ -1,6 +1,6 @@
-require 'alloy/alloy_ast'
-require 'alloy/alloy_meta'
-require 'alloy/alloy'
+require 'arby/alloy_ast'
+require 'arby/alloy_meta'
+require 'arby/alloy'
 require 'sdg_utils/meta_utils'
 
 module Red
@@ -14,10 +14,10 @@ module Red
     # @attr events   [Array] - list of event class
     #-------------------------------------------------------------------
     class MetaModel
-      include Alloy::Model::MMUtils
+      include Arby::Model::MMUtils
       extend SDGUtils::Delegate
 
-      delegate :register_listener, :fire, :unregister_listener, :to => Alloy.meta
+      delegate :register_listener, :fire, :unregister_listener, :to => Arby.meta
 
       def initialize
         reset
@@ -37,7 +37,7 @@ module Red
 
       def restrict_to(mod)
         @restriction_mod = mod
-        Alloy.meta.restrict_to(mod)
+        Arby.meta.restrict_to(mod)
       end
 
       def record_or_machine(name)

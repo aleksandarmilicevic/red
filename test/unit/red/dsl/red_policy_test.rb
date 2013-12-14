@@ -122,7 +122,7 @@ class TestPolicyModel < Test::Unit::TestCase
 
   def do_test_invalid_policy_opts(*args, &block)
     assert_raise(ArgumentError) do
-      Alloy.conf.do_with :defer_body_eval => false do
+      Arby.conf.do_with :defer_body_eval => false do
         security_model do
           policy :P do
             principal c: XTestPolicyModel::Client

@@ -1,4 +1,4 @@
-require 'alloy/dsl/sig_builder'
+require 'arby/dsl/sig_builder'
 require 'red/model/red_model'
 require 'red/model/event_model'
 require 'sdg_utils/proxy'
@@ -154,7 +154,7 @@ module Red
     #
     # Meta information about policies.
     #-------------------------------------------------------------------
-    class PolicyMeta < Alloy::Ast::SigMeta
+    class PolicyMeta < Arby::Ast::SigMeta
       attr_accessor :principal
 
       def initialize(*args)
@@ -163,7 +163,7 @@ module Red
         @globals            = []
       end
 
-      # @param field [Alloy::Ast::Field, NilClass]
+      # @param field [Arby::Ast::Field, NilClass]
       def restrictions(field=nil)
         if field.nil?
           @field_restrictions.clone
@@ -203,8 +203,8 @@ module Red
     # == Module +PolicyDslApi+
     # ===========================================================
     module PolicyDslApi
-      include Alloy::Dsl::SigDslApi
-      include Alloy::Dsl::FunHelper
+      include Arby::Dsl::SigDslApi
+      include Arby::Dsl::FunHelper
 
       def principal(hash)
         _check_single_fld_hash(hash, Red::Model::Machine)
@@ -258,7 +258,7 @@ module Red
             args[0].export_props
           when args.size == 2 && RuleBuilder === args[0] && Hash === args[1]
             args[0].export_props.merge!(args[1])
-          when args.size == 2 && Alloy::Ast::Field === args[0] && Hash === args[1]
+          when args.size == 2 && Arby::Ast::Field === args[0] && Hash === args[1]
             {:field => args[0]}.merge!(args[1])
           else
             msg = "expected hash or a field and a hash, got #{args.map(&:class)}"
@@ -309,7 +309,7 @@ module Red
         raise ArgumentError, "field not specified" unless fld || fld_proc
 
         msg = "expected `Field' got #{fld.class}"
-        raise ArgumentError, msg unless fld.nil? || Alloy::Ast::Field === fld
+        raise ArgumentError, msg unless fld.nil? || Arby::Ast::Field === fld
 
         fld_proc ||= proc{|f| f == fld}
         raise ArgumentError, "expected `Proc' got #{fld.class}" unless Proc === fld_proc
@@ -344,7 +344,7 @@ module Red
     end
 
     module PolicyStatic
-      include Alloy::Ast::ASig::Static
+      include Arby::Ast::ASig::Static
 
       def instantiate(principal, globals={})
         self.new(principal, globals)
@@ -371,7 +371,7 @@ module Red
     # Base class for all policies.
     #-------------------------------------------------------------------
     class Policy
-      include Alloy::Ast::ASig
+      include Arby::Ast::ASig
       extend PolicyStatic
       extend PolicyDslApi
 
@@ -427,7 +427,7 @@ RUBY
 
       gen_cond Rule::CONDITIONS, Rule::FILTERS
     end
-    Alloy::Ast::Field.send :include, FieldRuleExt
+    Arby::Ast::Field.send :include, FieldRuleExt
 
     #-------------------------------------------------------------------
     # == Class +RuleBuilder+
