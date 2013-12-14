@@ -1,4 +1,4 @@
-require 'arby/alloy'
+require 'arby/arby'
 require 'red/engine/event_constants'
 require 'red/model/serializer'
 require 'sdg_utils/test_and_set'

@@ -1,6 +1,6 @@
-require 'arby/alloy_ast'
-require 'arby/alloy_meta'
-require 'arby/alloy'
+require 'arby/arby_ast'
+require 'arby/arby_meta'
+require 'arby/arby'
 require 'sdg_utils/meta_utils'
 
 module Red

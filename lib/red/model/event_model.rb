@@ -1,4 +1,4 @@
-require 'arby/alloy_ast'
+require 'arby/arby_ast'
 require 'arby/dsl/sig_builder'
 require 'red/model/red_meta_model'
 

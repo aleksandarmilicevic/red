@@ -9,7 +9,7 @@ require 'set'
 require 'test/unit'
 require 'pry'
 
-require 'arby/alloy'
+require 'arby/arby'
 require 'red/red_conf'
 require_relative 'unit_test_ext.rb'
 require 'sdg_utils/testing/assertions'

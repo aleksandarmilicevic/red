@@ -1,4 +1,4 @@
-require 'arby/alloy_dsl'
+require 'arby/arby_dsl'
 require 'red/red'
 require 'red/dsl/red_dsl_engine'
 require 'red/model/red_model'

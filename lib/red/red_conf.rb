@@ -1,4 +1,4 @@
-require 'arby/alloy_conf'
+require 'arby/arby_conf'
 require 'red/store/fs_file_store'
 require 'sdg_utils/config'
 require 'sdg_utils/io'

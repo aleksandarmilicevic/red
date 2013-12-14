@@ -1,6 +1,6 @@
-require 'arby/alloy'
+require 'arby/arby'
 require 'arby/relations/relation'
-require 'arby/alloy_event_constants'
+require 'arby/arby_event_constants'
 require 'red/model/red_model'
 require 'sdg_utils/proxy'
 

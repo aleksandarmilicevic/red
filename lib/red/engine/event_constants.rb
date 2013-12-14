@@ -1,4 +1,4 @@
-require 'arby/alloy_event_constants'
+require 'arby/arby_event_constants'
 
 module Red
   module Engine

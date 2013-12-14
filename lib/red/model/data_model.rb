@@ -1,5 +1,5 @@
 require 'active_record'
-require 'arby/alloy_ast'
+require 'arby/arby_ast'
 require 'arby/dsl/sig_builder'
 require 'arby/utils/codegen_repo'
 require 'red/model/red_model_errors'
