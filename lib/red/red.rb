@@ -1,4 +1,4 @@
-require 'alloy/alloy'
+require 'arby/arby'
 require 'red/engine/event_constants'
 require 'red/model/serializer'
 require 'sdg_utils/test_and_set'
@@ -17,8 +17,7 @@ module Red
 
     def conf
       require 'red/red_conf'
-      @conf ||= Red::default_conf
-      @conf
+      @conf ||= Red.default_conf()
     end
 
     def configure(&block)
@@ -32,7 +31,7 @@ module Red
 
     def boss
       require 'red/engine/big_boss'
-      @boss ||= Red::Engine::BigBoss.new(Alloy.boss)
+      @boss ||= Red::Engine::BigBoss.new(Arby.boss)
     end
 
     def initializer
@@ -48,7 +47,7 @@ module Red
     def reset_fields
       @assoc_defined = false
       @fields_expanded = false
-      @conf = nil #Red::default_conf
+      @conf = Red.default_conf()
     end
   end
 
@@ -60,7 +59,7 @@ module Red
   end
 
   def reset
-    Alloy.reset
+    Arby.reset
     red.reset
   end
 

@@ -13,6 +13,7 @@ module RedTestSetup
     Red.initializer.expand_fields
     Red.initializer.init_inv_fields
     Red.initializer.add_associations
+    Red.initializer.eval_sig_bodies
   end
 
   def init_all

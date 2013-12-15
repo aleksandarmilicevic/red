@@ -241,14 +241,15 @@ module Engine
     end
 
     def check_record_deps(deps, record)
-      deps.obj(record).each do |field, old_value|
-        new_value = record.read_field(field)
-        if new_value != old_value
-          debug "    field '#{field.name}' changed from '#{old_value}' to '#{new_value}'"
-          return true
-        end
-      end
-      return false
+      return !deps.obj(record).empty?
+      # deps.obj(record).each do |field, old_value|
+      #   new_value = record.read_field(field)
+      #   if new_value != old_value
+      #     debug "    field '#{field.name}' changed from '#{old_value}' to '#{new_value}'"
+      #     return true
+      #   end
+      # end
+      # return false
     end
 
     def affected_queries(deps)
@@ -265,7 +266,7 @@ module Engine
       return ret
     end
 
-    def check_deps(deps, record)
+    def check_deps(deps, record)      
       return false if deps.empty?
       Red.boss.time_it("[Pusher] Checking dependencies #{deps.to_s.inspect} for record #{record}") {
         Red.boss.time_it("[Pusher] Checking field dependencies") {

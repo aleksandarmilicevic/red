@@ -1,4 +1,4 @@
-require 'alloy/helpers/test/test_event_listener'
+require 'arby/helpers/test/test_event_listener'
 require 'migration_test_helper'
 
 include Red::Dsl
@@ -41,7 +41,7 @@ class RedFldAccessEventsTest < MigrationTest::TestBase
 
   def setup_class_post_red_init
     if @listener; Red.boss.unregister_listener(@listener) end
-    @listener = Alloy::Helpers::Test::TestEventListener.new
+    @listener = Arby::Helpers::Test::TestEventListener.new
     Red.boss.register_listener(:field_read, @listener)
     Red.boss.register_listener(:field_written, @listener)
   end

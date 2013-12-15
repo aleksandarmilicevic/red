@@ -8,14 +8,17 @@ class EventController < RedAppController
 
   protected
 
-  def event_succeeded(event_name, ans=nil)
-    success :kind => "event_completed",
-            :event => {:name => event_name, :params => params[:params]},
-            :msg => "Event #{event_name} successfully completed",
-            :ans => ans.as_red_json
+  def event_succeeded(ev, event_name, ans=nil)
+    # success :kind => "event_completed",
+    #         :event => {:name => event_name, :params => params[:params]},
+    #         :msg => "Event #{event_name} successfully completed",
+    #         :ans => ans.as_red_json
+    success :kind => "event_completed", :event => {:name => event_name}
   end
 
   public
+
+  def last_event() @last_event end
 
   def call(event, params)
     record = params[:object]
@@ -51,18 +54,20 @@ class EventController < RedAppController
       @updated_records = Set.new
       Red.boss.register_listener Red::E_FIELD_WRITTEN, self
       Red.boss.time_it("[EventController] Event execution") {
-        execute_event(event, lambda { |ans| event_succeeded(event_name, ans)})
+        execute_event(event, lambda { |ev, ans| event_succeeded(ev, event_name, ans)})
       }
     rescue Red::Model::EventNotCompletedError => e
       return error(e.message, 400)
     rescue Red::Model::EventPreconditionNotSatisfied => e
-      trace = "#{e.message}\n#{e.backtrace.join("\n")}"
-      msg = "Precondition for #{event_name} not satisfied.\n#{trace}"
-      return error(e.message, msg, 412)
+      msg = "Precondition for #{event_name} not satisfied: #{e.message}"
+      return error(msg, e, 412)
+    rescue Red::Model::AccessDeniedError => e
+      rule = e.failing_rule.unbind
+      msg = rule.desc() || e.message
+      return error("Access denied: " + msg, e, 412)
     rescue => e
-      trace = "#{e.message}\n#{e.backtrace.join("\n")}"
-      msg = "Error during execution of #{event_name} event.\n#{trace}"
-      return error(e.message, msg, 500)
+      msg = "Error during execution of #{event_name} event: #{e.message}"
+      return error(msg, e, 500)
     ensure
       Red.boss.unregister_listener Red::E_FIELD_WRITTEN, self
 
@@ -79,11 +84,24 @@ class EventController < RedAppController
     end
   end
 
+  protected
+
+  def aff_push_changes
+    notes = (@last_event ? @last_event.notes : []).map do |kv|
+      get_status_json :kind => kv[0], :msg => kv[1], :status => 200
+    end
+    Red.boss.push_changes(notes)
+  end
+
   private
 
   def execute_event(event, cont)
+    @last_event = event
+    Red.boss.enable_policy_checking
     ans = event.execute
-    cont.call(ans)
+    cont.call(event, ans)
+  ensure
+    Red.boss.disable_policy_checking
   end
 
   def unmarshal_and_set_event_params(event)

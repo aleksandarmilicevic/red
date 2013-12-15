@@ -1,7 +1,8 @@
-require 'alloy/initializer'
+require 'arby/initializer'
 require 'red/resolver'
 require 'red/red_conf'
 require 'red/model/red_assoc'
+require 'generators/red/migrate/migrate_generator'
 
 module Red
 
@@ -19,14 +20,23 @@ module Red
     @@required  = false
 
     def initialize
-      @alloy_initializer = Alloy::CInitializer.new :resolver => Red::Resolver,
+      @alloy_initializer = Arby::CInitializer.new :resolver => Red::Resolver,
                                                    :baseklass => Red::Model::Record
     end
 
     def init_all
       require_models
       init_all_but_rails
+      init_db if Red.conf.automigrate
       Red.boss.start
+    end
+
+    def init_db
+      mg = Red::Generators::MigrateGenerator.new
+      # print to log first
+      mg.create_migration :logger => Red.conf.logger
+      # actually execute
+      mg.create_migration :exe => true
     end
 
     def init_all_but_rails
@@ -40,11 +50,10 @@ module Red
       expand_fields
       init_inv_fields
       add_associations
+      eval_sig_bodies
     end
 
     def configure_alloy
-      # just copy everything from Red.conf to Alloy.conf
-      #Red.conf.each {|k,v| Alloy.conf[k] = v}
     end
 
     # ----------------------------------------------------------------
@@ -77,6 +86,10 @@ module Red
     def add_associations(force=false)
       return unless force || Red.test_and_set(:assoc_defined)
       Red::Model::Assoc.define_associations
+    end
+
+    def eval_sig_bodies(force=false)
+      @alloy_initializer.eval_sig_bodies(force)
     end
 
     def deep_freeze

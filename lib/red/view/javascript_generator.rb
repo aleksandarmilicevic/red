@@ -136,7 +136,7 @@ module View
         else
           cls.name
         end
-      when Alloy::Ast::SigMeta, Red::Model::EventMeta
+      when Arby::Ast::SigMeta, Red::Model::EventMeta
         sig_meta = obj
         if ref
           Ref.new "#{to_json(sig_meta.sig_cls, true)}.meta"
@@ -147,7 +147,7 @@ module View
           h1.merge! :fields => to_json(sig_meta.fields),
                     :inv_fields => to_json(sig_meta.inv_fields)
         end
-      when Alloy::Ast::Field
+      when Arby::Ast::Field
         fld = obj
         if ref
           fname = (fld.is_inv?) ? "inv_fields" : "fields"
@@ -158,7 +158,7 @@ module View
           json = instance_variables fld, :except => [:impl, :expr]
           Fmt.new "new Red.Model.Field(%s)", [json]
         end
-      when Alloy::Ast::AType
+      when Arby::Ast::AType
         atype = obj
         if atype.primitive?
           atype.to_s

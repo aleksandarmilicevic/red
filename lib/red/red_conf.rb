@@ -1,4 +1,4 @@
-require 'alloy/alloy_conf'
+require 'arby/arby_conf'
 require 'red/store/fs_file_store'
 require 'sdg_utils/config'
 require 'sdg_utils/io'
@@ -42,8 +42,10 @@ module Red
   end
 
   def self.default_alloy_conf
-    SDGUtils::PushConfig.new(Alloy.conf) do |c|
-      c.inv_field_namer = lambda { |fld| "_" + fld.name }
+    SDGUtils::PushConfig.new(Arby.conf) do |c|
+      c.inv_field_namer   = lambda { |fld| "_" + fld.name }
+      c.defer_body_eval   = false
+      c.wrap_field_values = false
       #c.logger = SDGUtils::IO::LoggerIO.new(Rails.logger)
       # :inv_field_namer => lambda { |fld|
       #     begin
@@ -69,13 +71,34 @@ module Red
 
   def self.default_renderer_conf
     SDGUtils::Config.new do |c|
-      c.event_server       = lambda{Red.boss}
-      c.view_finder        = lambda{Red::Engine::ViewFinder.new}
-      c.access_listener    = lambda{Red.boss.access_listener}
-      c.current_view       = nil
-      c.no_template_cache  = false
-      c.no_file_cache      = false
-      c.no_content_cache   = true
+      c.event_server                       = lambda{Red.boss}
+      c.view_finder                        = lambda{Red::Engine::ViewFinder.new}
+      c.access_listener                    = lambda{Red.boss.access_listener}
+      c.current_view                       = nil
+      c.no_template_cache                  = false
+      c.no_file_cache                      = false
+      c.no_content_cache                   = true
+      c.invalidate_caches_between_requests = false
+    end
+  end
+
+  def self.default_view_conf
+    SDGUtils::Config.new do |c|
+      c.autoviews          = true
+      c.default_layout     = "red_app"
+    end
+  end
+
+  def self.default_policy_conf
+    SDGUtils::Config.new do |c|
+      c.globals                                 = {}
+      c.return_empty_for_read_violations        = true
+      c.no_meta_cache                           = false
+      c.no_read_cache                           = false
+      c.no_write_cache                          = false
+      c.no_filter_cache                         = false
+      c.invalidate_meta_cache_between_requests  = false
+      c.invalidate_apps_cache_between_requests  = true
     end
   end
 
@@ -100,6 +123,10 @@ module Red
       c.log             = lambda{c.alloy.logger}
       c.log_java_script = true
       c.autoviews       = true
+      c.automigrate     = false
+      c.view            = default_view_conf
+      c.policy          = default_policy_conf
     end
   end
 end
+

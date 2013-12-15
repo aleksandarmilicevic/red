@@ -1,5 +1,7 @@
 require 'red/stdlib/web/machine_model'
 require 'red/engine/view_manager'
+require 'red/engine/rendering_cache'
+require 'red/engine/policy_checker'
 require 'red/view/auto_helpers'
 require 'red/model/marshalling'
 require 'red/model/red_model_errors'
@@ -12,11 +14,15 @@ class RedAppController < ActionController::Base
 
   helper Red::View::AutoHelpers
 
-  before_filter :init_server_once
-  before_filter :notify_red_boss
-  before_filter :clear_autoviews
-  around_filter :time_request
-  after_filter  :push_changes
+  before_filter :bf_invalidate_session_client
+  before_filter :bf_init_server_once
+  before_filter :bf_notify_red_boss
+  before_filter :bf_clear_autoviews
+  before_filter :bf_invalidate_caches
+  around_filter :arf_time_request
+  after_filter  :aff_push_changes
+
+  layout Red.conf.view.default_layout
 
   # ---------------------------------------------------------------------
   #  SERVER INITIALIZATION
@@ -73,26 +79,42 @@ class RedAppController < ActionController::Base
       Rails.logger.debug "Using server machine: #{@@server_cls}"
       Rails.logger.debug "Using client machine: #{@@client_cls}"
 
+      # add the online method to clients
+      # vf = Arby::Ast::Field.new :name => :online,
+      #                            :type => @@client_cls,
+      #                            :parent => @@client_cls,
+      #                            :transient => true
+      # @@client_cls.send :define_singleton_method, :online do
+      #   Red::Model::RelationWrapper.wrap(nil, vf, Red.boss.connected_clients)
+      # end
+
       #TODO: cleanup expired clients
 
       @@server_cls.destroy_all
       @@server = @@server_cls.create!
+
+      Red.boss.set_thr :server => @@server
     end
   end
 
   # ---------------------------------------------------------------------
 
   def client
-    client = session[:client]
-    if client.nil?
-      session[:client] ||= client = @@client_cls.new
-      client.auth_token = SecureRandom.hex(32)
-      client.save! #TODO: make sure no other client has the same token?
-    end
-    unless Red.boss.has_client?(client)
-      Red.boss.fireClientConnected :client => client
-    end
-    session[:client]
+    @session_client ||=
+      begin
+        clnt = session[:client]
+        if clnt.nil?
+          session[:client] ||= clnt = @@client_cls.new
+          clnt.auth_token = SecureRandom.hex(32)
+          clnt.save! #TODO: make sure no other client has the same token?
+        else
+          clnt.reload # or even clnt = @@client_cls.find(clnt.id())
+        end
+        unless Red.boss.has_client?(clnt)
+          Red.boss.fireClientConnected :client => clnt
+        end
+        clnt
+      end
   end
 
   def server
@@ -101,12 +123,8 @@ class RedAppController < ActionController::Base
 
   protected
 
-  def init_server_once
-    RedAppController.init_server
-    RedAppController.skip_before_filter :init_server_once
-  end
-
   def error(short, long=nil, status_code=412)
+    long = "#{long.message}\n#{long.backtrace.join("\n")}" if Exception === long
     Rails.logger.warn "[ERROR] #{short}. #{long}"
     short = long unless short
     json = {:kind => "error", :msg => short, :status => status_code}
@@ -124,17 +142,53 @@ class RedAppController < ActionController::Base
     end
   end
 
+  # @see BigBoss#with_enabled_policy_checking
+  def with_enabled_policy_checking(*args)
+    Red.boss.with_enabled_policy_checking(*args) do
+      yield
+    end
+  end
+
+  # @param payload_json [Hash]
+  def get_status_json(payload_json)
+    { :type => "status_message", :payload => payload_json }
+  end
+
   def push_status(json)
     pusher = Red.boss.client_pusher
-    pusher.push_json(:type => "status_message", :payload => json) if pusher
+    pusher.push_json(get_status_json(json)) if pusher
   end
 
-  def notify_red_boss
+  def bf_init_server_once
+    RedAppController.init_server
+    RedAppController.skip_before_filter :init_server_once
+  end
+
+  def bf_notify_red_boss
     Red.boss.set_thr :request => request, :session => session,
-                     :client => client, :server => server, :controller => self
+                     :client => client(), :controller => self
   end
 
-  def clear_autoviews
+  def bf_invalidate_session_client
+    @session_client = nil
+  end
+
+  def bf_invalidate_caches
+    if Red.conf.renderer.invalidate_caches_between_requests && !self.class.async?
+      Red.conf.log.debug "[RedAppController] clearing rendering caches before #{self}"
+      Red::Engine::RenderingCache.clear_all()
+    end
+    if Red.conf.policy.invalidate_meta_cache_between_requests
+      Red.conf.log.debug "[RedAppController] clearing policy meta cache before #{self}"
+      Red::Engine::PolicyCache.clear_meta()
+    end
+    if Red.conf.policy.invalidate_apps_cache_between_requests
+      Red.conf.log.debug "[RedAppController] clearing policy apps cache before #{self}"
+      Red::Engine::PolicyCache.clear_apps()
+    end
+  end
+
+  def bf_clear_autoviews
     unless self.class.async?
       Red.conf.log.debug "[RedAppController] clearing autoviews in controller #{self}"
       Red.boss.clear_client_views
@@ -144,13 +198,11 @@ class RedAppController < ActionController::Base
     end
   end
 
-  def push_changes
+  def aff_push_changes
     Red.boss.push_changes
   end
 
-  private
-
-  def time_request
+  def arf_time_request
     task = "[RedAppController] #{request.method} #{self.class.name}.#{params[:action]}"
     Red.boss.reset_timer
     Red.boss.time_it(task){yield}

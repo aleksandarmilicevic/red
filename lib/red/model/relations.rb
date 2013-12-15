@@ -1,6 +1,6 @@
-require 'alloy/alloy'
-require 'alloy/relations/all'
-require 'alloy/alloy_event_constants'
+require 'arby/arby'
+require 'arby/relations/relation'
+require 'arby/arby_event_constants'
 require 'red/model/red_model'
 require 'sdg_utils/proxy'
 
@@ -8,31 +8,91 @@ module Red
   module Model
 
     class SetProxy < SDGUtils::Proxy
-      def initialize(owner, field, value)
+      include Arby::Relations::MRelation
+      def initialize(owner, field, value, original_value=nil)
         super(value)
         @owner = owner
         @field = field
         @target = value
+        @original_target = original_value || value
+        add_methods_fld_type
       end
 
-      def arity() 1 end
-      def tuples() @target.to_a end
-      def unwrap() @target end
+      def arity()      1 end
+      def tuples()     @target.respond_to?(:to_a) ? @target.to_a : Array(@target) end
+      def unwrap()     @target end
+      def map(*a, &b)  tuples.map(*a, &b) end
+      def size()       tuples.size end
+      def empty?()     tuples.empty? end
+      def reject(&b)   delegate_and_wrap(:reject, &b) end
+      def map(&b)      delegate_and_wrap(:map, &b) end
+      def compact(&b)  delegate_and_wrap(:compact, &b) end
+      def join(*a, &b) tuples.join(*a, &b) end
+      def contains?(a) a.all?{|e| tuples.member?(e)} end
 
       def << (elem)
-        @target << elem
+        fail "Can't mutate (append to) a derived relation" unless @owner
+        @original_target << elem
         if Red::Model::Record === @owner
           @owner.class.trigger_after_elem_appended(@owner, @field, elem)
+        end
+      end
+
+      def method_missing(sym, *args, &block)
+        super
+      rescue NoMethodError => e
+        (empty?) ? SetProxy.new(self, sym, nil) : raise(e)
+      end
+
+      private
+
+      def delegate_and_wrap(func_sym, *a, &b)
+        Red.boss.time_it("SetProxy.#{func_sym}") {
+          wrap(tuples.send(func_sym, *a, &b))
+        }
+      end
+
+      def wrap(result)
+        SetProxy.new(@owner, @field, result, @original_target)
+      end
+
+      def add_methods_fld_type()
+        return unless @field.is_a? Arby::Ast::Field
+        cls = (class << self; self end)
+        range_cls = @field.type.range.klass
+        if (Arby::Ast::ASig >= range_cls rescue false)
+          add_field_methods cls, range_cls.meta.fields_including_sub_and_super
+          # add_field_methods cls, range_cls.meta.inv_fields_including_sub_and_super
+        end
+      end
+
+      def add_field_methods(target_cls, fields)
+        fields.each do |fld|
+          fname = fld.getter_sym.to_s
+          if self.size() == 1
+            target_cls.send :define_method, "#{fname}" do
+              o = self.tuples.first
+              SetProxy.new(o, fld, o.send(fname.to_sym))
+            end
+          else
+            target_cls.send :define_method, "#{fname}" do
+              SetProxy.new(nil, fld, self.tuples.map(&fname.to_sym).reject(&:nil?))
+            end
+          end
         end
       end
     end
 
     class RelationWrapper
+      def self.is_scalar(value)
+        !value.kind_of?(Array)
+      end
+
       def self.wrap(owner, field, value)
-        unless field.primitive?
-          SetProxy.new(owner, field, value)
-        else
+        if field.type.primitive?
           value
+        else
+          SetProxy.new(owner, field, value)
         end
       end
     end
@@ -42,7 +102,7 @@ module Red
     #
     #
     #-------------------------------------------------------------------
-    class RedRel < Alloy::Relations::Relation
+    class RedRel < Arby::Relations::Relation
       def initialize(tuple_cls, *args)
         @tuple_cls = tuple_cls
         super(*args)
@@ -75,7 +135,7 @@ module Red
     class RedTuple < Red::Model::Record
       placeholder
 
-      include Alloy::Relations::MTuple
+      include Arby::Relations::MTuple
 
       module Instance
         def arity
@@ -102,7 +162,7 @@ module Red
 
         def update_from(val)
           tuple = val.as_tuple
-          raise Alloy::Ast::TypeError, "Arity mismatch" if tuple.arity != arity
+          raise Arby::Ast::TypeError, "Arity mismatch" if tuple.arity != arity
 
           tuple.values.each_with_index do |obj, idx|
             write_field(meta.fields[idx+1], obj)
@@ -132,7 +192,7 @@ module Red
         # ----------------------------------------------------
         # Assumes a cast from a relation, and returns a relation
         #
-        # @return [Alloy::Relations::MRelation]
+        # @return [Arby::Relations::MRelation]
         # ----------------------------------------------------
         def cast_from_rel(val)
           return val if val.kind_of? self
@@ -142,7 +202,7 @@ module Red
           return self.new(0, []) if arity == 0
 
           rel = val.as_rel
-          raise Alloy::Ast::TypeError, "Arity mismatch" if rel.arity != arity
+          raise Arby::Ast::TypeError, "Arity mismatch" if rel.arity != arity
 
           tuple_set = rel.tuples.map do |t|
             cast_from(t)
@@ -184,7 +244,7 @@ module Red
       # `val' is array, in which case instead of +as_rel+,
       # +Array#as_rel_with_index+ is used.
       #
-      # @return [Alloy::Relations::Relation]
+      # @return [Arby::Relations::Relation]
       # -----------------------------------------------------------------
       def self.cast_from_rel(val)
         return val if val.kind_of? self
@@ -237,7 +297,7 @@ module Red
     #
     #
     #-------------------------------------------------------------------
-    class Relation < Alloy::Relations::Relation
+    class Relation < Arby::Relations::Relation
       def initialize(arity, tuples)
         super
       end
@@ -266,7 +326,7 @@ module Red
           rel = val.as_rel_with_index
         end
 
-        raise Alloy::Ast::TypeError if rel.arity != arity
+        raise Arby::Ast::TypeError if rel.arity != arity
 
         tuple_set = rel.tuples.map { |t| tuple_cls.cast_from(t) }
         self.new(arity, tuple_set)

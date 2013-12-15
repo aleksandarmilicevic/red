@@ -116,6 +116,7 @@ $(function() {
         $elem.trigger(event.meta().shortName() + "Done", [response]);
       },
       fail: function(response) {
+        setValue($elem, oldValue);
         $elem.trigger(event.meta().shortName() + "Failed", [response]);
       }
     });

@@ -1,0 +1,34 @@
+<%#=
+  It subscribes to status messages sent from the server.
+%>
+
+<script id="red_status_msg_tpl" type="text/x-red-tpl">
+  <div class="alert alert-${kind}">${msg}</div>
+</script>
+
+<div id="red_status_message"></div>
+
+<script type="text/javascript">
+Red.subscribe(function() {
+  var translKind = function(kind) {
+    if (kind == "error") return "danger";
+    if (jQuery.inArray(kind, ["info", "success", "warning"]) != -1) return kind; 
+    return null;
+  }; 
+  var template = $("#red_status_msg_tpl").html();
+  return function (data) {
+    if (data.type === "status_message") {
+      var parent = $("#red_status_message");
+      var kind = translKind(data.payload.kind);
+      if (parent != null && kind != null) {
+        var context = {kind: kind, msg: data.payload.msg};
+        var msgHtml = Red.Renderer.renderTemplate(template, context);
+        parent.append(msgHtml);
+        var chldrn = parent.children();
+        var elem = chldrn[chldrn.size()-1];                
+        $(elem).fadeIn().delay(5000).fadeOut();
+      } 
+    }
+  };
+}());
+</script>

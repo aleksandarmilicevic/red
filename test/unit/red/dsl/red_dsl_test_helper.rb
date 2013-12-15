@@ -1,6 +1,6 @@
 require 'my_test_helper.rb'
 
-require 'alloy/helpers/test/dsl_helpers'
+require 'arby/helpers/test/dsl_helpers'
 require 'red/red'
 require 'red/dsl/red_dsl.rb'
 
@@ -8,7 +8,7 @@ require 'red/dsl/red_dsl.rb'
 include Red::Dsl
 
 module RedDslTestUtils
-  include Alloy::Helpers::Test::DslHelpers
+  include Arby::Helpers::Test::DslHelpers
 
   def data_test_helper(data_cls_str)
     assert_nothing_raised do

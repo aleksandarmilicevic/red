@@ -1,4 +1,5 @@
-require 'alloy/helpers/test/dsl_helpers'
+require 'my_test_helper'
+require 'arby/helpers/test/dsl_helpers'
 require 'red/dsl/red_dsl'
 require 'red_setup'
 require 'sdg_utils/testing/smart_setup'
@@ -28,7 +29,7 @@ end
 end
 
 class RedDslFldTest < Test::Unit::TestCase
-  include Alloy::Helpers::Test::DslHelpers
+  include Arby::Helpers::Test::DslHelpers
   include SDGUtils::Testing::SmartSetup
   include R_D_RDFT
 

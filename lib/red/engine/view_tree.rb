@@ -349,6 +349,7 @@ module Red
         deps = ViewDependencies.new
       end
 
+      # Commented out; relies on the Record class to reload all atoms after save
       def reload_all
         deps.objs.each do |obj, fld|
           obj.reload

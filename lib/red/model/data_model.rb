@@ -1,7 +1,8 @@
 require 'active_record'
-require 'alloy/alloy_ast'
-require 'alloy/dsl/sig_builder'
-require 'alloy/utils/codegen_repo'
+require 'arby/arby_ast'
+require 'arby/dsl/sig_builder'
+require 'arby/utils/codegen_repo'
+require 'red/model/red_model_errors'
 require 'sdg_utils/proxy'
 require 'sdg_utils/delegator'
 
@@ -9,7 +10,7 @@ module Red
   module Model
 
     def self.create_record(name, super_cls=Red::Model::Record)
-      sb = Alloy::Dsl::SigBuilder.new({
+      sb = Arby::Dsl::SigBuilder.new({
              :superclass => super_cls,
              :return     => :array
       }).sig(name).first
@@ -56,7 +57,7 @@ module Red
           :kind => :record_obj_callbacks,
           :callback => ar_cb_sym
         }
-        Alloy::Utils::CodegenRepo.eval_code self, <<-RUBY, __FILE__, __LINE__+1, desc
+        Arby::Utils::CodegenRepo.eval_code self, <<-RUBY, __FILE__, __LINE__+1, desc
 def #{sym}(callback=nil, &block)
   cb = callback || block
   fail 'no callback given' unless cb
@@ -82,11 +83,11 @@ RUBY
     # ============================================================
     # == Module +RecordDslApi+
     #
-    # Includes Alloy::Dsl::SigDslApi and overrides some private
+    # Includes Arby::Dsl::SigDslApi and overrides some private
     # methods to customize processing of fields.
     # ============================================================
     module RecordDslApi
-      include Alloy::Dsl::SigDslApi
+      include Arby::Dsl::SigDslApi
 
       # ~~~~~~~~~~~~~~~~~~~~~ callbacks for ClassBuilder ~~~~~~~~~~~~~~~~~~~~~ #
       protected
@@ -125,7 +126,7 @@ RUBY
     # Static (class) methods for the Record class
     #============================================================
     module RecordStatic
-      include Alloy::Ast::ASig::Static
+      include Arby::Ast::ASig::Static
 
       def allocate
         obj = super
@@ -146,6 +147,16 @@ RUBY
       def some?(*args, &block) all.some?(*args, &block) end
       def none?(*args, &block) all.none?(*args, &block) end
       def one?(*args, &block) all.one?(*args, &block) end
+
+      def *(*args)
+        if args.empty?
+          cls = self
+          RuleBuilder.new(:field_proc => proc{|fld| fld.parent == cls} )
+        else
+          super
+        end
+      end
+
 
       # def scoped
       #   obj = super
@@ -180,10 +191,13 @@ RUBY
     # Base class for all persistent model object in Red.
     #-------------------------------------------------------------------
     class Record < ActiveRecord::Base
-      include Alloy::Ast::ASig
+      include Arby::Ast::ASig
       extend Red::Model::ObjCallbacks
       extend Red::Model::RecordDslApi
       extend Red::Model::RecordStatic
+
+      #TODO: investigate this more (as well as if interning instances would work)
+      # after_save       :reload_instances
 
       gen_obj_callback :after_save
       gen_obj_callback :after_destroy
@@ -201,11 +215,68 @@ RUBY
       after_update      boss_proxy
       after_query       boss_proxy
 
+      def deep_reload
+        self.reload
+        self.meta().fields(false).map{ |f|
+          self.read_field(f)
+        }.select{ |v|
+          Record === v
+        }.map(&:deep_reload)
+      end
+
       def to_s
         "#{self.class.name}(#{id})"
       end
 
+      def to_a() [self] end
+
       protected
+
+      def reload_instances
+        meta().atoms().select(&:persisted?).each do |a|
+          begin
+            a.reload
+          rescue
+            meta().unregister_atom(a)
+          end
+        end
+      end
+
+      # def _fld_pre_read(fld)
+      #   Red.boss.may_read_fld?(self, fld)
+      # end
+
+      def intercept_read(fld)
+        value = if Red.conf.policy.return_empty_for_read_violations
+                  begin
+                    super
+                  rescue AccessDeniedError => e
+                    nil
+                  end
+                else
+                  super
+                end
+        value = fld.default if value.nil?
+        value = RelationWrapper.wrap(self, fld, value)
+        Red.boss.apply_filters(self, fld, value)
+      end
+
+      # def intercept_write(fld, value)
+      #   _fld_pre_write(fld, value)
+      #   value = unwrap(value)
+      #   yield
+      #   _fld_post_write(fld, value)
+      # end
+
+      def _fld_pre_read(fld)
+        super
+        Red.boss.check_fld_read(self, fld)
+      end
+
+      def _fld_pre_write(fld, value)
+        super
+        Red.boss.check_fld_write(self, fld, value)
+      end
 
       def with_transient_values
         hash = save_transient_values

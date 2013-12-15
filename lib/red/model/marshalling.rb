@@ -38,7 +38,7 @@ module Red
 
       # TODO how do we serialize higher-arity types?
       #
-      # Takes an object and an Alloy type (`AType') and tries to
+      # Takes an object and an Arby type (`AType') and tries to
       # unmarshal the object to match that type.
       #
       # For non-scalar types the object is unmarshalled to an `Array'.
@@ -63,7 +63,7 @@ module Red
         end
       end
 
-      # Takes an object and an Alloy type and tries to unmarshal the
+      # Takes an object and an Arby type and tries to unmarshal the
       # object either to a primitive value or a record.
       #
       # If `utype' is primitive, it attempts to convert `obj' to that
@@ -95,7 +95,7 @@ module Red
         end
       end
 
-      # Takes an object and two Alloy types (for lhs and rhs) and
+      # Takes an object and two Arby types (for lhs and rhs) and
       # tries to unmarshal the object to a Hash mapping elements of
       # `lhs_type' to elements of `rhs_type'.
       #
@@ -126,7 +126,7 @@ module Red
         end
       end
 
-      # Takes an object and an Alloy type and tries to unmarshal the
+      # Takes an object and an Arby type and tries to unmarshal the
       # object to an array of elements of `elem_utype' type.
       #
       # If `utype' is primitive, it attempts to convert `obj' to that
