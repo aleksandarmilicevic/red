@@ -4,4 +4,6 @@ class RedGuiBuilderController < RedAppController
     red_render :template => "red/gui_builder/index"
   end
 
+  
+
 end

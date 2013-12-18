@@ -7,10 +7,12 @@
   <% curr_app_name = Rails.root.to_s.split('/').last %>
 
   <title><%= curr_app_name %></title>
+
   <%= stylesheet_link_tag    "application", :media => "all" %>
   <%= stylesheet_link_tag    "redapp", :media => "all" %>
   <%= javascript_include_tag Red.conf.pusher.push_client_js %>
   <%= javascript_include_tag "redapp" %>
+  <script src="http://code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
   <%= red_tags %>
 
   <%= javascript_include_tag "application" %>

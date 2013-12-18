@@ -1,3 +1,38 @@
+
+<div class="main_body">
+  <!-- Left Div containers the objects menu -->
+   <div class="left_div">
+      <%Red.meta.records.select{|m| !m.abstract?}.each do |m| %>
+        <div class="obj_main">
+            <div class="box_element">
+              <span class=" obj obj_class"><%=m.name%></span>
+
+              <div id=<%=m.name%>data class="data">
+                <%m.meta.send("fields", false).each do |f|%><%=f.name%>,<%end%>
+              </div>
+
+             </div> 
+
+             <div>
+                <% m.meta.send("fields", false).each do |f| %>
+                <div class="box_element_param">
+                  <span class="obj obj_param"><%= f.name %></span> 
+                </div>
+              <% end %>
+            </div>
+            
+        </div>
+       <%end%>
+     </div>
+     
+   
+
+ <!-- Right Div is the structure that the user is trying to build -->
+   <div class = "right_div">
+   </div>
+</div>
+
+
 <div class="gui_builder container">
 
 <div class="col-md-2">
