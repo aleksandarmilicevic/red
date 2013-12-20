@@ -6,11 +6,6 @@
         <div class="obj_main">
             <div class="box_element">
               <span class=" obj obj_class"><%=m.name%></span>
-
-              <div id=<%=m.name%>data class="data">
-                <%m.meta.send("fields", false).each do |f|%><%=f.name%>,<%end%>
-              </div>
-
              </div> 
 
              <div>
@@ -28,7 +23,7 @@
    
 
  <!-- Right Div is the structure that the user is trying to build -->
-   <div class = "right_div">
+   <div id="right_div" class = "right_div">
    </div>
 </div>
 

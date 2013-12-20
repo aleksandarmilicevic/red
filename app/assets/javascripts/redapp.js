@@ -29,6 +29,11 @@ $(document).ready(function() {
         opacity: 0.75,
         placeholder: "ui-state-highlight"
     });
+    
+    $( ".right_div .yield_area" ).sortable({
+        opacity: 0.75,
+        placeholder: "ui-state-highlight"
+    });
 
 
     //  $( ".box_element_param" ).draggable({
@@ -43,61 +48,102 @@ $(document).ready(function() {
     //     }
     // });
 
-     
-    var idGen = 0;
+  var idGen = 0;
 
 	$(".obj_class").click(function() {
 
         //Extract Information on Which Model is being produced
-		var id = $(this).html();
-		var obj_params = $("#"+id+"data").html();
-        var obj_params_list = obj_params.split(",");
+		   var id = $(this).html();
+       createNewObject(id, "right_div")
+		 
+	});
 
-        //Create Unique Identifier for the new Element
-		var localId = id+idGen
-		idGen++;
+ 
+  function createNewObject( record_reference, yield_div_id){
+    console.log(record_reference);
 
-        // Make Links for the additional Model Objects
-        var obj_param_links ="";
-        for (var i=0;i<obj_params_list.length-1;i++){
-            str = obj_params_list[i].replace(/\s/g, '');
-            str = "Add "+id+"'s "+str;
-            obj_param_links = obj_param_links +("<li><a id='param"+id+str+"' href='#''>"+str+"</a></li>");
-            console.log(obj_params_list[i]);
-        }
+    //new object identifiers 
+    var localId = record_reference+idGen
+    idGen++;
+    
+    //data from record
+    var record = eval("Red.Meta.records."+record_reference);
+    var obj_params = record.meta.fields;
+    
 
-        // $("#param"+id+str+).click(function() {
-        //          console.log("clicked");
-        // });
+     // Make Links for the additional Model Objects
+    var obj_param_links ="";
+    for (var i=0;i<obj_params.length;i++){
+            str = obj_params[i].name;
+            var newid = str;
+            str = "Add "+record_reference+"'s "+str;
+            obj_param_links = obj_param_links +("<li><a class='newObjParams' id='"+localId+newid+"' href='#''>"+str+"</a></li>");
+           
+    }
+      
 
 
         //Create the new Element and Append it to the View
-		 var newElem ="<div id='"+localId+"' class='new_item'>"
+     var newElem ="<div id='"+localId+"' class='new_item'>"
                              +"<div class='name&Btn'>"
                                   +"<span class='btn-group left'>"
-                                       +"<span class='className dropdown-toggle' data-toggle='dropdown'>"+id+"<span class='caret'></span></span>"
+                                       +"<span class='className dropdown-toggle' data-toggle='dropdown'>"+record_reference+"<span class='caret'></span></span>"
                                          +"<ul class='dropdown-menu' role='menu'>"
                                           +obj_param_links 
                                           +"</ul>"
                                    +"</span>"
                                   +"<span id ='delete"+localId+"' class='deleteBtn'>Delete</span>"
                             +"</div>"
-                             +"<div class='yield_area'>"
+                             +"<div id='"+localId+"yield' class='yield_area'>"
                              +"</div></div>"
-		 $(".right_div").append(newElem);
+     $("#"+yield_div_id).append(newElem);
 
-         //Create A means to delete it.
-		 $("#delete"+localId).click(function() {
-	                var el = document.getElementById( localId);
+    $("li .newObjParams").click(function() {
+              var identifier = $(this).html();
+              identifier = identifier.split(" ");
+              var identifier = identifier[identifier.length-1];
+              var newRecord = "Red.Meta.records."+record_reference;
+              createNewParam(record_reference, newRecord, identifier, localId+"yield" );
+                    
+     });
+
+     //Create A means to delete it.
+     $("#delete"+localId).click(function() {
+                  var el = document.getElementById( localId);
                     el.parentNode.removeChild( el );
                     
-	      });
-		 
-	});
+     });
+  }
 
-	 
 
-     
+
+
+  function createNewParam(original_record_name, new_record, name, yield_div_id){
+            console.log(original_record_name + " " + new_record + " " + name + " " + yield_div_id)
+            var record = eval(new_record+".meta.fields");
+        
+            for (i=0; i<record.length; i++){
+              if (record[i].name === name){
+                        if(record[i].isPrimitive()){
+                          var newElement = "<div class='param_view'>"+original_record_name+"."+name+"<div>";
+                          $("#"+yield_div_id).append(newElement);
+                        }
+                        else{
+                            console.log(record[i].type.name);
+                            createNewObject(record[i].type.name , yield_div_id);
+                        }
+                        
+              }
+               
+            }
+
+  }
+
+
+
+
+
+
 
 
 });

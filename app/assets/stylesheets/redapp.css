@@ -17,7 +17,15 @@
 
 .yield_area{
 	height : 80%;
+	margin-top: 20%;
+	overflow: auto;
 	margin-top: 20px;
+	padding-top: 20px;
+
+}
+
+.yield_area .new_item{
+	margin-top: 0px;
 }
 
 .right_div .box_element_param {
@@ -45,18 +53,18 @@
 }
 
 .param_view{
-	display: none;
+	/*display: none;*/
 	width: 35%; 
-	border: 1px solid #007cd6;
+	background-color: #bce8f1;
 	margin-top: 20px;
-	margin-bottom: 20px;
 	margin-left: 20px;
-	height: 80px;
+	height: 30px;
 	border-radius: 4px;
 	resize: both;
 	overflow:auto;
 	position:relative;
 	top: -35px;
+	text-align: center;
 }
 
 .name&Btn{
@@ -103,14 +111,14 @@
 }
 
 .new_item{
-	width: 90%;
+	width: 37%;
 	border: 1px solid lightgray;
 	margin-top: 20px;
 	margin-bottom: 20px;
 	margin-left: 20px;
 	height: 80px;
 	border-radius: 4px;
-	resize: vertical;
+	resize: both;
 	overflow:auto;
 }
 .main_body{
