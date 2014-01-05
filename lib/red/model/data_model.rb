@@ -106,7 +106,13 @@ RUBY
         attr_accessible fld.getter_sym if fld.transient?
       end
 
-      def _fld_reader_code(fld)      (fld.persistent?) ? "super" : super end
+      def _fld_reader_code(fld)      
+        if fld.persistent? 
+          "super" #"self.association(#{fld.getter_sym.inspect}).reader"
+        else
+          super 
+        end
+      end
       def _fld_writer_code(fld, val) (fld.persistent?) ? "super" : super end
 
       def after_query_listeners

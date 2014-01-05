@@ -46,6 +46,7 @@ module Red
       c.inv_field_namer   = lambda { |fld| "_" + fld.name }
       c.defer_body_eval   = false
       c.wrap_field_values = false
+      c.generate_methods_for_global_fields = false
       #c.logger = SDGUtils::IO::LoggerIO.new(Rails.logger)
       # :inv_field_namer => lambda { |fld|
       #     begin
