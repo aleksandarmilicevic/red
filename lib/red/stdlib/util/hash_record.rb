@@ -46,11 +46,11 @@ module Util
 
   Red::Dsl.event_model do
     event HashPut do
-      params {{
-          hash: RedLib::Util::HashRecord,
-          key: String,
-          value: String
-        }}
+      params [
+        hash: RedLib::Util::HashRecord,
+        key: String,
+        value: String
+      ]
 
       requires {
         check_all_present
@@ -62,12 +62,12 @@ module Util
     end
 
     event AddToHashField do
-      params {{
-          target: Red::Model::Record,
-          fieldName: String,
-          key: String,
-          value: String
-        }}
+      params [
+        target: Red::Model::Record,
+        fieldName: String,
+        key: String,
+        value: String
+      ]
 
       requires {
         check_all_present

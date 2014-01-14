@@ -17,12 +17,12 @@ data_model "D1" do
   }
 
   record Trans do
-    transient {{
+    transient [
       i: Integer,
       s: String,
       f: Float,
       b: Bool
-    }}
+    ]
   end
 end
 

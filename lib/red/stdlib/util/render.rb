@@ -18,10 +18,10 @@ module Util
     event RenderTemplate do
       include Red::Model::Marshalling
 
-      params {{
-          name: String,
-          vars: Hash
-        }}
+      params [
+        name: String,
+        vars: Hash
+      ]
 
       ensures {
         opts = {
@@ -36,10 +36,10 @@ module Util
     event RenderRecord do
       include Red::Model::Marshalling
 
-      params {{
-          record: Red::Model::Record,
-          options: Hash
-        }}
+      params [
+        record: Red::Model::Record,
+        options: Hash
+      ]
 
       requires {
         check_present :options, :record

@@ -46,10 +46,10 @@ module Crud
     #
     # ----------------------------------------------------------------
     event CreateRecordAndLink < CreateRecord do
-      params {{
-          target: Red::Model::Record,
-          fieldName: String
-        }}
+      params [
+        target: Red::Model::Record,
+        fieldName: String
+      ]
 
       requires {
         super()
@@ -81,11 +81,11 @@ module Crud
     #
     # ----------------------------------------------------------------
     event LinkToRecord do
-      params {{
-          target: Red::Model::Record,
-          fieldName: String,
-          fieldValue: lambda{|ev| ev.target.meta.field(fieldName).type},
-        }}
+      params [
+        target: Red::Model::Record,
+        fieldName: String,
+        fieldValue: lambda{|ev| ev.target.meta.field(fieldName).type},
+      ]
 
       param saveTarget: Boolean, :default => true
 
@@ -124,10 +124,10 @@ module Crud
     #
     # ----------------------------------------------------------------
     event UpdateRecord do
-      params {{
-          target: Red::Model::Record,
-          params: Hash
-        }}
+      params [
+        target: Red::Model::Record,
+        params: Hash
+      ]
       param saveTarget: Boolean, :default => true
 
       requires {
@@ -151,9 +151,9 @@ module Crud
     # @param target [Record]    - target record to be deleted.
     # ----------------------------------------------------------------
     event DeleteRecord do
-      params {{
-          target: Red::Model::Record
-        }}
+      params [
+        target: Red::Model::Record
+      ]
 
       requires {
         check_all_present
@@ -170,9 +170,9 @@ module Crud
     # @param target [Array(Record)]    - target records to be deleted.
     # ----------------------------------------------------------------
     event DeleteRecords do
-      params {{
-          targets: (set Red::Model::Record)
-        }}
+      params [
+        targets: (set Red::Model::Record)
+      ]
 
       requires {
         !targets.nil?

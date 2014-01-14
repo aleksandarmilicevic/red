@@ -49,10 +49,10 @@ module IRC
         from client: Client
         to   serv: Server
 
-        params {{
+        params [
           name: String,
           xyz: Integer
-        }}
+        ]
 
         requires {
           no u: User | u.name == name
@@ -73,9 +73,9 @@ module IRC
         from client: Client
         to   serv: Server
 
-        params {{
+        params [
           roomName: String
-        }}
+        ]
 
         requires {
           (some client.user) &&
@@ -97,9 +97,9 @@ module IRC
         from client: Client
         to   serv: Server
 
-        params {{
+        params [
           room: ChatRoom
-        }}
+        ]
 
         requires {
           some client.user
@@ -117,10 +117,10 @@ module IRC
         from client: Client
         to   serv: Server
 
-        params {{
+        params [
           room: ChatRoom,
           msgText: String
-        }}
+        ]
 
         requires {
           (some client.user) &&

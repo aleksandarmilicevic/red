@@ -17,13 +17,13 @@ end
 
 data_model "Y" do
   record House do
-    persistent {{
+    persistent [
       peoples: (set X::Person)
-    }}
+    ]
 
-    transient {{
+    transient [
       selected: Bool
-    }}
+    ]
   end
 end
 end

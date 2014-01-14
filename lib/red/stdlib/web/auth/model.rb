@@ -23,9 +23,9 @@ module Auth
       remember_token: String
     } do
 
-      transient {{
-          password: String
-        }}
+      transient [
+        password: String
+      ]
 
       before_validation { |user|
         user.email = user.email.downcase if user.email
@@ -76,11 +76,11 @@ module Auth
     event Register do
       from client: AuthClient
 
-      params {{
-          name: String,
-          email: String,
-          password: String,
-        }}
+      params [
+        name: String,
+        email: String,
+        password: String,
+      ]
 
       requires {
         self.email = self.email.downcase
@@ -98,10 +98,10 @@ module Auth
     event SignIn do
       from client: AuthClient
 
-      params {{
-          email: String,
-          password: String
-        }}
+      params [
+        email: String,
+        password: String
+      ]
 
       requires {
         self.email = self.email.downcase
