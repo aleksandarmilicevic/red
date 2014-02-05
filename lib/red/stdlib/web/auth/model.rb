@@ -7,7 +7,7 @@ module Web
 module Auth
 
   def pswd_hash(str, salt)
-    Digest::SHA256.hexdigest(str + salt)
+    Digest::SHA256.hexdigest("#{str}***#{salt}")
   end
 
   #===========================================================
@@ -15,26 +15,36 @@ module Auth
   #===========================================================
 
   data_model do
-    abstract record AuthUser, {
+    abstract record AuthUser [
       name: String,
       email: String,
       password_salt: String,
       password_hash: String,
       remember_token: String
-    } do
+    ] do
 
       transient [
         password: String
       ]
 
+      after_create { |user|
+        fail if user.remember_token
+        fail if user.password_salt
+        user.remember_token = SecureRandom.urlsafe_base64
+        user.password_salt = SecureRandom.urlsafe_base64
+      }
+
+      before_save { |user|
+        if !user.password_hash
+          user.password_hash = pswd_hash(user.password, user.password_salt)
+        end
+      }
+
       before_validation { |user|
         user.email = user.email.downcase if user.email
-        user.remember_token = SecureRandom.urlsafe_base64
-        user.password_salt = SecureRandom.urlsafe_base64 unless self.password_salt        
+ 
         if user.password_hash
-          user.password = "......" # it won't matter, passwors is already set
-        else
-          user.password_hash = pswd_hash(user.password, user.password_salt) rescue nil
+          user.password = "......" # it won't matter, password is already set
         end
       }
 
@@ -46,11 +56,11 @@ module Auth
                         uniqueness: { case_sensitive: false }
 
       validates :password, presence: true, length: { minimum: 6 }
-
-      validates :password_hash, presence: true
+      # validates :password_hash, presence: true
+      # validates :password_salt, presence: true
 
       def authenticate(pswd)
-        password_hash == pswd_hash(pswd, self.password_salt)
+        self.password_hash == pswd_hash(pswd, self.password_salt)
       end
 
     end
@@ -88,10 +98,13 @@ module Auth
       }
 
       ensures {
-        client.create_user! :name => name,
-                            :email => email,
-                            :password => password
-        client.save
+        u = client.create_user
+        u.name = name
+        u.email = email
+        u.password = password
+        u.save!
+        binding.pry
+        client.save!
       }
     end
 

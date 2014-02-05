@@ -47,7 +47,7 @@ module Red
     def reset_fields
       @assoc_defined = false
       @fields_expanded = false
-      @conf = Red.default_conf()
+      @conf = nil #Red.default_conf()
     end
   end
 

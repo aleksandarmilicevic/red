@@ -180,7 +180,7 @@ module View
     end
 
     def instance_variables(obj, hash={})
-      include = hash[:include] || obj.instance_variables.map{|v| v[1..-1]}
+      include = hash[:include] || obj.instance_variables.map{|v| v.to_s[1..-1]}
       exclude = (hash[:except] || []).map{|e| e.to_s}
       (include - exclude).reduce({}) do |acc, var|
         val = obj.instance_variable_get("@" + var.to_s)
