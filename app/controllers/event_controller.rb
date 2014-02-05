@@ -120,7 +120,7 @@ class EventController < RedAppController
           log_warn "invalid parameter '#{name}' for event #{event.class.name}"
         else
           value = to_record_hash(params[name]) if fld.type.isFile?
-          val = unmarshal(value, fld.type)
+          val = unmarshal(value, fld.type.instantiate(event))
           event.set_param(name, val)
         end
       rescue Red::Model::Marshalling::MarshallingError => e

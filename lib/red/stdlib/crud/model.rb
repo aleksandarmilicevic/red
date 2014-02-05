@@ -84,7 +84,7 @@ module Crud
       params [
         target: Red::Model::Record,
         fieldName: String,
-        fieldValue: lambda{|ev| ev.target.meta.field(fieldName).type},
+        fieldValue: lambda{|ev| binding.pry; ev.target.meta.field(ev.fieldName).type},
       ]
 
       param saveTarget: Boolean, :default => true
