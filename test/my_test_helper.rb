@@ -1,7 +1,8 @@
 ENV["RAILS_ENV"] = "test"
 
-$LOAD_PATH.unshift File.expand_path('../../../sdg_utils/lib', __FILE__)
-$LOAD_PATH.unshift File.expand_path('../../../arby/lib', __FILE__)
+# $LOAD_PATH.unshift File.expand_path('../../../sdg_utils/lib', __FILE__)
+# $LOAD_PATH.unshift File.expand_path('../../../arby/lib', __FILE__)
+$LOAD_PATH.unshift File.expand_path('../../vendor/arby/lib', __FILE__)
 $LOAD_PATH.unshift File.expand_path('../..', __FILE__)
 $LOAD_PATH.unshift File.expand_path('../../lib', __FILE__)
 
