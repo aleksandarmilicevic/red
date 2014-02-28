@@ -103,7 +103,6 @@ module Auth
         u.email = email
         u.password = password
         u.save!
-        binding.pry
         client.save!
       }
     end
